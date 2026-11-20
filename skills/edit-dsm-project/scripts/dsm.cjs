@@ -11,13 +11,15 @@ const usage=[
 'node dsm.cjs restore PROJECT.json BASE REV ACTOR NOTE',
 'node dsm.cjs export PROJECT.json NEW_FILE.{md,csv,xlsx,ipynb,html,json}',
 'node dsm.cjs serve PROJECT.json [port=8787]',
-'node dsm.cjs mcp PROJECT.json'
+'node dsm.cjs mcp PROJECT.json',
+'node dsm.cjs agent PROJECT.json PROMPT [--source NOTES.txt] [--patch-out PATCH.json] [--apply]'
 ].join('\n');
 async function run([cmd,file,...args]){
   if(cmd==='--help'||cmd==='help'||!cmd){console.log(usage);return;}
   if(!file)throw Error(usage);
   if(cmd==='init'){const d=M.create({title:args[0]||'Новый проект',nodes:[],edges:[]});fs.writeFileSync(file,R.json(d),{flag:'wx'});return R.current(d);}
   const doc=R.readProject(file),h=M.head(doc);
+  if(cmd==='agent')return require('./src/agent.js').command(file,args);
   if(cmd==='show')return R.current(doc);
   if(cmd==='history')return B.invoke(file,'dsm_history');
   if(cmd==='analyze')return R.analyze(doc);

@@ -59,3 +59,19 @@ test('HTTP and agent share storage; concurrent base has one winner',async t=>{
   const saved=R.readProject(file);B.invoke(file,'dsm_apply',{...patch,base:M.head(saved).rev});
   const live=await fetch(origin+'/api/project').then(r=>r.json());assert.equal(live.history.length,3);assert.equal(M.head(live).data.nodes.find(n=>n.id==='F03').release,'R2');
 });
+test('text agent uses configured model; preview, explicit apply and questions',async t=>{
+  const {file,dir}=workspace(t),http=require('node:http');
+  let request=null,questions=[];
+  const srv=http.createServer(async(req,res)=>{const parts=[];for await(const b of req)parts.push(b);
+    request=JSON.parse(Buffer.concat(parts).toString('utf8'));res.setHeader('content-type','application/json');
+    res.end(JSON.stringify({choices:[{message:{content:JSON.stringify({summary:'Перенос F03',questions,ops:patch.ops})}}]}));});
+  srv.listen(0,'127.0.0.1');await once(srv,'listening');t.after(()=>srv.close());
+  const env={...process.env,DSM_LLM_URL:'http://127.0.0.1:'+srv.address().port+'/v1/chat/completions',DSM_LLM_MODEL:'demo-model'};
+  const run=async(...options)=>{const child=spawn(process.execPath,[path.join(root,'dsm.cjs'),'agent',file,'Разгрузи R1',...options],{env});let stdout='',stderr='';child.stdout.on('data',b=>stdout+=b);child.stderr.on('data',b=>stderr+=b);const [code]=await once(child,'close');return {code,stdout,stderr};};
+  const proposal=path.join(dir,'p.json');const first=await run('--patch-out',proposal);
+  assert.equal(first.code,0,first.stderr);assert.equal(R.readProject(file).history.length,1);
+  assert.equal(JSON.parse(fs.readFileSync(proposal)).base,h.rev);assert.equal(request.model,'demo-model');
+  assert.deepEqual(Object.keys(JSON.parse(request.messages[1].content)).sort(),['model','request','source']);
+  questions=['Уточните выпуск'];assert.notEqual((await run('--apply')).code,0);assert.equal(R.readProject(file).history.length,1);
+  questions=[];assert.equal((await run('--apply')).code,0);assert.equal(R.readProject(file).history.length,2);
+});
