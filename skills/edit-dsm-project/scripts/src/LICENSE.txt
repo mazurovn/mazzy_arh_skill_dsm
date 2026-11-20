@@ -1,0 +1,28 @@
+Mazzy Attribution License 1.0
+
+Copyright © 2026 mazzy (mazurovn)
+
+Permission is granted, free of charge, to use, study, copy, modify, combine,
+publish, distribute, sublicense and sell this software, the original
+documentation and the synthetic examples, including derivative works,
+subject to the following conditions.
+
+1. Retain this license and the copyright notice in all copies or substantial
+   portions of the licensed material.
+2. When distributing or publicly presenting a copy or derivative containing
+   a substantial portion of the licensed material, include the legible
+   credit "mazzy (mazurovn)" in the README, documentation, credits or About
+   screen accompanying the work. For a standalone interactive demonstration,
+   its footer or credits screen is sufficient.
+3. Third-party components retain their own licenses. The authorship credit
+   identifies the source of the licensed material and grants no right to
+   imply the author's endorsement.
+
+The user's independently supplied project data remains subject to its own
+terms. This license covers the software and included original examples.
+
+THE LICENSED MATERIAL IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING MERCHANTABILITY, FITNESS FOR A PARTICULAR
+PURPOSE AND NONINFRINGEMENT. TO THE EXTENT PERMITTED BY APPLICABLE LAW, THE
+COPYRIGHT HOLDER SHALL NOT BE LIABLE FOR DAMAGES ARISING FROM USE OF THE
+LICENSED MATERIAL.

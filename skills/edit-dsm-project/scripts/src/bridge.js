@@ -1,0 +1,68 @@
+const R=require('./runtime.js'),{Model:M}=R;
+const str={type:'string'},ops={type:'array',minItems:1,items:{type:'object',properties:{op:{enum:['title','node','edge','removeNode','removeEdge']},id:str,value:{}},required:['op']}};
+const shape=(properties,required=Object.keys(properties))=>({type:'object',properties,required,additionalProperties:false});
+const defs=[
+  ['dsm_read','Прочитать текущую модель, ID проекта и исходную ревизию',shape({})],
+  ['dsm_analyze','Вычислить кластеры, границы зависимостей и загрузку релизов',shape({})],
+  ['dsm_history','Прочитать журнал снимков без дублирования полных моделей',shape({})],
+  ['dsm_diff','Сравнить две ревизии',shape({from:str,to:str})],
+  ['dsm_preview','Показать изменения и загрузку релизов до записи',shape({project:str,base:str,ops})],
+  ['dsm_apply','Атомарно записать обоснованный патч к заданной ревизии',shape({project:str,base:str,ops,note:str,actor:str})],
+  ['dsm_restore','Восстановить снимок новой ревизией',shape({project:str,base:str,revision:str,note:str,actor:str})]
+];
+function invoke(file,name,args={}){
+  const doc=R.readProject(file),h=M.head(doc);
+  const revision=id=>doc.history.find(x=>x.rev===id)||M.fail('Ревизия не найдена');
+  const match=()=>{if(doc.project!==args.project||h.rev!==args.base)throw Error('Конфликт версии');};
+  switch(name){
+    case 'dsm_read':return R.current(doc);
+    case 'dsm_analyze':return R.analyze(doc);
+    case 'dsm_history':return doc.history.map(({data,...meta})=>meta);
+    case 'dsm_diff':return M.diff(revision(args.from).data,revision(args.to).data);
+    case 'dsm_preview':match();return R.preview(doc,{kind:'patch',...args});
+    case 'dsm_apply':match();return R.current(R.update(file,args.project,args.base,args.note,args.actor,p=>M.patch(M.head(p).data,args.ops)));
+    case 'dsm_restore':match();return R.current(R.update(file,args.project,args.base,args.note,args.actor,()=>revision(args.revision).data));
+    default:throw Error('Неизвестный инструмент');
+  }
+}
+function mcp(file){
+  const rl=require('node:readline').createInterface({input:process.stdin,crlfDelay:Infinity});
+  const reply=(id,obj)=>process.stdout.write(JSON.stringify({jsonrpc:'2.0',id,...obj})+'\n');
+  rl.on('line',line=>{
+    let q;try{q=JSON.parse(line);}catch{reply(null,{error:{code:-32700,message:'Parse error'}});return;}
+    if(q.jsonrpc!=='2.0'||typeof q.method!=='string'){reply(q.id??null,{error:{code:-32600,message:'Invalid Request'}});return;}
+    if(q.id===undefined)return;
+    if(q.method==='initialize'){reply(q.id,{result:{protocolVersion:'2025-06-18',capabilities:{tools:{}},serverInfo:{name:'mazzy-dsm',version:'1.0.0'}}});return;}
+    if(q.method==='ping'){reply(q.id,{result:{}});return;}
+    if(q.method==='tools/list'){reply(q.id,{result:{tools:defs.map(([name,description,inputSchema])=>({name,description,inputSchema}))}});return;}
+    if(q.method!=='tools/call'){reply(q.id,{error:{code:-32601,message:'Method not found'}});return;}
+    const name=q.params?.name,args=q.params?.arguments??{},def=defs.find(v=>v[0]===name);
+    if(!def||!args||typeof args!=='object'||def[2].required.some(k=>!(k in args))||Object.keys(args).some(k=>!(k in def[2].properties))){reply(q.id,{error:{code:-32602,message:'Invalid tool or arguments'}});return;}
+    try{reply(q.id,{result:{content:[{type:'text',text:JSON.stringify(invoke(file,name,args))}]}});}
+    catch(err){reply(q.id,{result:{isError:true,content:[{type:'text',text:err.message}]}});}
+  });
+}
+function serve(file,port){
+  const http=require('node:http');
+  const srv=http.createServer(async(req,res)=>{
+    const send=(status,data,type='application/json')=>{res.writeHead(status,{'Content-Type':type+'; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(type==='application/json'?JSON.stringify(data):data);};
+    try{
+      const host='127.0.0.1:'+srv.address().port;
+      if(req.headers.host!==host||req.headers.origin&&req.headers.origin!=='http://'+host){send(403,{error:'Несовпадение локального адреса'});return;}
+      if(req.method==='GET'){
+        const doc=R.readProject(file);
+        if(req.url==='/'){send(200,R.html(doc),'text/html');return;}
+        if(req.url==='/api/project'){send(200,doc);return;}
+        if(req.url==='/api/head'){send(200,{rev:M.head(doc).rev});return;}
+      }
+      if(req.method==='POST'&&req.url==='/api/commit'){
+        if(req.headers.origin!=='http://'+host||req.headers['content-type']?.split(';')[0]!=='application/json'){send(403,{error:'Требуется локальный редактор'});return;}
+        const parts=[];let len=0;for await(const part of req){len+=part.length;if(len>16*1024*1024){send(413,{error:'Модель больше 16 МиБ'});return;}parts.push(part);}
+        const b=JSON.parse(Buffer.concat(parts).toString('utf8'));send(200,R.update(file,b.project,b.base,b.note,b.actor,()=>b.data));return;
+      }
+      send(404,{error:'Нет такого маршрута'});
+    }catch(err){send(/Конфликт|занят/.test(err.message)?409:400,{error:err.message});}
+  });
+  srv.listen(port,'127.0.0.1',()=>console.log('http://127.0.0.1:'+srv.address().port));
+}
+module.exports={mcp,serve,invoke,defs};

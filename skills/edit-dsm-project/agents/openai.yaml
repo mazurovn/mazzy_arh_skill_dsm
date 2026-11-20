@@ -1,0 +1,4 @@
+interface:
+  display_name: "Мастерская DSM"
+  short_description: "Матричный анализ и версии архитектурного проекта"
+  default_prompt: "Используй $edit-dsm-project, чтобы сравнить зависимости двух релизов."
