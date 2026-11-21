@@ -5,6 +5,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import zipfile
 from contextlib import contextmanager
 from urllib.request import Request, urlopen
@@ -153,12 +154,18 @@ def notebook_flow(page,folder):
     page.keyboard.press("Control+Enter")
     expect(custom.locator(".jp-OutputArea")).to_contain_text("CUSTOM-CELL",timeout=45000)
     page.keyboard.press("Control+s")
-    page.wait_for_function("""async () => {
-      const post = route => fetch('/api/notebooks/'+route, {method:'POST',headers:{'Content-Type':'application/json'}}).then(r=>r.json());
-      const active = (await post('list')).find(item=>item.active);
-      if (!active) return false;
-      return (await post('download/'+active.id)).cells.some(c=>(c.outputs||[]).some(o=>String(o.text).includes('CUSTOM-CELL')));
-    }""", timeout=15000)
+    origin = page.url.rstrip("/")
+    session = next(item for item in saved_book(origin,"list") if item["active"])
+    # Jupyter acknowledges Ctrl+S before the server finishes writing the notebook.
+    deadline = time.monotonic()+20
+    while time.monotonic() < deadline:
+        persisted = saved_book(origin,"download/"+session["id"])
+        outputs = (out for c in persisted["cells"] for out in c.get("outputs",[]))
+        if any("CUSTOM-CELL" in "".join(out.get("text","")) for out in outputs):
+            break
+        time.sleep(.1)
+    else:
+        raise AssertionError("Jupyter did not persist CUSTOM-CELL after Ctrl+S")
     live=download(page,page.get_by_role("button",name="Скачать сохранённый блокнот"),folder/"live.ipynb")
     native=nbformat.read(live,as_version=4)
     assert any("CUSTOM-CELL" in o.get("text","") for c in native.cells for o in c.get("outputs",[]))
