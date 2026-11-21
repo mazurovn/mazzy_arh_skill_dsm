@@ -10,10 +10,13 @@ const usage=[
 'node dsm.cjs diff PROJECT.json FROM TO',
 'node dsm.cjs restore PROJECT.json BASE REV ACTOR NOTE',
 'node dsm.cjs export PROJECT.json NEW_FILE.{md,csv,xlsx,ipynb,html,json,sysl}',
-'node dsm.cjs notebook PROJECT.json NEW.ipynb [full|requirements|placement|readiness|installation] [INSTALLATION_ID]',
+'node dsm.cjs notebook PROJECT.json NEW.ipynb [full|requirements|placement|readiness|installation|fleet] [INSTALLATION_ID]',
 'node dsm.cjs notebook-info FILE.ipynb',
 'node dsm.cjs report PROJECT.json [REPORT_KEY]',
 'node dsm.cjs installation PROJECT.json INSTALLATION_ID',
+'node dsm.cjs fleet PROJECT.json PROCUREMENT_ID',
+'node dsm.cjs source-preview PROJECT.json CATEGORY FILE PROCUREMENT_ID',
+'node dsm.cjs source-import PROJECT.json CATEGORY FILE PROCUREMENT_ID BASE ACTOR NOTE',
 'node dsm.cjs journey PROJECT.json REQUIREMENT_ID [--markdown]',
 'node dsm.cjs spec-check PROJECT.json PROPOSAL_ID',
 'node dsm.cjs spec-export PROJECT.json PROPOSAL_ID NEW.zip',
@@ -32,6 +35,14 @@ async function run([cmd,file,...args]){
     return {format:book.nbformat,kernel:book.metadata.kernelspec,base:book.metadata.dsm?.base,cells:files.overview(book).map(c=>({index:c.i+1,type:c.type,title:c.title,outputs:c.outputs.length}))};
   }
   const doc=R.readProject(file),h=M.head(doc);
+  if(cmd==='source-preview'||cmd==='source-import'){
+    const [category,source,root,base,actor,note]=args;
+    const next=await require('./src/fleet-source.js').ingest(doc,category,path.basename(source),fs.readFileSync(source),root);
+    if(cmd==='source-preview')return {project:doc.project,base:h.rev,changes:M.diff(h.data,next)};
+    if(base!==h.rev)throw Error('Другая база документа');
+    return R.current(R.update(file,doc.project,base,note,actor,()=>next));
+  }
+  if(cmd==='fleet')return require('./src/fleet.js').analyze(h.data,args[0]);
   if(cmd==='installation')return require('./src/installations.js').calculate(h.data,args[0]);
   if(cmd==='journey'){const delivery=require('./src/delivery.js'),chain=delivery.chain(h.data,args[0]);if(args[1]==='--markdown'){process.stdout.write(delivery.trace(chain));return;}return chain;}
   if(cmd==='report'){const reports=require('./src/reports.js');return args[0]?reports.run(h.data,args[0]):reports.definitions;}

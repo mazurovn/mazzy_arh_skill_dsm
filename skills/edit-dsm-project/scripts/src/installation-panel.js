@@ -19,7 +19,7 @@ function installationPanel({model,esc,b,field,sel,option,table,modal,push,render
     if(!inst)return body+'<p>Создайте инсталляцию или загрузите каталог, нагрузки и связи размещения из Excel.</p>'+b('tab','Импорт из Excel','data-id="io"')+'</section>'+cover();
     body+='<div class="tools"><label>Инсталляция <select id="sizingInstall">'+plans.map(n=>option(n.id,n.name+' · '+n.id,inst.id)).join('')+'</select></label>'+card(inst.id)+'</div>';
     let p;
-    try{p=Installations.calculate(m,inst.id);}catch(e){return body+'<p class="callout">'+esc(e.message)+'</p></section>'+cover();}
+    try{p=Installations.calculate(m,inst.id);}catch(e){return body+'<p class="callout">'+esc(e.message)+'</p>'+m.nodes.filter(n=>n.kind==='procurement'&&Fleet.ids(n,'uses').includes(inst.id)).map(n=>b('fleetOpen','Сравнить парк ЦОД','data-id="'+esc(n.id)+'"')).join('')+'</section>'+cover();}
     const fmt=n=>n.toLocaleString('ru-RU');
     body+='<div class="sizing-metrics">'+[[p.bins.length,'Рабочих узлов'],[p.spare,'В резерве'],[p.required,'Всего узлов'],[p.existing,'Уже доступно'],[p.purchase,'К закупке'],[p.budget===null?'—':fmt(p.budget),'Стоимость, ₽']].map(([v,l])=>'<div><strong>'+v+'</strong><span>'+l+'</span></div>').join('')+'</div>'+
       '<p>Площадка '+card(p.cluster)+' · профиль узла '+card(p.host)+' · '+p.limits.join(' / ')+' (ядра / ГиБ RAM / ГиБ диска)</p>'+

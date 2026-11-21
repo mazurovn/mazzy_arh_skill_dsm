@@ -50,6 +50,7 @@ const ExcelIO=((F,A,M,Zip,Sax)=>{
           if(t==='row'&&r.some(x=>x!==''&&x!==undefined))rows.push(Array.from(r,v=>v??''));tag='';}});
       tables[name]=rows;
     }
+    if(options.rawRows)return Object.values(tables);
     if(full)return F.readTables(tables);
     const nodes=[],edges=[],attributes=[],relations=[],placeholders=new Map();for(const [name,rows] of Object.entries(tables)){
       if(!rows.length)continue;

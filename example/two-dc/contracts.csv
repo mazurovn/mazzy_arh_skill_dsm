@@ -1,0 +1,6 @@
+﻿from,to,layer,weight,reason
+API-N,DB-N,flow,2,Запись заказа на Севере
+API-S,DB-S,flow,2,Запись заказа на Юге
+DB-N,DB-S,flow,1,Репликация журнала
+API-N,DB-N,risk,3,Совместимая версия схемы Севера
+API-S,DB-S,risk,3,Совместимая версия схемы Юга

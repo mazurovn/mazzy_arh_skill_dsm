@@ -3,7 +3,7 @@ const Notebook=((M,A,F,Files,Profiles)=>{
   const md=(id,source)=>({id,cell_type:'markdown',metadata:{},source});
   const pre='null = None\ntrue = True\nfalse = False\nmodel = ';
   function write(doc,profile='full',installation,context){
-    if(profile!=='full'&&profile!=='installation'&&!Object.hasOwn(Profiles,profile))throw Error('Неизвестный профиль блокнота');
+    if(profile!=='full'&&profile!=='installation'&&profile!=='fleet'&&!Object.hasOwn(Profiles,profile))throw Error('Неизвестный профиль блокнота');
     const h=M.head(doc),meta=F.meta(doc);
     const initial=profile==='full'?Object.fromEntries(['flow','risk'].map(l=>[l,A.calculate(h.data,l)])):{};
     const cells=[
@@ -30,7 +30,10 @@ const Notebook=((M,A,F,Files,Profiles)=>{
       code('release','rows=[]\nfor r in model["nodes"]:\n    if r["kind"] != "release": continue\n    assigned = [n for n in model["nodes"] if n.get("release")==r["id"]]\n    members={n["id"] for n in assigned}\n    known=sum(n["effort"] for n in assigned if n.get("effort") is not None)\n    unknown=sum(n.get("effort") is None for n in assigned)\n    outside=sum(e["layer"]=="flow" and e["from"] in members and e["to"] not in members for e in model["edges"])\n    rows.append([r["id"],len(assigned),known,unknown,r.get("capacity"),outside])\ntable(["Релиз","Работы","Оценено","Без оценки","Ёмкость","Внешние вызовы"],rows)'),
       md('handoff','## Возврат в редактор\nСохраните блокнот и выберите его в разделе «Обмен». Просмотрите разницу и сохраните новую версию. Если после экспорта агент уже изменил проект, откройте актуальный JSON и перенесите нужные изменения через патч.')
     ];
-    if(profile==='installation'){
+    if(profile==='fleet'){
+      const lab=typeof FleetNotebook!=='undefined'?FleetNotebook:require('./fleet-notebook.js');
+      cells.splice(2,cells.length-2,...lab.cells(doc,installation,code,md,context));meta.profile=profile;
+    }else if(profile==='installation'){
       const report=typeof InstallationNotebook!=='undefined'?InstallationNotebook:require('./installation-notebook.js');
       cells.splice(2,cells.length-2,...report.write(doc,installation,code,md,context));meta.profile=profile;
     }else if(profile!=='full'){
@@ -38,7 +41,7 @@ const Notebook=((M,A,F,Files,Profiles)=>{
       cells.splice(2,cells.length-3,md('report-title','## '+spec.name+'\n'+spec.caption),code('report',spec.python));
       meta.profile=profile;
     }
-    if(profile!=='installation')cells.push(md('result-help','## Передать результат вычислений в DSM\nВыполните эту ячейку после своих изменений model и сохраните блокнот. В редакторе выберите «Проверить результат Python».'),
+    if(profile!=='installation'&&profile!=='fleet')cells.push(md('result-help','## Передать результат вычислений в DSM\nВыполните эту ячейку после своих изменений model и сохраните блокнот. В редакторе выберите «Проверить результат Python».'),
       code('result',"from IPython.display import display\n"+'display({"application/vnd.mazzy.dsm+json": {"project": '+JSON.stringify(doc.project)+', "base": '+JSON.stringify(h.rev)+', "data": model}, "text/plain": "Модель подготовлена для DSM"}, raw=True)',['dsm-result']));
     return {nbformat:4,nbformat_minor:5,metadata:{kernelspec:{display_name:'Python 3',language:'python',name:'python3'},language_info:{name:'python'},dsm:meta},cells};
   }
@@ -54,6 +57,13 @@ const Notebook=((M,A,F,Files,Profiles)=>{
   function result(book){
     Files.validate(book);
     const cells=book.cells.filter(c=>c.cell_type==='code'&&c.metadata.tags?.includes('dsm-result'));
+    if(book.metadata?.dsm?.profile==='fleet'){
+      const outputs=cells.flatMap(c=>c.outputs.map(o=>o.data?.['application/vnd.mazzy.fleet+json']).filter(Boolean));
+      if(cells.length!==1||outputs.length!==1)throw Error('Выполните расчёт парка и сохраните блокнот');
+      const v=outputs[0],meta=book.metadata.dsm;
+      if(v.base!==meta.base||v.project!==meta.project)throw Error('Другая база результата');
+      return {...v,kind:'fleet-result'};
+    }
     if(book.metadata?.dsm?.profile==='installation'){
       const meta=book.metadata.dsm;
       const outputs=cells.flatMap(c=>c.outputs.map(o=>o.data?.['application/vnd.mazzy.installation+json']).filter(Boolean));
@@ -83,6 +93,12 @@ const Notebook=((M,A,F,Files,Profiles)=>{
     book.cells.find(c=>c.id==='measured').source=Object.entries(literals).map(([key,v])=>key+' = '+JSON.stringify(v,null,2)).join('\n');
     return book;
   }
-  return {write,read,result,replayInstallation};
+  function replayFleet(doc,id){
+    const i=doc.history.findIndex(h=>h.data.nodes.some(n=>n.id===id&&n.attrs?.fleetRole==='simulation'));
+    if(i<0)throw Error('Проверка отсутствует в истории');
+    const snap={...doc,history:doc.history.slice(0,i+1)},n=M.head(snap).data.nodes.find(n=>n.id===id);
+    return write(snap,'fleet',n.parent,{option:n.attrs.option,budget:n.attrs.budget,inventory:n.attrs.inventoryFile?{filename:n.attrs.inventoryFile,sha256:n.attrs.inventoryHash,content64:n.attrs.content64}:null,order:n.attrs.option==='manual'?Object.assign({},...JSON.parse(n.attrs.order)):null});
+  }
+  return {write,read,result,replayInstallation,replayFleet};
 })(typeof DSM!=='undefined'?DSM:require('./model.js'),typeof Analysis!=='undefined'?Analysis:require('./analysis.js'),typeof Formats!=='undefined'?Formats:require('./formats.js'),typeof NotebookFiles!=='undefined'?NotebookFiles:require('./notebook-files.js'),typeof NotebookProfiles!=='undefined'?NotebookProfiles:require('./notebook-profiles.js'));
 if(typeof module!=='undefined')module.exports=Notebook;

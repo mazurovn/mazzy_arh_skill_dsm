@@ -46,3 +46,21 @@ label.btn:has(.file-picker:focus-visible){outline:2px solid var(--teal);outline-
 .sizing-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:12px;margin:18px 0}.sizing-metrics div{border-left:3px solid #96c9ba;padding-left:10px}.sizing-metrics strong,.sizing-metrics span{display:block}.sizing-metrics strong{font-size:1.45rem}.sizing-bars{display:grid;gap:.5rem;margin-top:1rem}.sizing-bars label{display:grid;grid-template-columns:90px minmax(50px,220px) auto;align-items:center;gap:.5rem}.sizing-bars meter{width:100%;accent-color:#16735c}.arch-matrix td button{margin:1px}.arch-matrix th{white-space:nowrap}
 
 .book-chart{display:block;max-width:100%;height:auto;margin:.75rem 0}
+
+.fleet-steps{display:flex;flex-wrap:wrap;gap:.45rem;margin-top:1rem}
+.fleet-steps [aria-pressed=true]{background:var(--ink,#183b39);color:white}
+#fleetReport code{overflow-wrap:anywhere}
+@media print{
+  body.fleet-print .top,body.fleet-print .project,body.fleet-print footer,body.fleet-print .menu-panel,body.fleet-print #workMode,body.fleet-print #demoGuide,body.fleet-print #content .stack>section{display:none!important}
+  body.fleet-print main,body.fleet-print .studio-layout,body.fleet-print .workspace-main,body.fleet-print .stack,body.fleet-print #fleetReport,body.fleet-print .wrap{display:block!important;width:auto!important;max-width:none!important;overflow:visible!important;border:0;box-shadow:none;padding:0;margin:0}
+  #fleetReport table{width:100%;font-size:9pt}#fleetReport tr{break-inside:avoid}#fleetReport h3{break-after:avoid}#fleetReport button{border:0;padding:0}#fleetReport code{font-size:8pt}
+}
+@media print{
+  body.fleet-print #toast,body.fleet-print dialog{display:none!important}
+  body.fleet-print #fleetReport td,body.fleet-print #fleetReport th{padding:3pt 4pt}
+  body.fleet-print #fleetReport button{line-height:1.15;min-height:0}
+}
+.fleet-tree{display:flex;align-items:stretch;flex-wrap:wrap;gap:.6rem;list-style:none;padding:0;margin:1rem 0}
+.fleet-tree li{flex:1 1 9rem;border-left:3px solid #287261;padding:.5rem .7rem;background:#f2f7f4}
+.fleet-tree li[data-reached=false]{background:#f6f6f5;border-color:#aeb8b3}.fleet-tree span{display:block;margin-top:.3rem;font-size:.85rem}
+@media print{#fleetReport .fleet-tree{display:none}#fleetReport .fleet-report-policy{break-before:page}}

@@ -119,7 +119,7 @@ function installJupyter(workspace){
   const dir=path.join(workspace,'.dsm-python');
   const windows=process.platform==='win32';
   const python=path.join(dir,windows?'Scripts/python.exe':'bin/python');
-  const packages=['notebook>=7.5,<7.6','jupyterlab>=4.5,<4.6','ipykernel>=6,<8'];
+  const packages=['notebook>=7.5,<7.6','jupyterlab>=4.5,<4.6','ipykernel>=6,<8','openpyxl>=3.1,<4'];
   const useUv=spawnSync('uv',['--version'],{stdio:'ignore'}).status===0;
   function run(cmd,args){
     const result=spawnSync(cmd,args,{stdio:'inherit'});

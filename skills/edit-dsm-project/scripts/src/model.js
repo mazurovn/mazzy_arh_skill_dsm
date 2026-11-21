@@ -39,6 +39,7 @@ const DSM = (() => {
     if(v.attrs!==undefined){
       if(!v.attrs||typeof v.attrs!=='object'||Array.isArray(v.attrs)||Object.entries(v.attrs).some(([k,x])=>!k.trim()||!['string','number','boolean'].includes(typeof x)||typeof x==='number'&&!Number.isFinite(x)))fail('Атрибуты должны быть словарём текстовых, логических или числовых значений');
       if(!Object.keys(v.attrs).length)delete v.attrs;
+      else v.attrs=Object.fromEntries(Object.keys(v.attrs).sort().map(k=>[k,v.attrs[k]]));
     }
     if(v.relations!==undefined){
       if(!Array.isArray(v.relations)||!v.relations.every(r=>Array.isArray(r)&&r.length===2&&relationKinds.includes(r[0])&&idOK(r[1]))||new Set(v.relations.map(r=>JSON.stringify(r))).size!==v.relations.length)fail('Нужны уникальные пары тип связи и ID');

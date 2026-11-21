@@ -23,3 +23,9 @@ description: Вести версионный проект Design Structure Matri
 Для работы с блокнотами, запросами и аналитикой используйте команды из [контракта обмена](references/protocol.md). Для живых вычислений получите сохранённый ipynb и явно выберите источник возврата. Для пакета OpenSpec сверьте проект и базу, покажите изменения и причину до записи.
 
 Для работы от требования до внедрения прочитайте маршрут через `journey PROJECT.json REQUIREMENT_ID` или MCP `dsm_analyze` с полем `requirement`. Запрос, предложение, ADR, работы, подтверждения и отклонения имеют собственные ID в общем каталоге.
+
+## Смешанный парк ЦОД
+
+Для закупки нескольких серверных профилей используйте `fleet PROJECT PROCUREMENT_ID` или MCP-инструмент `dsm_analyze` с полем `procurement`. Сопоставьте штатный дефицит, цену и результат потери каждого отдельного узла. Для загрузки оригиналов используйте `source-preview PROJECT CATEGORY FILE PROCUREMENT_ID`, затем `source-import PROJECT CATEGORY FILE PROCUREMENT_ID BASE ACTOR NOTE`. Категории — catalog, requirements, specifications и contracts. Версионный обмен целыми проектами остаётся в import-preview / import.
+
+Команда `notebook PROJECT NEW.ipynb fleet PROCUREMENT_ID` генерирует исполняемый расчёт со снимком, источниками и параметрами. Сохранённый результат верните через `import-preview PROJECT FILE.ipynb result`, затем обычную команду import с той же базой и режимом result. Для состояний закупки используйте действия record, save, approve, implement и cluster в параметре lifecycle. Параметр inventory_file указывает отдельную ведомость фактических измерений.

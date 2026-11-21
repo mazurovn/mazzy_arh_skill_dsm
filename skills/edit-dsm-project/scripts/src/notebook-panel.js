@@ -80,13 +80,13 @@ function notebookPanel({doc,online,visible,render,proposed,modal,download,button
     return '<details class="card"><summary>Библиотека проекта'+(library?' · '+library.length:'')+'</summary>'+content+action('Refresh','Обновить список')+'</details>';
   }
   function view(){
-    const profiles={full:'Полный анализ DSM',installation:'Закупка и приёмка серверов',...Object.fromEntries(Object.entries(NotebookProfiles).map(([k,v])=>[k,v.name]))};
+    const profiles={full:'Полный анализ DSM',fleet:'Два ЦОД · расчёт, отказ и источники',installation:'Закупка и приёмка серверов',...Object.fromEntries(Object.entries(NotebookProfiles).map(([k,v])=>[k,v.name]))};
     const controls=session?'<p>Сохраните ячейки в Jupyter (Ctrl+S). Файл · '+esc(session.file)+'</p><div class="tools">'+action('Preview','Проверить изменения','class="primary"')+action('LiveResult','Проверить результат Python')+action('Saved','Скачать сохранённый блокнот')+action('Stop','Завершить сессию')+'</div>':
       '<div class="tools"><label>Расчёт <select id="bookProfile" aria-label="Профиль генерации">'+Object.entries(profiles).map(([k,v])=>option(k,v,profile)).join('')+'</select></label>'+action('Generate','Сгенерировать блокнот')+
       '<label class="btn">Загрузить .ipynb<input type="file" class="file-picker" id="bookFile" accept=".ipynb"></label>'+
       (online()?action('Start',starting?'Запуск…':'Запустить Jupyter',starting?'disabled':'class="primary"'):'')+'</div>'+
       (selected&&online()?'<p>Для запуска выбран файл '+esc(name)+'.</p>':!online()?'<p>Для вычислений запустите локальную мастерскую с Jupyter. Подготовка и просмотр файлов доступны здесь.</p>':'');
-    return '<fieldset class="book-controls" '+(loading||starting?'disabled':'')+'><div class="stack">'+(loading?'<p role="status">Чтение · '+esc(loading)+'</p>':'')+'<article class="card" id="bookDrop"><h2>Jupyter Notebook</h2>'+controls+(error?'<p role="alert">'+esc(error)+'</p>':'')+'</article>'+(session?'':viewer()+shelf())+'</div></fieldset>';
+    return '<fieldset class="book-controls" '+(loading||starting?'disabled':'')+'><div class="stack">'+(loading?'<p role="status">Чтение · '+esc(loading)+'</p>':'')+'<article class="card" id="bookDrop"><h2>Jupyter Notebook</h2>'+controls+(error?'<p role="alert">'+esc(error)+'</p>':'')+'</article>'+(!session&&selected?.metadata.dsm?.profile==='fleet'?'<section class="card"><h3>Файл для расчёта в Jupyter</h3><div class="tools"><label>Содержимое <select id="bookDataKind">'+[['catalog','Каталог'],['requirements','Требования'],['specifications','Спецификация'],['contracts','Контракты DSM'],['inventory','Ведомость измерений']].map(([k,v])=>option(k,v,'catalog')).join('')+'</select></label><label>Требование для спецификации <input id="bookDataReq"></label><label>Вложить исходник <input id="bookDataFile" type="file" accept=".csv,.tsv,.xlsx,.md"></label></div><p class="hint">Файл сохраняется внутри .ipynb и читается ядром при выполнении всех ячеек.</p></section>':'')+(session?'':viewer()+shelf())+'</div></fieldset>';
   }
   async function handle(which,id){
     switch(which){
@@ -108,8 +108,8 @@ function notebookPanel({doc,online,visible,render,proposed,modal,download,button
           const frame=document.createElement('iframe');frame.title='Jupyter Notebook';frame.src=session.url;host().replaceChildren(frame);
         }catch(e){error=e.message;}finally{starting=false;render();}
         break;
-      case 'Result':proposed(Notebook.result(selected),name+' · Python');break;
-      case 'LiveResult':proposed(Notebook.result(await request('download/'+session.id)),session.name+' · Python');break;
+      case 'Result':proposed(await FleetSource.verifyResult(Notebook.result(selected)),name+' · Python');break;
+      case 'LiveResult':proposed(await FleetSource.verifyResult(Notebook.result(await request('download/'+session.id))),session.name+' · Python');break;
       case 'Preview':proposed(await request('read/'+session.id),session.name);break;
       case 'Saved':save(session.name,await request('download/'+session.id));break;
       case 'Stop':modal('Завершить сессию Jupyter','<p>Сохраните ячейки в Jupyter. Файл останется в библиотеке проекта.</p>',async()=>{
@@ -120,6 +120,13 @@ function notebookPanel({doc,online,visible,render,proposed,modal,download,button
   function bind(){
     const el=id=>document.getElementById(id);
     if(el('bookProfile'))el('bookProfile').onchange=e=>{profile=e.target.value;};
+    if(el('bookDataFile'))el('bookDataFile').onchange=async e=>{
+      const file=e.target.files[0];if(!file)return;
+      const ticket=++selection;loading=file.name;
+      const category=el('bookDataKind').value,req=el('bookDataReq').value.trim();render();
+      try{const book=await FleetNotebook.attach(selected,category,file,req);if(ticket===selection){loading='';choose(book,name);toast('Вложен файл '+file.name);}}
+      catch(err){if(ticket===selection){loading='';error=err.message;render();}}
+    };
     if(el('bookFile'))el('bookFile').onchange=e=>upload(e.target.files[0]);
     if(el('bookDrop')&&!session){
       el('bookDrop').ondragover=e=>e.preventDefault();
@@ -139,7 +146,13 @@ function notebookPanel({doc,online,visible,render,proposed,modal,download,button
   }
   function replay(id){
     if(session||starting)throw Error('Сохраните и завершите текущую сессию Jupyter');
-    choose(Notebook.replayInstallation(doc(),id),'acceptance-'+id+'.ipynb');
+    const fleet=doc().history.at(-1).data.nodes.find(n=>n.id===id)?.attrs?.fleetRole==='simulation';
+    choose((fleet?Notebook.replayFleet:Notebook.replayInstallation)(doc(),id),'acceptance-'+id+'.ipynb');
   }
-  return {view,handle,bind,refresh,reset,installation,replay,active:()=>!!session};
+  function fleet(id,context){
+    if(session||starting)throw Error('Завершите текущую сессию Jupyter');
+    let snapshot=doc();if(context?.base){const i=snapshot.history.findIndex(h=>h.rev===context.base);if(i<0)throw Error('Исходная ревизия отсутствует');snapshot={...snapshot,history:snapshot.history.slice(0,i+1)};}
+    profile='fleet';choose(Notebook.write(snapshot,profile,id,context),'fleet-'+id+'.ipynb');
+  }
+  return {view,handle,bind,refresh,reset,installation,replay,fleet,active:()=>!!session};
 }

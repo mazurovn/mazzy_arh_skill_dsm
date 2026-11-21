@@ -47,12 +47,12 @@ const Views = (() => {
   }
   const lanes={
     technical:{
-      'Контекст и решение':['organization','project','procurement','requirement','request','proposal','adr'],
+      'Контекст и решение':['organization','project','procurement','requirement','request','proposal','adr','artifact'],
       'Функции и поставка':['capability','feature','changeTask','release','deviation'],
       'Программные объекты':['product','system','service','component','module','data'],
       'Развёртывание':['installation','cluster','server','domain']
     },
-    infra:{'Нагрузки':['service','component','module','system'],'Инсталляции':['installation'],'Кластер и площадка':['cluster','domain'],'Оборудование и закупка':['server','procurement']},
+    infra:{'Нагрузки':['service','component','module','system'],'Инсталляции':['installation'],'Кластер и площадка':['cluster','domain'],'Оборудование и закупка':['server','procurement','artifact']},
     software:{'Требования и функции':['requirement','capability','feature'],'Продукты и системы':['product','system'],'Сервисы и модули':['service','module'],'Компоненты и данные':['component','data','dataArea']}
   };
   const architectureKinds=Object.fromEntries(Object.entries(lanes).map(([mode,groups])=>[mode,Object.values(groups).flat()]));
@@ -107,7 +107,7 @@ const Views = (() => {
     });
     return svg(columns.length*216+16,height,labels.concat(paths,nodes.map(n=>nodeBox(n,...positions.get(n.id),n.id===focus,mode==='component'))).join(''));
   }
-  const display=v=>v===null||v===undefined||v===''?'—':typeof v==='object'?JSON.stringify(v):String(v);
+  const display=v=>v===null||v===undefined||v===''?'—':typeof v==='object'?JSON.stringify(v,(k,x)=>k==='content64'?'[байты исходного файла]':x):String(v);
   function deltaMatrix(changes) {
     const cells=new Map(),ids=new Set();
     for(const c of changes.filter(c=>c.type==='edges'&&c.key!=='(порядок)')){

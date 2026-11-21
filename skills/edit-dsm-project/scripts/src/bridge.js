@@ -3,7 +3,7 @@ const str={type:'string'},ops={type:'array',minItems:1,items:{type:'object',prop
 const shape=(properties,required=Object.keys(properties))=>({type:'object',properties,required,additionalProperties:false});
 const defs=[
   ['dsm_read','Прочитать текущую модель, ID проекта и исходную ревизию',shape({})],
-  ['dsm_analyze','Вычислить кластеры и загрузку или показать маршрут указанного требования',shape({requirement:str,installation:str},[])],
+  ['dsm_analyze','Вычислить кластеры и загрузку или показать маршрут указанного требования',shape({requirement:str,installation:str,procurement:str},[])],
   ['dsm_history','Прочитать журнал снимков без дублирования полных моделей',shape({})],
   ['dsm_diff','Сравнить две ревизии',shape({from:str,to:str})],
   ['dsm_preview','Показать изменения и загрузку релизов до записи',shape({project:str,base:str,ops})],
@@ -17,7 +17,8 @@ function invoke(file,name,args={}){
   switch(name){
     case 'dsm_read':return R.current(doc);
     case 'dsm_analyze':
-      if(args.installation&&args.requirement)throw Error('Выберите инсталляцию или требование');
+      if([args.installation,args.requirement,args.procurement].filter(Boolean).length>1)throw Error('Выберите инсталляцию или требование');
+      if(args.procurement)return require('./fleet.js').analyze(h.data,args.procurement);
       if(args.installation)return require('./installations.js').calculate(h.data,args.installation);
       return args.requirement?require('./delivery.js').chain(h.data,args.requirement):R.analyze(doc);
     case 'dsm_history':return doc.history.map(({data,...meta})=>meta);
@@ -35,7 +36,7 @@ function mcp(file){
     let q;try{q=JSON.parse(line);}catch{reply(null,{error:{code:-32700,message:'Parse error'}});return;}
     if(q.jsonrpc!=='2.0'||typeof q.method!=='string'){reply(q.id??null,{error:{code:-32600,message:'Invalid Request'}});return;}
     if(q.id===undefined)return;
-    if(q.method==='initialize'){reply(q.id,{result:{protocolVersion:'2025-06-18',capabilities:{tools:{}},serverInfo:{name:'mazzy-dsm',version:'1.3.0'}}});return;}
+    if(q.method==='initialize'){reply(q.id,{result:{protocolVersion:'2025-06-18',capabilities:{tools:{}},serverInfo:{name:'mazzy-dsm',version:'1.4.0'}}});return;}
     if(q.method==='ping'){reply(q.id,{result:{}});return;}
     if(q.method==='tools/list'){reply(q.id,{result:{tools:defs.map(([name,description,inputSchema])=>({name,description,inputSchema}))}});return;}
     if(q.method!=='tools/call'){reply(q.id,{error:{code:-32601,message:'Method not found'}});return;}

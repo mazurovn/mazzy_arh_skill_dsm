@@ -48,6 +48,24 @@ label.btn:has(.file-picker:focus-visible){outline:2px solid var(--teal);outline-
 .sizing-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:12px;margin:18px 0}.sizing-metrics div{border-left:3px solid #96c9ba;padding-left:10px}.sizing-metrics strong,.sizing-metrics span{display:block}.sizing-metrics strong{font-size:1.45rem}.sizing-bars{display:grid;gap:.5rem;margin-top:1rem}.sizing-bars label{display:grid;grid-template-columns:90px minmax(50px,220px) auto;align-items:center;gap:.5rem}.sizing-bars meter{width:100%;accent-color:#16735c}.arch-matrix td button{margin:1px}.arch-matrix th{white-space:nowrap}
 
 .book-chart{display:block;max-width:100%;height:auto;margin:.75rem 0}
+
+.fleet-steps{display:flex;flex-wrap:wrap;gap:.45rem;margin-top:1rem}
+.fleet-steps [aria-pressed=true]{background:var(--ink,#183b39);color:white}
+#fleetReport code{overflow-wrap:anywhere}
+@media print{
+  body.fleet-print .top,body.fleet-print .project,body.fleet-print footer,body.fleet-print .menu-panel,body.fleet-print #workMode,body.fleet-print #demoGuide,body.fleet-print #content .stack>section{display:none!important}
+  body.fleet-print main,body.fleet-print .studio-layout,body.fleet-print .workspace-main,body.fleet-print .stack,body.fleet-print #fleetReport,body.fleet-print .wrap{display:block!important;width:auto!important;max-width:none!important;overflow:visible!important;border:0;box-shadow:none;padding:0;margin:0}
+  #fleetReport table{width:100%;font-size:9pt}#fleetReport tr{break-inside:avoid}#fleetReport h3{break-after:avoid}#fleetReport button{border:0;padding:0}#fleetReport code{font-size:8pt}
+}
+@media print{
+  body.fleet-print #toast,body.fleet-print dialog{display:none!important}
+  body.fleet-print #fleetReport td,body.fleet-print #fleetReport th{padding:3pt 4pt}
+  body.fleet-print #fleetReport button{line-height:1.15;min-height:0}
+}
+.fleet-tree{display:flex;align-items:stretch;flex-wrap:wrap;gap:.6rem;list-style:none;padding:0;margin:1rem 0}
+.fleet-tree li{flex:1 1 9rem;border-left:3px solid #287261;padding:.5rem .7rem;background:#f2f7f4}
+.fleet-tree li[data-reached=false]{background:#f6f6f5;border-color:#aeb8b3}.fleet-tree span{display:block;margin-top:.3rem;font-size:.85rem}
+@media print{#fleetReport .fleet-tree{display:none}#fleetReport .fleet-report-policy{break-before:page}}
 </style><script type="text/plain" id="licenses">Mazzy Attribution License 1.0
 
 Copyright © 2026 mazzy (mazurovn)
@@ -3042,6 +3060,7 @@ const DSM = (() => {
     if(v.attrs!==undefined){
       if(!v.attrs||typeof v.attrs!=='object'||Array.isArray(v.attrs)||Object.entries(v.attrs).some(([k,x])=>!k.trim()||!['string','number','boolean'].includes(typeof x)||typeof x==='number'&&!Number.isFinite(x)))fail('Атрибуты должны быть словарём текстовых, логических или числовых значений');
       if(!Object.keys(v.attrs).length)delete v.attrs;
+      else v.attrs=Object.fromEntries(Object.keys(v.attrs).sort().map(k=>[k,v.attrs[k]]));
     }
     if(v.relations!==undefined){
       if(!Array.isArray(v.relations)||!v.relations.every(r=>Array.isArray(r)&&r.length===2&&relationKinds.includes(r[0])&&idOK(r[1]))||new Set(v.relations.map(r=>JSON.stringify(r))).size!==v.relations.length)fail('Нужны уникальные пары тип связи и ID');
@@ -3370,6 +3389,7 @@ const Formats = ((M,A)=>{
     if(!nodes.size&&!edges.length)throw Error('Пустой текст');return {kind:'merge',nodes:[...nodes.values()],edges};
   }
   function preview(doc,input){
+    if(input.kind==='fleet-result')return (typeof FleetChange!=='undefined'?FleetChange:require('./fleet-change.js')).fromBook(doc,input);
     if(input.kind==='installation-receipt')return (typeof Installations!=='undefined'?Installations:require('./installations.js')).receipt(doc,input);
     if(input.kind==='spec-package')return (typeof Specifications!=='undefined'?Specifications:require('./specifications.js')).importPackage(doc,input.files).data;
     if(input.kind==='archive')return M.head(M.document(input.doc)).data;
@@ -3410,7 +3430,7 @@ const Formats = ((M,A)=>{
     if(s.ops)return {kind:'patch',project:s.project,base:s.base,ops:s.ops};
     if(s.flow&&s.risk)return {kind:'replacement',data:M.legacy(s,title)};
     return {kind:'replacement',data:M.validate(s)};}
-  return {tables,readTables,emitCsv,readCsv,csv,markdown,readMd,readText,preview,parseJson,meta};
+  return {tables,readTables,emitCsv,readCsv,csv,splitCsv,markdown,readMd,readText,preview,parseJson,meta};
 })(typeof DSM!=='undefined'?DSM:require('./model.js'),typeof Analysis!=='undefined'?Analysis:require('./analysis.js'));
 if(typeof module!=='undefined')module.exports=Formats;
 
@@ -3468,6 +3488,7 @@ const ExcelIO=((F,A,M,Zip,Sax)=>{
           if(t==='row'&&r.some(x=>x!==''&&x!==undefined))rows.push(Array.from(r,v=>v??''));tag='';}});
       tables[name]=rows;
     }
+    if(options.rawRows)return Object.values(tables);
     if(full)return F.readTables(tables);
     const nodes=[],edges=[],attributes=[],relations=[],placeholders=new Map();for(const [name,rows] of Object.entries(tables)){
       if(!rows.length)continue;
@@ -3719,12 +3740,61 @@ if(typeof module!=='undefined')module.exports=InstallationNotebook;
 
 </script>
 <script>
+const FleetPythonSource="# %% library\nfrom collections import Counter, defaultdict\nfrom copy import deepcopy\nfrom itertools import product\nfrom pathlib import Path\nfrom html import escape\nfrom IPython.display import HTML, SVG, display\nimport base64, csv, hashlib, io, json, re, zipfile\n\nKEYS = (\"cpuCores\", \"ramGiB\", \"diskGiB\")\ntables, charts = {}, {}\ndef table(title, columns, rows):\n    rows = list(rows)\n    def row(values, tag):\n        return \"<tr>\"+\"\".join(\"<\"+tag+\">\"+escape(str(v))+\"</\"+tag+\">\" for v in values)+\"</tr>\"\n    html = \"<table>\"+row(columns,\"th\")+\"\".join(row(r,\"td\") for r in rows)+\"</table>\"\n    tables[title] = (columns, rows, html)\n    display(HTML(\"<h4>\"+escape(title)+\"</h4>\"+html))\n\ndef bars(title, entries, unit):\n    entries = list(entries)\n    high = max([1]+[v for _,v in entries])\n    pieces = [f'<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"790\" height=\"{35+30*len(entries)}\"><title>{escape(title)}</title><text x=\"4\" y=\"18\">{escape(title)}</text>']\n    for i,(label,v) in enumerate(entries):\n        y=40+i*30\n        pieces.append(f'<text x=\"4\" y=\"{y}\">{escape(str(label))}</text><rect x=\"265\" y=\"{y-13}\" width=\"{290*v/high}\" height=\"15\" fill=\"#246f63\"/><text x=\"570\" y=\"{y}\">{v:,} {escape(unit)}</text>')\n    charts[title]=\"\".join(pieces)+\"</svg>\"\n    display(SVG(charts[title]))\n\ndef related(n, kind):\n    return [t for k,t in n.get(\"relations\",[]) if k==kind]\n\ndef records():\n    return {n[\"id\"]:n for n in model[\"nodes\"]}\n\ndef whole(v, name, minimum=0):\n    if type(v) is not int or v < minimum:\n        raise ValueError(f\"{name}: нужно целое число от {minimum}\")\n    return v\n\n# %% sources\ndef checked_sources():\n    result={}\n    for n in model['nodes']:\n        a=n.get('attrs',{})\n        if a.get('fleetRole')!='source' or n.get('parent')!=procurement_id: continue\n        raw=base64.b64decode(a['content64'],validate=True)\n        if len(raw)!=a['bytes'] or hashlib.sha256(raw).hexdigest()!=a['sha256']:\n            raise ValueError(\"Нарушена контрольная сумма \"+n['id'])\n        result[n['id']]=(n,raw)\n    return result\n\ndef scalar(v):\n    if not isinstance(v,str): return v\n    if v in ('true','false'): return v=='true'\n    if re.fullmatch(r'-?(0|[1-9][0-9]*)(\\.[0-9]+)?',v): return float(v) if '.' in v else int(v)\n    return v\n\ndef input_tables(name, raw):\n    if name.lower().endswith('.xlsx'):\n        try: import openpyxl\n        except ImportError as error: raise ImportError(\"Для чтения нового Excel в ядре установите openpyxl. Каталог из снимка доступен без этой зависимости.\") from error\n        workbook=openpyxl.load_workbook(io.BytesIO(raw),read_only=True,data_only=False)\n        for sheet in workbook:\n            data=iter(sheet.values);header=next(data,())\n            if any(str(v).startswith('=') for v in header): raise ValueError(\"Сохраните значения исходного Excel\")\n            for cells in data:\n                if any(isinstance(v,str) and v.startswith('=') for v in cells): raise ValueError(\"В исходном Excel нужны значения вместо формул\")\n                if any(v is not None for v in cells): yield dict(zip(header,cells))\n    else:\n        content=raw.decode('utf-8-sig')\n        dialect=csv.Sniffer().sniff(content.splitlines()[0],delimiters=',;\\t')\n        yield from csv.DictReader(io.StringIO(content),dialect=dialect)\n\ndef import_source(category, path, content=None, requirement=''):\n    if category not in ('catalog','requirements','specifications','contracts'):raise ValueError(\"Неизвестный тип источника \"+category)\n    path=Path(path)\n    if path.suffix.lower() not in ('.csv','.tsv','.xlsx') and not (category=='specifications' and path.suffix.lower()=='.md'):raise ValueError(\"Недопустимый формат \"+path.name)\n    raw=path.read_bytes() if content is None else content\n    if len(raw)>2*1024*1024 or not raw: raise ValueError(\"Источник должен иметь размер от 1 байта до 2 МиБ\")\n    by=records(); touched=set()\n    if path.suffix.lower()=='.md' and category=='specifications':\n        body=raw.decode('utf-8-sig')\n        old=next((n for n in by.values() if n.get('attrs',{}).get('filename')==path.name and procurement_id in n.get('refs',[]) and n.get('attrs',{}).get('fleetRole')=='specification'),None)\n        rows=[dict(id=old['id'] if old else new_id(by,'SPEC'),name=body.splitlines()[0].lstrip('# '),note=body,attrs={'filename':path.name})]\n    else: rows=list(input_tables(path.name,raw))\n    links=[]\n    for row in rows:\n        row={k:v for k,v in row.items() if k is not None and v is not None and v!=''}\n        if 'from' in row and 'to' in row:\n            links.append(row);continue\n        ident=row.get('id')\n        if not ident or not row.get('name'): raise ValueError(\"Нужны id и name\")\n        n=deepcopy(by.get(ident,{'id':ident,'name':row['name'],'kind':'component'}))\n        for k in ('name','kind','parent','release','state','note','segment','bundle'):\n            if k in row:n[k]=row[k]\n        for k in ('refs','relations','steps','attrs'):\n            if k in row:n[k]=json.loads(row[k]) if isinstance(row[k],str) else row[k]\n        for k in ('effort','capacity'):\n            if k in row:n[k]=float(row[k])\n        for k,v in row.items():\n            if k.startswith('attr.'):n.setdefault('attrs',{})[k[5:]]=scalar(v)\n        if category in ('requirements','specifications'):\n            expected='requirement' if category=='requirements' else 'artifact'\n            if ident in by and by[ident]['kind']!=expected:raise ValueError(\"Конфликт типа \"+ident)\n            n['kind']=expected;n['refs']=list(dict.fromkeys(n.get('refs',[])+[procurement_id]))\n            if category=='specifications':\n                n.setdefault('attrs',{})['fleetRole']='specification'\n                if requirement:\n                    req=by.get(requirement,{})\n                    if req.get('kind')!='requirement' or procurement_id not in req.get('refs',[]):raise ValueError(\"Требование другой закупки\")\n                    n['refs']=list(dict.fromkeys(n['refs']+[requirement]))\n        by[ident]=n;touched.add(ident)\n    for row in links:\n        a,b=row['from'],row['to'];k=row.get('relation',row.get('layer','flow'))\n        if a not in by or b not in by:raise ValueError(\"Неизвестный конец связи \"+a+\" / \"+b)\n        touched.update((a,b))\n        if k in ('flow','risk'):\n            def match(e):return e['layer']==k and ((e['from'],e['to'])==(a,b) or k=='risk' and (e['from'],e['to'])==(b,a))\n            e={'layer':k,'from':a,'to':b,'weight':whole(int(row.get('weight',1)),'weight',1),'reason':row['reason']}\n            prior=next((x for x in model['edges'] if match(x)),None)\n            if prior is None:model['edges'].append(e)\n            else:prior.update(e)\n        elif k=='parent':by[b]['parent']=a\n        elif k=='release':by[a]['release']=b\n        elif k=='ref':by[a]['refs']=list(dict.fromkeys(by[a].get('refs',[])+[b]))\n        elif [k,b] not in by[a].setdefault('relations',[]):by[a]['relations'].append([k,b])\n    old=next((n for n in by.values() if n.get('attrs',{}).get('fleetRole')=='source' and n.get('parent')==procurement_id and n['attrs'].get('category')==category and n['attrs'].get('filename')==path.name),None)\n    ident=old['id'] if old else new_id(by,'SOURCE')\n    by[ident]={'id':ident,'name':path.name,'kind':'artifact','parent':procurement_id,'note':'Исходный документ · '+category,'refs':sorted(touched|{procurement_id}),\n               'attrs':dict(fleetRole='source',filename=path.name,category=category,sha256=hashlib.sha256(raw).hexdigest(),bytes=len(raw),content64=base64.b64encode(raw).decode())}\n    model['nodes']=list(by.values())\n\ndef new_id(by,prefix):\n    n=1\n    while f\"{prefix}-{n}\" in by:n+=1\n    return f\"{prefix}-{n}\"\n\nfor entry in attached_files:\n    content=base64.b64decode(entry['content64'],validate=True)\n    if hashlib.sha256(content).hexdigest()!=entry['sha256']:raise ValueError(\"Нарушена целостность \"+entry['filename'])\n    if entry['category']=='inventory':archived_inventory=entry\n    else:import_source(entry['category'],entry['filename'],content,entry.get('requirement') or specification_requirement)\nfor category,path in source_files: import_source(category,path,requirement=specification_requirement)\nby=records()\nfor ident, values in attribute_edits.items():by[ident].setdefault('attrs',{}).update(values)\nsources=checked_sources()\ntable('Происхождение данных',['Источник','Файл','Категория','Байты','SHA-256','Связанные ID'],[(k,n['attrs']['filename'],n['attrs']['category'],len(raw),n['attrs']['sha256'],', '.join(n['refs'])) for k,(n,raw) in sources.items()])\ntable('Требования и спецификации',['ID','Название','Описание','Связи'],[(n['id'],n['name'],n.get('note',''),', '.join(n.get('refs',[]))) for n in by.values() if procurement_id in n.get('refs',[]) and (n['kind']=='requirement' or n.get('attrs',{}).get('fleetRole')=='specification')])\n\n# %% topology\ndef scope():\n    by=records()\n    if by[procurement_id]['kind']!='procurement': raise ValueError(\"Нужна закупка\")\n    sites=[]\n    clusters=set()\n    for ident in sorted(related(by[procurement_id],'uses')):\n        inst=by[ident]\n        if inst['kind']!='installation' or inst.get('attrs',{}).get('verification'):continue\n        target=[k for k in related(inst,'deployedOn') if by[k]['kind']=='cluster']\n        if len(target)!=1 or target[0] in clusters: raise ValueError(\"Нужен отдельный кластер \"+ident)\n        clusters.add(target[0]);pools=[];loads=[]\n        for n in sorted(by.values(),key=lambda n:n['id']):\n            attrs=n.get('attrs',{})\n            if n.get('parent')==ident and attrs.get('fleetRole')=='stock':\n                sku,=[by[t] for t in related(n,'uses') if by[t]['kind']=='server']\n                a=sku['attrs'];pools.append(dict(id=n['id'],sku=sku['id'],limits=[whole(a[k],k,1) for k in KEYS],price=whole(a['unitPriceRub'],'price'),quantity=whole(attrs['quantity'],'quantity'),maxBuy=whole(attrs['maxBuy'],'maxBuy')))\n            if n['kind'] in ('component','system','service','module') and ident in related(n,'deployedOn'):\n                demand=[whole(attrs[k],k) for k in KEYS];apart=attrs.get('antiAffinity',False)\n                if not any(demand) or type(apart)!=bool:raise ValueError(\"Проверьте нагрузку \"+n['id'])\n                loads.append(dict(id=n['id'],demand=demand,count=whole(attrs['replicas'],'replicas',1),apart=apart))\n        if not pools or not loads or len({p['sku'] for p in pools})!=len(pools): raise ValueError(\"Неполный или неоднозначный парк \"+ident)\n        if sum(l['count'] for l in loads)>256 or sum(p['quantity']+p['maxBuy'] for p in pools)>96:raise ValueError(\"Превышен размер задачи\")\n        sites.append(dict(id=ident,cluster=target[0],pools=pools,loads=loads))\n    if not sites:raise ValueError(\"У закупки нет площадок\")\n    return sites\nsites=scope()\ntable('Парк AS-IS',['Площадка','Кластер','Строка','SKU','Сейчас','Можно купить','Цена, ₽',*KEYS],[(s['id'],s['cluster'],p['id'],p['sku'],p['quantity'],p['maxBuy'],p['price'],*p['limits']) for s in sites for p in s['pools']])\ntable('Нагрузки',['Площадка','Объект','Реплик',*KEYS,'Разнести'],[(s['id'],l['id'],l['count'],*l['demand'],l['apart']) for s in sites for l in s['loads']])\n\n# %% solver\ndef replicas(site):\n    scales=[max(p['limits'][i] for p in site['pools']) for i in range(3)]\n    ordered=sorted(site['loads'],key=lambda l:(-max(v/s for v,s in zip(l['demand'],scales)),l['id']))\n    return [dict(id=f\"{l['id']}#{i+1}\",load=l['id'],demand=l['demand'],apart=l['apart']) for l in ordered for i in range(l['count'])]\n\ndef place(hosts,items):\n    missing=[]\n    for r in items:\n        best=None; score=float('inf')\n        for h in hosts:\n            if r['apart'] and any(k['load']==r['load'] for k in h['replicas']):continue\n            left=[a-b for a,b in zip(h['free'],r['demand'])]\n            if min(left)<0:continue\n            waste=0.0\n            for a,b in zip(left,h['limits']):waste+=a/b\n            if waste<score:best=h;score=waste\n        if best is None:missing.append(r)\n        else:\n            best['free']=[a-b for a,b in zip(best['free'],r['demand'])]\n            best['replicas'].append(r)\n    return missing\n\ndef evaluate(site, order):\n    hosts=[];cost=units=0;items=replicas(site)\n    for p in site['pools']:\n        q=whole(order.get(p['id'],0),p['id'])\n        if q>p['maxBuy']:raise ValueError(\"Превышен лимит \"+p['id'])\n        cost+=q*p['price'];units+=q\n        for i in range(p['quantity']+q):\n            hosts.append(dict(id=f\"{p['id']}#{i+1}\",pool=p['id'],sku=p['sku'],limits=p['limits'],free=p['limits'][:],replicas=[]))\n    missing=place(hosts,items);failures=[]\n    for dead in hosts:\n        live=[dict(h,free=h['free'][:],replicas=h['replicas'][:]) for h in hosts if h is not dead]\n        displaced={r['id'] for r in dead['replicas']+missing}\n        pending=place(live,[r for r in items if r['id'] in displaced])\n        failures.append(dict(host=dead['id'],pool=dead['pool'],lost=[r['id'] for r in dead['replicas']],unplaced=[r['id'] for r in pending],moves=[[r['id'],h['id']] for h in live for r in h['replicas'] if r['id'] in displaced]))\n    return dict(site=site['id'],order=order,units=units,cost=cost,hosts=hosts,missing=[r['id'] for r in missing],failures=failures,worst=max([len(missing)]+[len(f['unplaced']) for f in failures]),idle=sum(not h['replicas'] for h in hosts))\n\ndef optimize(site):\n    from math import prod\n    pools=site['pools'];options=prod(p['maxBuy']+1 for p in pools)\n    h=sum(p['quantity']+p['maxBuy'] for p in pools)\n    if options>10000 or options*len(replicas(site))*max(1,h)**2>20_000_000:raise ValueError(\"Сузьте пределы полного перебора\")\n    best={}\n    for counts in product(*(range(p['maxBuy']+1) for p in pools)):\n        order={p['id']:q for p,q in zip(pools,counts)};r=evaluate(site,order)\n        if r['missing']:continue\n        keys=['normal']\n        if r['worst']==0:\n            keys+=['resilient']+['sku:'+p['sku'] for p in pools if all(t['sku']==p['sku'] or not order[t['id']] for t in pools)]\n            if r['units']==0:keys.append('existing')\n        for k in keys:\n            if k not in best or (r['cost'],r['units'])<(best[k]['cost'],best[k]['units']):best[k]=r\n    return best,options\n\ndef summarize(key,sites_result):\n    valid=all(s is not None for s in sites_result)\n    return dict(key=key,available=valid,sites=sites_result,units=sum(s['units'] for s in sites_result) if valid else None,cost=sum(s['cost'] for s in sites_result) if valid else None,idle=sum(s['idle'] for s in sites_result) if valid else None,worst=max(s['worst'] for s in sites_result) if valid else None,missing=sum(len(s['missing']) for s in sites_result) if valid else None)\nsearch=[optimize(s) for s in sites]\nvariants={'asis':summarize('asis',[evaluate(s,{}) for s in sites])}\nfor key in ['normal','resilient']+['sku:'+sku for sku in sorted({p['sku'] for s in sites for p in s['pools']})]:\n    variants[key]=summarize(key,[best.get(key,best.get('existing') if key.startswith('sku:') else None) for best,_ in search])\nif manual_order is not None:\n    unknown=set(manual_order)-{p['id'] for s in sites for p in s['pools']}\n    if unknown:raise ValueError(\"Неизвестные позиции \"+str(unknown))\n    variants['manual']=summarize('manual',[evaluate(s,{p['id']:manual_order.get(p['id'],0) for p in s['pools']}) for s in sites])\nchoice=variants[variant_key]\ntable('Сравнение AS-IS / TO-BE',['Вариант','Доступен','Купить','Цена, ₽','Свободные узлы','Дефицит штатно','Худший отказ'],[(k,r['available'],r['units'],r['cost'],r['idle'],r['missing'],r['worst']) for k,r in variants.items()])\nbars('Стоимость вариантов',[(k,r['cost']) for k,r in variants.items() if r['available']],'₽')\nprint(\"Проверено конфигураций по площадкам:\",sum(n for _,n in search),\"· выбор:\",variant_key)\n\n# %% failures\nif choice['available']:\n    table('Позиции заказа',['Площадка','Строка парка','SKU','Было','Добавить','Станет'],[(s['id'],p['id'],p['sku'],p['quantity'],r['order'].get(p['id'],0),p['quantity']+r['order'].get(p['id'],0)) for s,r in zip(sites,choice['sites']) for p in s['pools']])\n    table('Назначения',['Площадка','Узел','SKU','Реплики','Свободно CPU / RAM / диск'],[(s['site'],h['id'],h['sku'],', '.join(r['id'] for r in h['replicas']),h['free']) for s in choice['sites'] for h in s['hosts']])\n    all_failures=[(s['site'],f) for s in choice['sites'] for f in s['failures']]\n    if failed_host and not any(f['host']==failed_host for _,f in all_failures):raise ValueError(\"Узел отсутствует в выбранном варианте: \"+failed_host)\n    table('Отказ каждого узла',['Площадка','Отказал','Затронуты','Перенос реплика → узел','Без места'],[(site,f['host'],', '.join(f['lost']),'; '.join(' → '.join(m) for m in f['moves']),', '.join(f['unplaced']) or '0') for site,f in all_failures if not failed_host or f['host']==failed_host])\n    bars('Худший дефицит после одного отказа',[(k,r['worst']) for k,r in variants.items() if r['available']],'реплик')\nelse:print('Доступный парк и лимиты закупки не позволяют собрать этот вариант.')\n\n# %% trace\nload_ids={w['id'] for s in sites for w in s['loads']}\nload_order=[n['id'] for n in model['nodes'] if n['id'] in load_ids]\ndef dsm_groups(layer):\n    edges=[e for e in model['edges'] if e['layer']==layer and {e['from'],e['to']}<=load_ids]\n    weights=Counter()\n    for e in edges:weights[tuple(sorted((e['from'],e['to'])))]+=e['weight']\n    total=sum(weights.values());deg=Counter();groups=[[ident] for ident in load_order]\n    for (a,b),v in weights.items():deg[a]+=v;deg[b]+=v\n    while total:\n        owner={v:i for i,g in enumerate(groups) for v in g};mass=[sum(deg[v] for v in g) for g in groups];cuts=Counter()\n        for (a,b),w in weights.items():\n            i,j=sorted([owner[a],owner[b]])\n            if i!=j:cuts[i,j]+=w\n        best=0;pair=None\n        for (i,j),v in sorted(cuts.items()):\n            gain=v/total-mass[i]*mass[j]/(2*total**2)\n            if gain>best+1e-12:best=gain;pair=(i,j)\n        if pair is None:break\n        i,j=pair;groups=[g for k,g in enumerate(groups) if k not in pair]+[groups[i]+groups[j]]\n    positions={v:i for i,v in enumerate(load_order)}\n    groups=sorted((sorted(g,key=positions.get) for g in groups),key=lambda g:positions[g[0]])\n    matrix={(e['from'],e['to']):e['weight'] for e in edges}\n    if layer=='risk':matrix.update({(b,a):v for (a,b),v in list(matrix.items())})\n    order=[v for g in groups for v in g]\n    table('DSM '+layer,['ID']+order,[[v]+[matrix.get((v,t),0) for t in order] for v in order])\n    return groups\nclusters={layer:dsm_groups(layer) for layer in ('flow','risk')}\ntable('Кластеры по связям',['Слой','Группа','ID нагрузок'],[(k,i+1,', '.join(g)) for k,groups in clusters.items() for i,g in enumerate(groups)])\ngroups=defaultdict(list)\nif group_by not in ('site','sku','cluster'):raise ValueError(\"group_by: site, sku или cluster\")\nfor s in sites:\n    for p in s['pools']:groups[{'site':s['id'],'sku':p['sku'],'cluster':s['cluster']}[group_by]].append(p)\ntable('Группировка парка',['Группа','Строки исходных данных','Серверов AS-IS'],[(k,', '.join(p['id'] for p in ps),sum(p['quantity'] for p in ps)) for k,ps in groups.items()])\ntrace_ids={procurement_id}|load_ids|{s['id'] for s in sites}|{s['cluster'] for s in sites}|{p['id'] for s in sites for p in s['pools']}|{p['sku'] for s in sites for p in s['pools']}\nfor n in by.values():\n    if procurement_id in n.get('refs',[]) or n.get('parent')==procurement_id:trace_ids.add(n['id'])\nfor n in by.values():\n    if n.get('parent') in trace_ids or n.get('attrs',{}).get('fleetRole')=='order' and any(t in trace_ids for _,t in n.get('relations',[])):trace_ids.add(n['id'])\ntrace_ids.update(n['release'] for n in by.values() if n['id'] in trace_ids and n.get('release'))\nrelation_rows=[]\nfor n in by.values():\n    if n['id'] not in trace_ids:continue\n    relations=list(n.get('relations',[]))+[('ref',t) for t in n.get('refs',[])]\n    if n.get('parent'):relations.append(('partOf',n['parent']))\n    if n.get('release'):relations.append(('release',n['release']))\n    relation_rows.extend((n['id'],k,t) for k,t in relations if t in trace_ids)\ntable('Архитектурные связи',['Источник','Отношение','Цель'],relation_rows)\ntable('Контракты DSM',['Источник','Цель','Слой','Вес','Основание'],[(e['from'],e['to'],e['layer'],e['weight'],e['reason']) for e in model['edges'] if e['from'] in load_ids and e['to'] in load_ids])\ntable('ADR, варианты и релизы',['ID','Тип','Состояние','Релиз','Связанные ID','Описание'],[(n['id'],n['kind'],n.get('attrs',{}).get('stage',n.get('state','')),n.get('release',''),', '.join(n.get('refs',[])),n.get('note','')) for n in by.values() if n['id'] in trace_ids and (n['kind'] in ('adr','release') or n.get('attrs',{}).get('fleetRole')=='variant')])\n\n# %% decisions\n# Field measurements use the current AS-IS inventory. A proposed order is a separate scenario.\nobservations=[];inventory_source=None\nif inventory_file or archived_inventory:\n\n    path=Path(inventory_file or archived_inventory['filename']);raw=path.read_bytes() if inventory_file else base64.b64decode(archived_inventory['content64'])\n    if not inventory_file and hashlib.sha256(raw).hexdigest()!=archived_inventory['sha256']:raise ValueError(\"Нарушена целостность архивной ведомости\")\n    if not raw or len(raw)>2*1024*1024:raise ValueError(\"Недопустимый размер ведомости\")\n    pools={p['id']:p for site in sites for p in site['pools']};serials=set()\n    for row in input_tables(path.name,raw):\n        serial=str(row.get('serial','')).strip();pool=row.get('pool')\n        if not serial or serial in serials or pool not in pools:raise ValueError(\"Неизвестная строка парка или повтор серийного номера\")\n        vals=[whole(int(str(row[k])),k,1) for k in KEYS]\n        observations.append(dict(serial=serial,pool=pool,values=vals))\n        serials.add(serial)\n    count=Counter(o['pool'] for o in observations if all(v>=lim for v,lim in zip(o['values'],pools[o['pool']]['limits'])))\n    table('Проверка фактического парка',['Строка парка','План AS-IS','Замерено','Соответствуют профилю','Расхождение'],\n          [(k,p['quantity'],sum(o['pool']==k for o in observations),count[k],count[k]-p['quantity']) for k,p in pools.items()])\n    inventory_source=dict(filename=path.name,sha256=hashlib.sha256(raw).hexdigest(),bytes=len(raw),content64=base64.b64encode(raw).decode())\n    print(\"Ведомость\",path.name,inventory_source['sha256'])\n\nchecks=[('Доступен состав в пределах заказа',choice['available'],'Пересмотреть доступные типы и пределы закупки'),('Все реплики размещены',choice['missing']==0,'Добавить ёмкость или изменить размещение'),('Каждый одиночный отказ выдержан',choice['worst']==0,'Увеличить резерв площадки'),('В пределах бюджета',budget_rub is None or choice['cost'] is not None and choice['cost']<=budget_rub,'Пересогласовать бюджет')]\noutcome=next((no for _,ok,no in checks if not ok),'Предложить к согласованию')\ntable('Дерево принятия решения',['Условие','Да','Нет','Значение'],[(label,checks[i+1][0] if i+1<len(checks) else 'Предложить к согласованию',no,'Да' if ok else 'Нет') for i,(label,ok,no) in enumerate(checks)])\nprint('Результат дерева:',outcome)\ntable('Журнал ревизий',['Версия','Ревизия','Дата','Автор','Изменение'],history_rows)\n\n# %% export\ndef safe_filename(name):return re.sub(r'[^\\w. -]+','_',name).strip('. ') or 'source'\ndef html_report():\n    css=\"body{font:13px system-ui;color:#193a33;margin:24px}table{border-collapse:collapse;width:100%;font-size:11px}td,th{text-align:left;padding:4px;border-bottom:1px solid #c9d6cf;overflow-wrap:anywhere}h2{break-after:avoid}tr,svg{break-inside:avoid}svg{max-width:100%}@page{size:A4 landscape;margin:12mm}thead{display:table-header-group}\"\n    return \"<!doctype html><meta charset=utf-8><style>\"+css+\"</style><h1>\"+escape(model['title'])+\"</h1><p>\"+escape(procurement_id+\" · \"+variant_key+\" · \"+base_revision)+\"</p>\"+''.join('<h2>'+escape(k)+'</h2>'+v[2] for k,v in tables.items())+''.join(charts.values())\nif export_directory:\n    target=Path(export_directory);target.mkdir(exist_ok=True,parents=True)\n    with zipfile.ZipFile(target/'analysis.zip','w',zipfile.ZIP_DEFLATED) as bundle:\n        for k,(cols,rows,_) in tables.items():\n            buf=io.StringIO();writer=csv.writer(buf);writer.writerow(cols);writer.writerows(rows);bundle.writestr('tables/'+safe_filename(k)+'.csv',buf.getvalue().encode('utf-8-sig'))\n        for k,(n,raw) in sources.items():bundle.writestr('sources/'+safe_filename(k)+'-'+safe_filename(n['attrs']['filename']),raw)\n        for k,chart in charts.items():bundle.writestr('charts/'+safe_filename(k)+'.svg',chart)\n        if inventory_source:bundle.writestr('measurements/'+safe_filename(inventory_source['filename']),base64.b64decode(inventory_source['content64']))\n        bundle.writestr('variants.json',json.dumps(variants,ensure_ascii=False));bundle.writestr('report.html',html_report())\n    report=target/'report.html';report.write_text(html_report(),encoding='utf-8')\n    if export_pdf:\n        import shutil,subprocess,tempfile\n        chrome=next((shutil.which(k) for k in ('google-chrome','chromium','chromium-browser') if shutil.which(k)),None)\n        if not chrome:raise RuntimeError(\"Откройте report.html в браузере и выберите Печать → Сохранить в PDF\")\n        with tempfile.TemporaryDirectory() as profile:\n            subprocess.run([chrome,'--headless','--disable-gpu','--no-pdf-header-footer','--user-data-dir='+profile,'--print-to-pdf='+str((target/'report.pdf').resolve()),report.resolve().as_uri()],check=True,timeout=60,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)\n    print(\"Сохранено:\",target.resolve())\nelse:print(\"Для выгрузки таблиц, исходников, графиков и отчёта задайте export_directory в параметрах.\")\n";
+</script>
+<script>
+const FleetNotebook=(()=>{
+  function cells(doc,id,code,md,context={}){
+    const model=doc.history.at(-1).data,buy=id||model.nodes.find(n=>n.kind==='procurement')?.id;
+    if(!buy)throw Error('В каталоге нет закупки');
+    const raw=typeof FleetPythonSource==='string'?FleetPythonSource:require('node:fs').readFileSync(require('node:path').join(__dirname,'fleet-analysis.py'),'utf8');
+    const chunks=Object.fromEntries(raw.split(/^# %% /m).slice(1).map(part=>{const i=part.indexOf('\n');return [part.slice(0,i).trim(),part.slice(i+1).trim()];}));
+    const quote=v=>JSON.stringify(v);
+    const history=doc.history.map((h,i)=>[i+1,h.rev,h.at,h.actor,h.note]);
+    const params=['procurement_id = '+quote(buy),'variant_key = '+quote(context.option||'resilient'),'base_revision = '+quote(doc.history.at(-1).rev),
+      'budget_rub = '+(context.budget??'None'),'group_by = "site"   # site, sku, cluster','failed_host = ""   # пусто — проверить каждый узел',
+      'specification_requirement = ""  # ID для привязки новой Markdown-спецификации',
+      'attached_files = []  # файлы, вложенные через форму DSM',
+      'source_files = []  # [("catalog", "catalog.csv"), ("requirements", "requirements.csv"), ("specifications", "spec.md"), ("contracts", "contracts.csv")]',
+      'archived_inventory = '+(context.inventory?JSON.stringify(context.inventory):'None'),
+      'inventory_file = ""  # CSV/Excel: serial, pool, cpuCores, ramGiB, diskGiB',
+      'attribute_edits = {}  # {ID_профиля: {"unitPriceRub": 320000}}','manual_order = '+(context.order?JSON.stringify(context.order):'None')+'  # {ID_строки_парка: количество}; variant_key = "manual"',
+      'lifecycle = {"action":"record"}  # record, cluster, save, approve, implement',
+      '# save: name, description, release; approve: plan, requirement, specification, context, alternatives, rationale, consequences, owner; implement: plan',
+      '# cluster: layer = "flow" или "risk". Перед сохранением варианта запишите правки исходных параметров и обновите базу.',
+      'export_directory = None  # например "fleet-report"','export_pdf = False','history_rows = '+quote(history)].join('\n');
+    const labels={library:'Инструменты расчёта и вывода',sources:'Источники, контроль целостности и загрузка данных',topology:'Исходный парк, ограничения и нагрузки',solver:'Оптимизация состава и сравнение AS-IS / TO-BE',failures:'Моделирование отказов и перенос реплик',trace:'Кластеры, группировки, матрицы и архитектурные связи',decisions:'Дерево решений, ADR и история релиза',export:'Экспорт таблиц, исходников, графиков и PDF'};
+    return [md('fleet-help','## Работа с закупкой\nСначала выполните все ячейки. В параметрах выберите закупку и вариант. Для загрузки файла в ядро используйте файловый браузер Jupyter, затем укажите файл в source_files. После редактирования параметров выполните блокнот с начала, включая исходную модель. Изменения попадут в DSM после предпросмотра.'),code('parameters',params),
+      ...Object.entries(labels).flatMap(([key,title])=>[md('title-'+key,'## '+title),code('fleet-'+key,chunks[key])]),
+      md('fleet-return','## Возврат в DSM\nСохраните выполненный ipynb и выберите «Проверить результат Python». Мастерская пересчитывает цену и каждое перемещение, сверяет версию и показывает изменяемые объекты.'),
+      code('result','from IPython.display import display\nif choice["available"]:\n    lab = dict(root=procurement_id,key=variant_key,order=manual_order,budget=budget_rub,cost=choice["cost"],worst=choice["worst"],failures=[[s["site"],f["host"],f["unplaced"],f["moves"]] for s in choice["sites"] for f in s["failures"]],lifecycle=lifecycle,clusters=clusters,inventory=observations,inventory_source=inventory_source)\n    display({"application/vnd.mazzy.fleet+json":{"project":'+quote(doc.project)+',"base":base_revision,"data":model,"lab":lab},"text/plain":"Расчёт и операция готовы к предпросмотру DSM"},raw=True)\nelse: print("Сначала выберите доступный вариант")',['dsm-result'])];
+  }
+  async function attach(book,category,file,requirement=''){
+    if(!file||!file.size||file.size>2*1024*1024)throw Error('Выберите файл до 2 МиБ');
+    if(!['catalog','requirements','specifications','contracts','inventory'].includes(category))throw Error('Неизвестная категория');
+    const params=book.cells.findIndex(c=>c.id==='parameters');
+    if(params<0)throw Error('В блокноте нет параметров расчёта');
+    const clean=NotebookFiles.clean(book),index=clean.cells.findIndex(c=>c.id==='attachments'),prefix='attached_files = ';
+    const prev=index<0?[]:JSON.parse([clean.cells[index].source].flat().join('').slice(prefix.length));
+    const raw=new Uint8Array(await file.arrayBuffer()),sha=await crypto.subtle.digest('SHA-256',raw);
+    const entry={category,filename:file.name,requirement,content64:FleetSource.encode(raw),sha256:Array.from(new Uint8Array(sha),b=>b.toString(16).padStart(2,'0')).join('')};
+    const rows=prev.filter(e=>e.category!==category||(category!=='inventory'&&e.filename!==file.name));
+    const cell={id:'attachments',cell_type:'code',metadata:{tags:['dsm-sources']},execution_count:null,outputs:[],source:prefix+JSON.stringify([...rows,entry])};
+    if(index<0)clean.cells.splice(params+1,0,cell);else clean.cells[index]=cell;
+    return NotebookFiles.validate(clean);
+  }
+  return {cells,attach};
+})();
+if(typeof module!=='undefined')module.exports=FleetNotebook;
+
+</script>
+<script>
 const Notebook=((M,A,F,Files,Profiles)=>{
   const code=(id,source,tags=[])=>({id,cell_type:'code',metadata:{tags},execution_count:null,outputs:[],source});
   const md=(id,source)=>({id,cell_type:'markdown',metadata:{},source});
   const pre='null = None\ntrue = True\nfalse = False\nmodel = ';
   function write(doc,profile='full',installation,context){
-    if(profile!=='full'&&profile!=='installation'&&!Object.hasOwn(Profiles,profile))throw Error('Неизвестный профиль блокнота');
+    if(profile!=='full'&&profile!=='installation'&&profile!=='fleet'&&!Object.hasOwn(Profiles,profile))throw Error('Неизвестный профиль блокнота');
     const h=M.head(doc),meta=F.meta(doc);
     const initial=profile==='full'?Object.fromEntries(['flow','risk'].map(l=>[l,A.calculate(h.data,l)])):{};
     const cells=[
@@ -3751,7 +3821,10 @@ const Notebook=((M,A,F,Files,Profiles)=>{
       code('release','rows=[]\nfor r in model["nodes"]:\n    if r["kind"] != "release": continue\n    assigned = [n for n in model["nodes"] if n.get("release")==r["id"]]\n    members={n["id"] for n in assigned}\n    known=sum(n["effort"] for n in assigned if n.get("effort") is not None)\n    unknown=sum(n.get("effort") is None for n in assigned)\n    outside=sum(e["layer"]=="flow" and e["from"] in members and e["to"] not in members for e in model["edges"])\n    rows.append([r["id"],len(assigned),known,unknown,r.get("capacity"),outside])\ntable(["Релиз","Работы","Оценено","Без оценки","Ёмкость","Внешние вызовы"],rows)'),
       md('handoff','## Возврат в редактор\nСохраните блокнот и выберите его в разделе «Обмен». Просмотрите разницу и сохраните новую версию. Если после экспорта агент уже изменил проект, откройте актуальный JSON и перенесите нужные изменения через патч.')
     ];
-    if(profile==='installation'){
+    if(profile==='fleet'){
+      const lab=typeof FleetNotebook!=='undefined'?FleetNotebook:require('./fleet-notebook.js');
+      cells.splice(2,cells.length-2,...lab.cells(doc,installation,code,md,context));meta.profile=profile;
+    }else if(profile==='installation'){
       const report=typeof InstallationNotebook!=='undefined'?InstallationNotebook:require('./installation-notebook.js');
       cells.splice(2,cells.length-2,...report.write(doc,installation,code,md,context));meta.profile=profile;
     }else if(profile!=='full'){
@@ -3759,7 +3832,7 @@ const Notebook=((M,A,F,Files,Profiles)=>{
       cells.splice(2,cells.length-3,md('report-title','## '+spec.name+'\n'+spec.caption),code('report',spec.python));
       meta.profile=profile;
     }
-    if(profile!=='installation')cells.push(md('result-help','## Передать результат вычислений в DSM\nВыполните эту ячейку после своих изменений model и сохраните блокнот. В редакторе выберите «Проверить результат Python».'),
+    if(profile!=='installation'&&profile!=='fleet')cells.push(md('result-help','## Передать результат вычислений в DSM\nВыполните эту ячейку после своих изменений model и сохраните блокнот. В редакторе выберите «Проверить результат Python».'),
       code('result',"from IPython.display import display\n"+'display({"application/vnd.mazzy.dsm+json": {"project": '+JSON.stringify(doc.project)+', "base": '+JSON.stringify(h.rev)+', "data": model}, "text/plain": "Модель подготовлена для DSM"}, raw=True)',['dsm-result']));
     return {nbformat:4,nbformat_minor:5,metadata:{kernelspec:{display_name:'Python 3',language:'python',name:'python3'},language_info:{name:'python'},dsm:meta},cells};
   }
@@ -3775,6 +3848,13 @@ const Notebook=((M,A,F,Files,Profiles)=>{
   function result(book){
     Files.validate(book);
     const cells=book.cells.filter(c=>c.cell_type==='code'&&c.metadata.tags?.includes('dsm-result'));
+    if(book.metadata?.dsm?.profile==='fleet'){
+      const outputs=cells.flatMap(c=>c.outputs.map(o=>o.data?.['application/vnd.mazzy.fleet+json']).filter(Boolean));
+      if(cells.length!==1||outputs.length!==1)throw Error('Выполните расчёт парка и сохраните блокнот');
+      const v=outputs[0],meta=book.metadata.dsm;
+      if(v.base!==meta.base||v.project!==meta.project)throw Error('Другая база результата');
+      return {...v,kind:'fleet-result'};
+    }
     if(book.metadata?.dsm?.profile==='installation'){
       const meta=book.metadata.dsm;
       const outputs=cells.flatMap(c=>c.outputs.map(o=>o.data?.['application/vnd.mazzy.installation+json']).filter(Boolean));
@@ -3804,7 +3884,13 @@ const Notebook=((M,A,F,Files,Profiles)=>{
     book.cells.find(c=>c.id==='measured').source=Object.entries(literals).map(([key,v])=>key+' = '+JSON.stringify(v,null,2)).join('\n');
     return book;
   }
-  return {write,read,result,replayInstallation};
+  function replayFleet(doc,id){
+    const i=doc.history.findIndex(h=>h.data.nodes.some(n=>n.id===id&&n.attrs?.fleetRole==='simulation'));
+    if(i<0)throw Error('Проверка отсутствует в истории');
+    const snap={...doc,history:doc.history.slice(0,i+1)},n=M.head(snap).data.nodes.find(n=>n.id===id);
+    return write(snap,'fleet',n.parent,{option:n.attrs.option,budget:n.attrs.budget,inventory:n.attrs.inventoryFile?{filename:n.attrs.inventoryFile,sha256:n.attrs.inventoryHash,content64:n.attrs.content64}:null,order:n.attrs.option==='manual'?Object.assign({},...JSON.parse(n.attrs.order)):null});
+  }
+  return {write,read,result,replayInstallation,replayFleet};
 })(typeof DSM!=='undefined'?DSM:require('./model.js'),typeof Analysis!=='undefined'?Analysis:require('./analysis.js'),typeof Formats!=='undefined'?Formats:require('./formats.js'),typeof NotebookFiles!=='undefined'?NotebookFiles:require('./notebook-files.js'),typeof NotebookProfiles!=='undefined'?NotebookProfiles:require('./notebook-profiles.js'));
 if(typeof module!=='undefined')module.exports=Notebook;
 
@@ -4293,12 +4379,12 @@ const Views = (() => {
   }
   const lanes={
     technical:{
-      'Контекст и решение':['organization','project','procurement','requirement','request','proposal','adr'],
+      'Контекст и решение':['organization','project','procurement','requirement','request','proposal','adr','artifact'],
       'Функции и поставка':['capability','feature','changeTask','release','deviation'],
       'Программные объекты':['product','system','service','component','module','data'],
       'Развёртывание':['installation','cluster','server','domain']
     },
-    infra:{'Нагрузки':['service','component','module','system'],'Инсталляции':['installation'],'Кластер и площадка':['cluster','domain'],'Оборудование и закупка':['server','procurement']},
+    infra:{'Нагрузки':['service','component','module','system'],'Инсталляции':['installation'],'Кластер и площадка':['cluster','domain'],'Оборудование и закупка':['server','procurement','artifact']},
     software:{'Требования и функции':['requirement','capability','feature'],'Продукты и системы':['product','system'],'Сервисы и модули':['service','module'],'Компоненты и данные':['component','data','dataArea']}
   };
   const architectureKinds=Object.fromEntries(Object.entries(lanes).map(([mode,groups])=>[mode,Object.values(groups).flat()]));
@@ -4353,7 +4439,7 @@ const Views = (() => {
     });
     return svg(columns.length*216+16,height,labels.concat(paths,nodes.map(n=>nodeBox(n,...positions.get(n.id),n.id===focus,mode==='component'))).join(''));
   }
-  const display=v=>v===null||v===undefined||v===''?'—':typeof v==='object'?JSON.stringify(v):String(v);
+  const display=v=>v===null||v===undefined||v===''?'—':typeof v==='object'?JSON.stringify(v,(k,x)=>k==='content64'?'[байты исходного файла]':x):String(v);
   function deltaMatrix(changes) {
     const cells=new Map(),ids=new Set();
     for(const c of changes.filter(c=>c.type==='edges'&&c.key!=='(порядок)')){
@@ -4409,7 +4495,7 @@ const Scope = (() => {
     let edges=model.edges.filter(e=>e.layer===layer);
     if(Object.hasOwn(Views.architectureKinds,mode)){
       const kinds=Views.architectureKinds[mode];
-      nodes=nodes.filter(n=>kinds.includes(n.kind)&&(mode!=='infra'||!n.attrs?.verification));
+      nodes=nodes.filter(n=>kinds.includes(n.kind)&&(mode!=='infra'||!n.attrs?.verification&&(n.kind!=='artifact'||['stock','order','variant'].includes(n.attrs?.fleetRole))));
       const ids=new Set(nodes.map(n=>n.id));
       edges=[...Views.structures(model),...edges].filter(e=>ids.has(e.from)&&ids.has(e.to));
     }else if(mode==='component'){
@@ -4674,6 +4760,546 @@ if(typeof module!=='undefined')module.exports=Installations;
 
 </script>
 <script>
+/* Procurement quantities are enumerated per site. Running replicas remain pinned during recovery. */
+const Fleet=(()=>{
+  const resources=['cpuCores','ramGiB','diskGiB'];
+  const textOrder=(a,b)=>a<b?-1:a>b?1:0;
+  const ids=(n,k)=>(n?.relations||[]).filter(([kind])=>kind===k).map(([,id])=>id);
+  const role=n=>n?.attrs?.fleetRole;
+  const fail=m=>{throw Error(m);};
+  function integer(v,label,min=0){
+    if(!Number.isSafeInteger(v)||v<min)fail(label+' · требуется целое число от '+min);
+    return v;
+  }
+  const sorted=nodes=>nodes.slice().sort((a,b)=>textOrder(a.id,b.id));
+  function inputs(model,id){
+    const by=new Map(model.nodes.map(n=>[n.id,n])),buy=by.get(id);
+    if(buy?.kind!=='procurement')fail('Выберите закупку');
+    const sites=sorted(ids(buy,'uses').map(k=>by.get(k)).filter(n=>n?.kind==='installation'&&!n.attrs?.verification));
+    if(!sites.length)fail(id+' · добавьте площадку или свяжите закупку с инсталляцией через uses');
+    const usedClusters=new Set();
+    return sites.map(site=>{
+      const clusters=ids(site,'deployedOn').filter(k=>by.get(k)?.kind==='cluster');
+      if(clusters.length!==1||usedClusters.has(clusters[0]))fail(site.id+' · требуется отдельный кластер площадки');
+      usedClusters.add(clusters[0]);
+      const pools=sorted(model.nodes.filter(n=>role(n)==='stock'&&n.parent===site.id)).map(n=>{
+        const skus=ids(n,'uses').map(id=>by.get(id)).filter(n=>n?.kind==='server');
+        if(skus.length!==1)fail(n.id+' · укажите один серверный профиль');
+        const sku=skus[0];
+        return {id:n.id,sku:sku.id,limits:resources.map(k=>integer(sku.attrs?.[k],sku.id+' / '+k,1)),
+          price:integer(sku.attrs?.unitPriceRub,sku.id+' / unitPriceRub'),quantity:integer(n.attrs.quantity,n.id+' / quantity'),maxBuy:integer(n.attrs.maxBuy,n.id+' / maxBuy')};
+      });
+      if(!pools.length)fail(site.id+' · заполните состав парка');
+      if(new Set(pools.map(p=>p.sku)).size!==pools.length)fail(site.id+' · повтор серверного профиля в парке');
+      const loads=sorted(model.nodes.filter(n=>['service','component','module','system'].includes(n.kind)&&ids(n,'deployedOn').includes(site.id))).map(n=>{
+        const demand=resources.map(k=>integer(n.attrs?.[k],n.id+' / '+k));
+        if(!demand.some(Boolean))fail(n.id+' · пустая нагрузка');
+        if(n.attrs?.antiAffinity!==undefined&&typeof n.attrs.antiAffinity!=='boolean')fail(n.id+' · antiAffinity требует true или false');
+        return {id:n.id,demand,count:integer(n.attrs?.replicas,n.id+' / replicas',1),apart:n.attrs?.antiAffinity===true};
+      });
+      if(!loads.length)fail(site.id+' · назначьте рабочие нагрузки');
+      if(loads.reduce((s,l)=>s+l.count,0)>256||pools.reduce((s,p)=>s+p.quantity+p.maxBuy,0)>96)fail(site.id+' · расчёт рассчитан на 256 реплик и 96 узлов на площадку');
+      return {id:site.id,cluster:clusters[0],pools,loads};
+    });
+  }
+  function replicas(site){
+    const max=resources.map((_,i)=>Math.max(...site.pools.map(p=>p.limits[i])));
+    return site.loads.map(l=>({...l,priority:Math.max(...l.demand.map((v,i)=>v/max[i]))})).sort((a,b)=>b.priority-a.priority||textOrder(a.id,b.id))
+      .flatMap(l=>Array.from({length:l.count},(_,i)=>({id:l.id+'#'+(i+1),load:l.id,demand:l.demand,apart:l.apart})));
+  }
+  function place(hosts,items){
+    const missing=[];
+    for(const r of items){
+      let best=null,score=Infinity;
+      for(const h of hosts){
+        if(r.apart&&h.replicas.some(prev=>prev.load===r.load))continue;
+        const left=h.free.map((v,i)=>v-r.demand[i]);if(left.some(v=>v<0))continue;
+        const waste=left.reduce((sum,v,i)=>sum+v/h.limits[i],0);
+        if(waste<score){best=h;score=waste;}
+      }
+      if(best){best.free=best.free.map((v,i)=>v-r.demand[i]);best.replicas.push(r);}
+      else missing.push(r);
+    }
+    return missing;
+  }
+  function evaluate(site,order,items=replicas(site)){
+    const hosts=[];let cost=0,units=0;
+    for(const p of site.pools){
+      const add=integer(order[p.id]??0,'Заказ '+p.id);
+      if(add>p.maxBuy)fail('Превышен доступный заказ '+p.id);
+      cost=integer(cost+add*p.price,'Стоимость заказа');units+=add;
+      for(let i=1;i<=p.quantity+add;i++)hosts.push({id:p.id+'#'+i,pool:p.id,sku:p.sku,limits:p.limits,free:[...p.limits],replicas:[]});
+    }
+    const missing=place(hosts,items);
+    const failures=hosts.map(dead=>{
+      const live=hosts.filter(h=>h!==dead).map(h=>({...h,free:[...h.free],replicas:[...h.replicas]}));
+      const displaced=new Set([...dead.replicas,...missing].map(r=>r.id));
+      const pending=place(live,items.filter(r=>displaced.has(r.id)));
+      return {host:dead.id,pool:dead.pool,lost:dead.replicas.map(r=>r.id),unplaced:pending.map(r=>r.id),
+        moves:live.flatMap(h=>h.replicas.filter(r=>displaced.has(r.id)).map(r=>[r.id,h.id]))};
+    });
+    return {site:site.id,order:{...order},units,cost,hosts,missing:missing.map(r=>r.id),failures,
+      worst:Math.max(missing.length,0,...failures.map(f=>f.unplaced.length)),idle:hosts.filter(h=>!h.replicas.length).length};
+  }
+  function optimized(site){
+    const options=site.pools.reduce((n,p)=>n*(p.maxBuy+1),1),items=replicas(site);
+    const maxHosts=site.pools.reduce((n,p)=>n+p.maxBuy+p.quantity,0);
+    if(options>10000||options*items.length*Math.max(1,maxHosts)**2>20000000)fail(site.id+' · сузьте пределы заказа для полного перебора');
+    const best=new Map(),order={};
+    function consider(key,result){
+      const old=best.get(key);
+      if(!old||result.cost<old.cost||result.cost===old.cost&&result.units<old.units)best.set(key,result);
+    }
+    function visit(i){
+      if(i<site.pools.length){
+        const p=site.pools[i];for(let q=0;q<=p.maxBuy;q++){order[p.id]=q;visit(i+1);}return;
+      }
+      const result=evaluate(site,order,items);
+      if(result.missing.length)return;
+      consider('normal',result);
+      if(result.worst)return;
+      consider('resilient',result);
+      for(const sku of site.pools.map(p=>p.sku))if(site.pools.every(p=>p.sku===sku||!order[p.id]))consider('sku:'+sku,result);
+      if(!result.units)consider('existing',result);
+    }
+    visit(0);return {best,options};
+  }
+  function summary(key,label,sites){
+    const valid=sites.every(Boolean);
+    return {key,label,available:valid,sites,units:valid?sites.reduce((s,x)=>s+x.units,0):null,cost:valid?integer(sites.reduce((s,x)=>s+x.cost,0),'Суммарная стоимость'):null,
+      idle:valid?sites.reduce((s,x)=>s+x.idle,0):null,worst:valid?Math.max(...sites.map(x=>x.worst)):null,
+      missing:valid?sites.reduce((s,x)=>s+x.missing.length,0):null};
+  }
+  const cache=new WeakMap();
+  function analyze(model,id){
+    if(!cache.has(model))cache.set(model,new Map());const known=cache.get(model);if(known.has(id))return known.get(id);
+    const sites=inputs(model,id),search=sites.map(optimized);
+    const choices=[summary('asis','AS-IS · текущий парк',sites.map(s=>evaluate(s,{})))];
+    const types=[...new Set(sites.flatMap(s=>s.pools.map(p=>p.sku)))].sort();
+    for(const [key,label] of [['normal','Минимум для штатной работы'],['resilient','Минимум с резервом N−1'],...types.map(t=>['sku:'+t,'Закупать только '+t+' · N−1'])]){
+      choices.push(summary(key,label,search.map(s=>s.best.get(key)||(key.startsWith('sku:')?s.best.get('existing'):null)||null)));
+    }
+    const result={id,sites,choices,examined:search.reduce((s,x)=>s+x.options,0)};known.set(id,result);return result;
+  }
+  function tree(candidate,budget){
+    const checks=[['Доступен состав в пределах заказа',candidate.available],['Все реплики размещены',candidate.missing===0],
+      ['Каждый одиночный отказ выдержан',candidate.worst===0],['В пределах бюджета',budget==null||candidate.cost<=budget]];
+    const stops=['Пересмотреть доступные типы и пределы закупки','Добавить ёмкость или изменить размещение','Увеличить резерв площадки','Пересогласовать бюджет'];
+    return {checks:checks.map(([question,pass],i)=>({question,pass,no:stops[i]})),outcome:stops[checks.findIndex(x=>!x[1])]||'Предложить к согласованию'};
+  }
+  return {resources,role,ids,inputs,replicas,evaluate,analyze,summary,tree};
+})();
+if(typeof module!=='undefined')module.exports=Fleet;
+
+</script>
+<script>
+const FleetChange=((M,F,A)=>{
+  const index=m=>new Map(m.nodes.map(n=>[n.id,n]));
+  const node=value=>({op:'node',value});
+  const required=(v,label)=>{if(typeof v!=='string'||!v.trim())throw Error('Заполните '+label);return v.trim();};
+  function fresh(model,prefix){const by=index(model);let i=1;while(by.has(prefix+'-'+i))i++;return prefix+'-'+i;}
+  const linked=(m,id)=>m.nodes.filter(n=>n.refs?.includes(id)||n.parent===id);
+  const variants=(m,id)=>linked(m,id).filter(n=>F.role(n)==='variant'&&n.parent===id);
+  function cluster(model,analysis,layer){
+    const ids=new Set(analysis.sites.flatMap(s=>s.loads.map(l=>l.id)));
+    const subset={nodes:model.nodes.filter(n=>ids.has(n.id)),edges:model.edges.filter(e=>ids.has(e.from)&&ids.has(e.to))};
+    return A.calculate(subset,layer);
+  }
+  function freeze(doc,id,choice,name,release,budget,description){
+    const h=M.head(doc),m=h.data,by=index(m);
+    if(by.get(release)?.kind!=='release')throw Error('Выберите релиз');
+    if(!choice?.available)throw Error('Нет допустимого варианта');
+    if(budget!=null&&(!Number.isSafeInteger(budget)||budget<0))throw Error('Неверный бюджет');
+    const variant=fresh(m,'PLAN'),ops=[node({id:variant,name:required(name,'название варианта'),kind:'artifact',parent:id,release,state:'planned',
+      note:required(description,'целевое состояние'),attrs:{fleetRole:'variant',base:h.rev,option:choice.key,stage:'draft',...(budget==null?{}:{budget})}})];
+    const proposal=fresh(m,'CHANGE'),task=fresh(m,'WORK');
+    ops.push(node({id:proposal,kind:'proposal',name:'Изменение парка · '+name,release,state:'planned',note:description,
+      refs:[variant,id],attrs:{fleetRole:'fleetProposal'}}),
+      node({id:task,kind:'changeTask',parent:proposal,release,state:'planned',name:'Поставка и ввод · '+name,refs:[variant,id]}));
+    let seq=0;
+    for(const site of choice.sites)for(const [stock,quantity] of Object.entries(site.order)){
+      if(!quantity)continue;let key;
+      do{key='LINE-'+variant+'-'+(++seq);}while(by.has(key));
+      ops.push(node({id:key,name:'Приобрести · '+by.get(stock).name,kind:'artifact',parent:variant,release,attrs:{fleetRole:'order',quantity},relations:[['uses',stock],['deployedOn',site.site]]}));
+    }
+    return M.patch(m,ops);
+  }
+  function historical(doc,plan){
+    const h=doc.history.find(h=>h.rev===plan.attrs.base);
+    if(!h)throw Error('Нет исходной ревизии варианта '+plan.id);
+    const original=F.inputs(h.data,plan.parent),m=M.head(doc).data,lines=m.nodes.filter(n=>n.parent===plan.id&&F.role(n)==='order');
+    const order={},pools=new Map(original.flatMap(s=>s.pools.map(p=>[p.id,s.id])));
+    for(const l of lines){
+      const [pool]=F.ids(l,'uses'),[site]=F.ids(l,'deployedOn');
+      if(pools.get(pool)!==site||!site||Object.hasOwn(order,pool))throw Error('Некорректная позиция заказа '+l.id);
+      Object.defineProperty(order,pool,{value:l.attrs.quantity,enumerable:true});
+    }
+    return {base:h,original,choice:F.summary(plan.id,plan.name,original.map(s=>F.evaluate(s,Object.fromEntries(s.pools.map(p=>[p.id,order[p.id]??0])))))};
+  }
+  function approve(doc,planId,f){
+    const m=M.head(doc).data,by=index(m),plan=by.get(planId);
+    if(F.role(plan)!=='variant'||plan.attrs.stage!=='draft')throw Error('Выберите черновик');
+    const req=by.get(f.requirement),spec=by.get(f.specification);
+    if(req?.kind!=='requirement'||!req.refs?.includes(plan.parent)||F.role(spec)!=='specification'||!spec.refs?.includes(req.id))throw Error('Свяжите требование с закупкой, а спецификацию с требованием');
+    const decision={context:required(f.context,'контекст'),alternatives:required(f.alternatives,'сравнение альтернатив'),rationale:required(f.rationale,'обоснование'),consequences:required(f.consequences,'последствия'),owner:required(f.owner,'ответственного')};
+    const {choice}=historical(doc,plan),rule=F.tree(choice,plan.attrs.budget);
+    if(rule.checks.some(c=>!c.pass))throw Error(rule.outcome);
+    const proposal=m.nodes.find(n=>F.role(n)==='fleetProposal'&&n.refs?.includes(planId));
+    const governing=[req.id,spec.id,...(proposal?[proposal.id]:[])];
+    const evidence=JSON.stringify([req.id,req.note,req.attrs?.when,req.attrs?.then,spec.id,spec.note]);
+    const adr=fresh(m,'ADR');
+    return M.patch(m,[node({id:adr,name:'Выбор архитектуры · '+plan.name,kind:'adr',state:'done',release:plan.release,
+      note:Object.entries(decision).slice(0,4).map(([k,v],i)=>['Контекст','Альтернативы','Решение','Последствия'][i]+'\n'+v).join('\n\n'),
+      refs:[plan.id,plan.parent,...governing],attrs:{...decision,evidence,baseline:plan.attrs.base,approvedOrder:JSON.stringify(choice.sites.map(s=>s.order)),approvedBudget:plan.attrs.budget??'',
+        approvedRelease:plan.release}}),node({id:plan.id,state:'active',refs:[...governing,adr],attrs:{...plan.attrs,stage:'approved'}}),
+      ...(proposal?[node({id:proposal.id,state:'active',refs:[...new Set([...proposal.refs,req.id,spec.id,adr])]})]:[])]);
+  }
+  function implement(doc,id){
+    const m=M.head(doc).data,by=index(m),plan=by.get(id);
+    if(F.role(plan)!=='variant'||plan.attrs.stage!=='approved')throw Error('Нужен согласованный вариант');
+    const {original,choice}=historical(doc,plan),adr=(plan.refs||[]).map(k=>by.get(k)).find(n=>n?.kind==='adr'&&n.refs?.includes(id));
+    if(!adr||adr.attrs?.approvedOrder!==JSON.stringify(choice.sites.map(s=>s.order))||adr.attrs?.baseline!==plan.attrs.base||adr.attrs?.approvedRelease!==plan.release||
+      adr.attrs?.approvedBudget!==(plan.attrs.budget??''))throw Error('Параметры расходятся с согласованным ADR');
+    if(JSON.stringify(F.inputs(m,plan.parent))!==JSON.stringify(original))throw Error('Состав, цена или нагрузка изменились после расчёта. Пересчитайте вариант.');
+    const req=(adr.refs||[]).map(k=>by.get(k)).find(n=>n?.kind==='requirement'),spec=(adr.refs||[]).map(k=>by.get(k)).find(n=>F.role(n)==='specification');
+    if(!req?.refs?.includes(plan.parent)||!spec?.refs?.includes(req.id)||adr.attrs.evidence&&adr.attrs.evidence!==JSON.stringify([req.id,req.note,req.attrs?.when,req.attrs?.then,spec.id,spec.note]))throw Error('Требование или спецификация изменились после согласования ADR');
+    const proposal=(plan.refs||[]).map(k=>by.get(k)).find(n=>F.role(n)==='fleetProposal');
+    const ops=proposal?[node({id:proposal.id,state:'done',attrs:{...proposal.attrs,appliedObject:plan.parent}}),
+      ...m.nodes.filter(n=>n.kind==='changeTask'&&n.parent===proposal.id).map(n=>node({id:n.id,state:'done'}))]:[];
+    for(const s of choice.sites)for(const [stock,add] of Object.entries(s.order))if(add){const attrs=by.get(stock).attrs;
+      ops.push(node({id:stock,attrs:{...attrs,quantity:attrs.quantity+add,maxBuy:attrs.maxBuy-add}}));}
+    ops.push(node({id,state:'done',attrs:{...plan.attrs,stage:'implemented'}}));
+    return M.patch(m,ops);
+  }
+  function groupRows(sites,key){
+    const groups=new Map();
+    for(const s of sites)for(const p of s.pools){
+      const label=key==='sku'?p.sku:key==='cluster'?s.cluster:s.id;
+      if(!groups.has(label))groups.set(label,{key:label,stock:[],sites:new Set(),quantity:0});
+      const g=groups.get(label);g.stock.push(p.id);g.sites.add(s.id);g.quantity+=p.quantity;
+    }
+    return [...groups.values()].map(g=>({...g,sites:[...g.sites]}));
+  }
+  function saveClusters(m,root,layer){
+    if(!['flow','risk'].includes(layer))throw Error('Выберите слой DSM');
+    const groups=cluster(m,F.analyze(m,root),layer).groups,old=linked(m,root).filter(n=>F.role(n)==='partition'&&n.attrs.layer===layer);
+    const ops=[];
+    for(const [i,members] of groups.entries()){
+      const prior=old.find(n=>n.attrs.number===i+1),id=prior?.id||fresh({nodes:[...m.nodes,...ops.map(o=>o.value)]},'GROUP');
+      ops.push(node({id,name:'DSM '+layer+' · группа '+(i+1),kind:'cluster',parent:root,refs:members,state:'active',attrs:{fleetRole:'partition',number:i+1,layer}}));
+    }
+    for(const obsolete of old.filter(n=>n.attrs.number>groups.length))ops.push(node({id:obsolete.id,state:'done',refs:[]}));
+    return M.patch(m,ops);
+  }
+  function fromBook(doc,input){
+    const h=M.head(doc);
+    if(doc.project!==input.project||h.rev!==input.base)throw Error('Другая база блокнота. Загрузите актуальный проект.');
+    const m=M.validate(input.data),f=input.lab,analysis=F.analyze(m,f.root);
+    let candidate=analysis.choices.find(c=>c.key===f.key);
+    if(f.key==='manual'){
+      const valid=new Set(analysis.sites.flatMap(s=>s.pools.map(p=>p.id)));
+      if(!f.order||Object.keys(f.order).some(k=>!valid.has(k)))throw Error('Неизвестная строка ручного заказа');
+      candidate=F.summary('manual','Ручной заказ',analysis.sites.map(s=>F.evaluate(s,Object.fromEntries(s.pools.map(p=>[p.id,f.order[p.id]??0])))));
+    }
+    if(!candidate?.available)throw Error('Выбранный вариант недоступен');
+    const results=candidate.sites.flatMap(s=>s.failures.map(x=>[s.site,x.host,x.unplaced,x.moves]));
+    if(f.cost!==candidate.cost||f.worst!==candidate.worst||JSON.stringify(f.failures)!==JSON.stringify(results))throw Error('Расчёты Python и DSM расходятся. Выполните все ячейки заново.');
+    if(!f.clusters||['flow','risk'].some(layer=>JSON.stringify(f.clusters[layer])!==JSON.stringify(cluster(m,analysis,layer).groups)))throw Error('Разбиение Python и DSM расходится');
+    const settings=f.lifecycle||{},act=settings.action||'record';
+    if(act==='cluster')return saveClusters(m,f.root,settings.layer||'flow');
+    if(['save','approve','implement'].includes(act)){
+      if(M.diff(h.data,m).length)throw Error('Сначала верните исходные правки через record и сгенерируйте блокнот на новой базе');
+      if(act==='save')return freeze(doc,f.root,candidate,settings.name,settings.release,f.budget,settings.description);
+      if(index(m).get(settings.plan)?.parent!==f.root)throw Error('Вариант другой закупки');
+      return act==='approve'?approve(doc,settings.plan,settings):implement(doc,settings.plan);
+    }
+    if(act!=='record')throw Error('Неизвестная операция блокнота');
+    const plans=variants(m,f.root).filter(n=>n.attrs.stage==='implemented');
+    const delivery=plans.flatMap(n=>[n.id,n.release,...(n.refs||[])]);
+    const refs=[...new Set([f.root,...delivery,...analysis.sites.flatMap(s=>[s.id,s.cluster,...s.pools.flatMap(p=>[p.id,p.sku]),...s.loads.map(l=>l.id)]),
+      ...linked(m,f.root).filter(n=>n.kind==='requirement'||['specification','source'].includes(F.role(n))).map(n=>n.id)])];
+    let observed={};
+    if(f.inventory_source){
+      const src=f.inventory_source,rows=f.inventory;
+      if(!src.filename||!/^[a-f0-9]{64}$/.test(src.sha256)||!Number.isSafeInteger(src.bytes)||src.bytes<=0||src.bytes>2*1024*1024||typeof src.content64!=='string'||atob(src.content64).length!==src.bytes||!Array.isArray(rows))throw Error('Повреждена ведомость измерений');
+      const pools=analysis.sites.flatMap(s=>s.pools),byPool=new Map(pools.map(p=>[p.id,p])),seen=new Set(),count=new Map();
+      let good=0;
+      for(const row of rows){
+        const p=byPool.get(row.pool);
+        if(!p||typeof row.serial!=='string'||!row.serial.trim()||seen.has(row.serial)||!Array.isArray(row.values)||row.values.length!==3||row.values.some(v=>!Number.isSafeInteger(v)||v<=0))throw Error('Некорректный замер сервера');
+        seen.add(row.serial);if(row.values.every((v,i)=>v>=p.limits[i])){good++;count.set(p.id,(count.get(p.id)||0)+1);}
+      }
+      observed={inventoryFile:src.filename,inventoryHash:src.sha256,inventoryBytes:src.bytes,content64:src.content64,observations:JSON.stringify(rows),
+        qualified:good,measured:seen.size,conforms:good===seen.size&&pools.every(p=>(count.get(p.id)||0)===p.quantity)};
+    }
+    return M.patch(m,[node({id:fresh(m,'SIM'),kind:'artifact',parent:f.root,name:'Моделирование отказов · '+candidate.label,state:'done',refs,
+      note:'Симуляция одиночной потери узла. Стоимость '+candidate.cost+' ₽. Максимум неразмещённых реплик '+candidate.worst+'.',
+      attrs:{fleetRole:'simulation',...observed,option:f.key,...(f.budget==null?{}:{budget:f.budget}),base:h.rev,cost:candidate.cost,worst:candidate.worst,order:JSON.stringify(candidate.sites.map(s=>s.order)),failures:JSON.stringify(results)}})]);
+  }
+  return {fresh,linked,variants,cluster,freeze,historical,approve,implement,groupRows,saveClusters,fromBook};
+})(typeof DSM!=='undefined'?DSM:require('./model.js'),typeof Fleet!=='undefined'?Fleet:require('./fleet.js'),typeof Analysis!=='undefined'?Analysis:require('./analysis.js'));
+if(typeof module!=='undefined')module.exports=FleetChange;
+
+</script>
+<script>
+const FleetSource=((M,F,C)=>{
+  const limit=2*1024*1024;
+  const sourceKinds=['catalog','requirements','specifications','contracts'];
+  const utf8=b=>new TextDecoder().decode(b).replace(/^\uFEFF/,'');
+  function encode(bytes){let raw='';for(let i=0;i<bytes.length;i+=16384)raw+=String.fromCharCode(...bytes.subarray(i,i+16384));return btoa(raw);}
+  function decode(n){return Uint8Array.from(atob(n.attrs.content64),ch=>ch.charCodeAt(0));}
+  async function ingest(doc,category,name,bytes,root,requirement){
+    if(!sourceKinds.includes(category)||!bytes.length||bytes.length>limit)throw Error('Выберите непустой файл до 2 МиБ');
+    const m=M.head(doc).data;
+    if(requirement&&!m.nodes.some(n=>n.id===requirement&&n.kind==='requirement'&&n.refs?.includes(root)))throw Error('Выберите требование этой закупки');
+    const ext=name.split('.').pop().toLowerCase();
+    let input;
+    if(ext==='csv'||ext==='tsv')input=F.readCsv(utf8(bytes),{source:name});
+    else if(ext==='xlsx')input=await (typeof ExcelIO!=='undefined'?ExcelIO:require('./excel.js')).read(bytes,{source:name});
+    else if(ext==='md'&&category==='specifications'){
+      const title=utf8(bytes).split(/\r?\n/).find(s=>s.trim())?.replace(/^#+\s*/,'')||name;
+      const previous=m.nodes.find(n=>n.attrs?.fleetRole==='specification'&&n.attrs?.filename===name&&n.refs?.includes(root));
+      input={kind:'merge',nodes:[{id:previous?.id||C.fresh(m,'SPEC'),name:title,note:utf8(bytes),attrs:{filename:name}}],edges:[]};
+    }else throw Error('Поддерживаются CSV, TSV, XLSX и Markdown для спецификаций');
+    if(input.kind!=='merge')throw Error('Здесь нужен исходный каталог. Версионные проекции возвращаются через Обмен.');
+    if(category==='requirements'||category==='specifications'){
+      if(!input.nodes.length||input.edges.length)throw Error('Нужна таблица описаний с id и name');
+      const type=category==='requirements'?'requirement':'artifact';
+      const by=new Map(m.nodes.map(n=>[n.id,n]));
+      input.nodes=input.nodes.map(n=>{
+        const prev=by.get(n.id);if(prev&&prev.kind!==type||n.kind&&n.kind!==type)throw Error('Конфликт типа '+n.id);
+        return {...n,kind:type,refs:[...new Set([...(n.refs??prev?.refs??[]),...(root?[root]:[]),...(category==='specifications'&&requirement?[requirement]:[])])],
+          ...(type==='artifact'?{attrs:{...prev?.attrs,...n.attrs,fleetRole:'specification'}}:{})};
+      });
+    }
+    let next=F.preview(doc,input);
+    const digest=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),v=>v.toString(16).padStart(2,'0')).join('');
+    const roots=input.nodes.filter(n=>n.kind==='procurement').map(n=>n.id);
+    const owner=root||roots[0]||'';
+    const refs=[...new Set([...(owner?[owner]:[]),...input.nodes.map(n=>n.id),...input.edges.flatMap(e=>[e.from,e.to]),...(input.relations||[]).flatMap(e=>[e.from,e.to])])];
+    refs.sort();
+    if(!refs.length)throw Error('У источника нет связанных объектов');
+    const previous=m.nodes.find(n=>n.attrs?.fleetRole==='source'&&n.attrs.category===category&&n.attrs.filename===name&&n.parent===owner);
+    const id=previous?.id||C.fresh(next,'SOURCE');
+    next=M.patch(next,[{op:'node',value:{id,name,kind:'artifact',parent:owner,note:'Исходный документ · '+category,refs,
+      attrs:{fleetRole:'source',filename:name,category,sha256:digest,bytes:bytes.length,content64:encode(bytes)}}}]);
+    return next;
+  }
+  async function verifyResult(input){
+    if(input.kind!=='fleet-result')return input;
+    const hashes=input.data.nodes.filter(n=>n.attrs?.fleetRole==='source'&&n.parent===input.lab.root).map(n=>n.attrs);
+    const src=input.lab.inventory_source;
+    for(const entry of src?[...hashes,src]:hashes){
+      const raw=decode({attrs:entry}),sha=await crypto.subtle.digest('SHA-256',raw);
+      if(raw.length!==entry.bytes||Array.from(new Uint8Array(sha),b=>b.toString(16).padStart(2,'0')).join('')!==entry.sha256)throw Error('Неверная контрольная сумма '+entry.filename);
+    }
+    if(src){
+      const bytes=decode({attrs:src}),xlsx=typeof ExcelIO!=='undefined'?ExcelIO:require('./excel.js');
+      const sheets=/\.xlsx$/i.test(src.filename)?await xlsx.read(bytes,{rawRows:true}):[F.splitCsv(utf8(bytes))];
+      const rows=sheets.flatMap(([head,...body])=>body.map(row=>Object.fromEntries(head.map((k,i)=>[k,row[i]]))));
+      const observations=rows.map(r=>[String(r.serial??'').trim(),r.pool,...['cpuCores','ramGiB','diskGiB'].map(k=>Number(r[k]))]);
+      if(JSON.stringify(observations)!==JSON.stringify(input.lab.inventory.map(r=>[r.serial,r.pool,...r.values])))throw Error('Замеры в блокноте расходятся с исходной ведомостью');
+    }
+    return input;
+  }
+  return {ingest,decode,encode,sourceKinds,verifyResult};
+})(typeof DSM!=='undefined'?DSM:require('./model.js'),typeof Formats!=='undefined'?Formats:require('./formats.js'),typeof FleetChange!=='undefined'?FleetChange:require('./fleet-change.js'));
+if(typeof module!=='undefined')module.exports=FleetSource;
+
+</script>
+<script>
+function fleetPanel({doc,esc,b,option,sel,field,table,modal,push,render,download,navigate,toast,notebook,matrix,graph}){
+  let root='',step='sources',key='resilient',group='site',layer='flow',budget=null,plan='';
+  const stages={sources:'Источники',stock:'Текущий парк',options:'Варианты и резерв',decision:'ADR и релиз',report:'Отчёт'};
+  const categories={catalog:'Каталог',requirements:'Требования',specifications:'Спецификации',contracts:'Связи DSM'};
+  const money=v=>v==null?'—':v.toLocaleString('ru-RU')+' ₽';
+  const model=()=>DSM.head(doc()).data;
+  const node=id=>model().nodes.find(n=>n.id===id);
+  const idAttr=id=>'data-id="'+esc(id)+'"';
+  const act=(name,label,id='')=>b('fleet'+name,label,idAttr(id));
+  const card=id=>b('objectRow',esc(id),'class="tiny" '+idAttr(id));
+  const ids=values=>values.map(card).join(' ')||'—';
+  const linkRows=()=>FleetChange.linked(model(),root);
+  const section=(title,body)=>'<section class="card"><h2>'+title+'</h2>'+body+'</section>';
+  const bar=items=>'<div class="tools">'+items.join('')+'</div>';
+  const choices=nodes=>nodes.map(n=>[n.id,n.name+' · '+n.id]);
+  const select=(id,title,options,current)=>'<label class="field">'+title+'<select id="'+id+'">'+options.map(([v,l])=>option(v,l,current)).join('')+'</select></label>';
+  const number=(k,label,val,min=0)=>field(k,label,val,'type="number" min="'+min+'" step="1" required');
+  const txt=(k,label)=>'<label class="field">'+label+'<textarea name="'+k+'" required></textarea></label>';
+  function current(){const roots=model().nodes.filter(n=>n.kind==='procurement');if(!roots.some(n=>n.id===root))root=roots[0]?.id||'';return roots;}
+  function owner(n){
+    const m=model(),roots=m.nodes.filter(x=>x.kind==='procurement');
+    for(const r of roots.sort((a,b)=>(b.id===root)-(a.id===root))){
+      const sites=Fleet.ids(r,'uses'),scope=new Set([r.id,...sites]);
+      if(scope.has(n.id)||scope.has(n.parent)||(n.refs||[]).some(id=>scope.has(id))||Fleet.ids(n,'deployedOn').some(id=>scope.has(id)))return r.id;
+      const rows=m.nodes.filter(x=>sites.includes(x.parent)&&Fleet.role(x)==='stock');
+      if(rows.some(x=>Fleet.ids(x,'uses').includes(n.id))||m.nodes.some(x=>sites.includes(x.id)&&Fleet.ids(x,'deployedOn').includes(n.id))||m.nodes.some(x=>x.id===n.parent&&x.parent===r.id))return r.id;
+    }return '';
+  }
+  function sources(){
+    const records=linkRows().filter(n=>Fleet.role(n)==='source');
+    const requirements=linkRows().filter(n=>n.kind==='requirement');
+    return section('Загрузить исходные данные',bar([select('fleetCategory','Содержимое файла',Object.entries(categories),'catalog'),
+      select('fleetRequirement','Связать спецификацию с требованием',[['','Из файла'],...choices(requirements)],''),
+      '<label class="field">Файл CSV, TSV, Excel или Markdown<input id="fleetFile" type="file" accept=".csv,.tsv,.xlsx,.md"></label>'])+
+      table(['Документ','Тип','Байт','SHA-256','Исходные записи',''],records.map(n=>[card(n.id)+' '+esc(n.name),esc(categories[n.attrs.category]),n.attrs.bytes,'<code title="'+esc(n.attrs.sha256)+'">'+esc(n.attrs.sha256.slice(0,12))+'</code>',ids(n.refs||[]),act('Download','Скачать оригинал',n.id)])))+
+      section('Требования и спецификации',table(['ID','Описание','Основание','Связано с'],linkRows().filter(n=>n.kind==='requirement'||Fleet.role(n)==='specification').map(n=>[card(n.id),esc(n.name),esc(n.note),ids(n.refs||[])])));
+  }
+  function entryTools(){
+    return bar([act('Site','Добавить площадку'),act('Pool','Добавить тип в парк'),act('Load','Добавить нагрузку'),act('Release','Добавить релиз')]);
+  }
+  function enter(name){
+    const m=model(),buy=node(root),sites=Fleet.ids(buy,'uses').map(node).filter(n=>n?.kind==='installation');
+    const stockSite=sel('site','Инсталляция',choices(sites),sites[0]?.id);
+    const row=value=>({op:'node',value}),fresh=k=>FleetChange.fresh(m,k);
+    const title={Site:'Новая площадка',Pool:'Строка парка',Load:'Новая нагрузка',Release:'Новый релиз'}[name];
+    if(!buy||['Pool','Load'].includes(name)&&!sites.length)throw Error('Сначала создайте закупку и площадку');
+    const forms={
+      Site:field('id','ID площадки',fresh('DC'),'required')+field('name','Название ЦОД','','required'),
+      Pool:stockSite+sel('sku','Серверный профиль',[['','Новый профиль'],...choices(m.nodes.filter(n=>n.kind==='server'))],'')+
+        field('id','ID нового профиля',fresh('SKU'))+field('name','Название нового профиля','Сервер')+
+        number('cpuCores','Ядра CPU нового профиля',8,1)+number('ramGiB','RAM, ГиБ',32,1)+number('diskGiB','Диск, ГиБ',400,1)+
+        number('unitPriceRub','Цена нового профиля, ₽',0)+number('quantity','В наличии',0)+number('maxBuy','Лимит закупки',1),
+      Load:stockSite+field('id','ID нагрузки',fresh('SVC'),'required')+field('name','Название','','required')+
+        number('replicas','Число реплик',1,1)+number('cpuCores','Ядра на реплику',1)+number('ramGiB','RAM, ГиБ',1)+number('diskGiB','Диск, ГиБ',1)+sel('apart','Размещение копий',[['yes','На разных узлах'],['no','Совместное размещение']],'yes'),
+      Release:field('id','ID релиза',fresh('REL'),'required')+field('name','Название релиза','','required')};
+    modal(title,forms[name],async f=>{
+      if((name!=='Pool'||!f.sku)&&node(f.id))throw Error('Этот ID уже используется');
+      let ops=[];
+      const limits=Object.fromEntries(Fleet.resources.map(k=>[k,Number(f[k])]));
+      if(name==='Site'){
+        const cluster=fresh('CL'),installation=fresh('INST');
+        ops=[row({id:f.id,kind:'domain',name:f.name}),row({id:cluster,kind:'cluster',name:'Контур · '+f.name,parent:f.id}),
+          row({id:installation,kind:'installation',parent:cluster,name:'Инсталляция · '+f.name,relations:[['deployedOn',cluster]]}),
+          row({id:root,relations:[...(buy.relations||[]),['uses',installation]]})];
+        if(new Set([root,f.id,cluster,installation]).size!==4)throw Error('Выберите отдельный ID площадки');
+      }else if(name==='Pool'){
+        const sku=f.sku||f.id;
+        if(m.nodes.some(n=>n.parent===f.site&&Fleet.role(n)==='stock'&&Fleet.ids(n,'uses').includes(sku)))throw Error('Этот тип уже есть в парке площадки');
+        if(!f.sku)ops.push(row({id:sku,name:f.name,kind:'server',attrs:{...limits,unitPriceRub:Number(f.unitPriceRub)}}));
+        const id=FleetChange.fresh({nodes:[...m.nodes,...ops.map(o=>o.value)]},'STOCK');
+        ops.push(row({id,name:f.site+' / '+sku,kind:'artifact',parent:f.site,attrs:{fleetRole:'stock',quantity:Number(f.quantity),maxBuy:Number(f.maxBuy)},relations:[['uses',sku]]}));
+      }else if(name==='Load'){
+        if(!Object.values(limits).some(v=>v>0))throw Error('Укажите нагрузку хотя бы на один ресурс');
+        ops=[row({id:f.id,name:f.name,kind:'service',attrs:{...limits,replicas:Number(f.replicas),antiAffinity:f.apart==='yes'},relations:[['deployedOn',f.site]]})];
+      }else ops=[row({id:f.id,name:f.name,kind:'release',refs:[root]})];
+      await push(DSM.patch(m,ops),title+' · '+(f.name||f.site));
+    });
+  }
+  function stock(a){
+    return section('Состав парка',entryTools()+table(['Площадка','Строка','Профиль','CPU / RAM / диск','Цена','В наличии','Можно купить',''],a.sites.flatMap(s=>s.pools.map(p=>[card(s.id),card(p.id),card(p.sku),p.limits.join(' / '),money(p.price),p.quantity,p.maxBuy,act('Edit','Править количество',p.id)+b('edit','Профиль',idAttr(p.sku))]))))+
+      section('Нагрузки',table(['Установка','Компонент','Реплики','CPU / RAM / диск на реплику','Разносить копии'],a.sites.flatMap(s=>s.loads.map(l=>[card(s.id),card(l.id),l.count,l.demand.join(' / '),l.apart?'Да':'Нет']))))+
+      section('Группировка парка',select('fleetGroup','Группировать',[['site','По ЦОД'],['sku','По типу сервера'],['cluster','По инфраструктурному кластеру']],group)+
+      table(['Группа','Площадки','Строки парка','Количество'],FleetChange.groupRows(a.sites,group).map(g=>[card(g.key),ids(g.sites),ids(g.stock),g.quantity])))+architecture(a);
+  }
+  function architecture(a){
+    const loads=new Set(a.sites.flatMap(s=>s.loads.map(l=>l.id))),edges=model().edges.filter(e=>loads.has(e.from)&&loads.has(e.to)&&e.layer===layer);
+    const partition=FleetChange.cluster(model(),a,layer);
+    return section('Архитектура и DSM',bar(['technical','infra','software'].map(k=>act('Graph',Views.modes[k],k)))+
+      select('fleetLayer','Слой', [['flow','Вызовы'],['risk','Совместные проверки']],layer)+table(['Источник','Цель','Вес','Основание','Ячейка'],edges.map(e=>[card(e.from),card(e.to),e.weight,esc(e.reason),b('fleetPair','В DSM',idAttr(e.from)+' data-to="'+esc(e.to)+'"')]))+
+      table(['Кластер DSM','Компоненты'],partition.groups.map((g,i)=>[i+1,ids(g)]))+act('Cluster','Записать кластеры'));
+  }
+  function comparison(a){return table(['Вариант','Купить','Стоимость','Свободные узлы','Дефицит штатно','Дефицит при отказе¹'],a.choices.map(c=>[esc(c.label),c.units??'—',c.available?money(c.cost):'Недоступен',c.idle??'—',c.missing??'—',c.worst??'—']))+'<p class="hint">¹ Максимум неразмещённых реплик при одном отказе в пределах ЦОД.</p>';}
+  function failures(c){
+    if(!c.available)return '<p>В пределах заданных ограничений решение отсутствует.</p>';
+    return table(['Площадка','Узел','Реплики штатно','После отказа узла','Останутся без узла'],c.sites.flatMap(s=>s.hosts.map((h,i)=>[card(s.site),esc(h.id),esc(h.replicas.map(r=>r.id).join(', ')||'—'),
+      esc(s.failures[i].moves.map(([r,to])=>r+' → '+to).join(', ')||'—'),esc(s.failures[i].unplaced.join(', ')||'—')])));
+  }
+  function tree(c,cap){
+    const t=Fleet.tree(c,cap),stop=t.checks.findIndex(x=>!x.pass);
+    const diagram='<ol class="fleet-tree" aria-label="Путь решения">'+t.checks.map((x,i)=>'<li data-reached="'+(stop<0||i<=stop)+'"><strong>'+esc(x.question)+'</strong><span>'+(stop>=0&&i>stop?'Проверка пропущена':!x.pass&&i===stop?'Нет → '+esc(x.no):'Да → '+(i===t.checks.length-1?'согласование':'дальше'))+'</span></li>').join('')+'</ol>';
+    return diagram+table(['Условие','Проверка','Действие при нарушении'],t.checks.map(x=>[esc(x.question),x.pass?'Да':'Нет',esc(x.no)]))+'<p><strong>'+esc(t.outcome)+'</strong></p>';}
+  function options(a,c){return section('Сравнение AS-IS и TO-BE',comparison(a)+select('fleetOption','Исследовать вариант',a.choices.map(x=>[x.key,x.label]),key)+
+    bar([act('Budget',budget==null?'Задать бюджет':'Бюджет '+money(budget)),act('Notebook','Рассчитать в Jupyter'),act('Save','Сохранить вариант в релиз')]))+
+    section('Дерево решения',tree(c,budget))+section('Потеря каждого узла',failures(c));}
+  function evidence(){
+    const records=linkRows().filter(n=>Fleet.role(n)==='simulation');
+    if(!records.length)return '';
+    return section('Проверки в Jupyter',table(['Проверка','Расчётная база','Дефицит N−1','Ведомость','Измерено / в профиле','Основания',''],records.map(n=>[
+      card(n.id),esc(n.attrs.base.slice(0,8)),n.attrs.worst,esc(n.attrs.inventoryFile||'Моделирование'),n.attrs.measured==null?'—':n.attrs.measured+' / '+n.attrs.qualified,ids((n.refs||[]).filter(k=>['adr','requirement','release','proposal'].includes(node(k)?.kind))),b('replayEvidence','Повторить в Jupyter',idAttr(n.id))])));
+  }
+  function decisions(){
+    const plans=FleetChange.variants(model(),root),n=plans.find(n=>n.id===plan)||plans.at(-1);
+    if(!n)return section('Решения по закупке','<p>Выберите конфигурацию и сохраните её в релиз.</p>'+act('Step',stages.options,'options'));
+    plan=n.id;const proposal=model().nodes.find(p=>Fleet.role(p)==='fleetProposal'&&p.refs?.includes(n.id));const c=FleetChange.historical(doc(),n).choice,adr=(n.refs||[]).map(node).find(n=>n?.kind==='adr');
+    return section('Зафиксированный вариант',select('fleetPlan','Вариант',choices(plans),plan)+table(['Вариант','Стадия','Релиз','База','Цена','Бюджет'],[[card(n.id),esc(n.attrs.stage),card(n.release),esc(n.attrs.base.slice(0,8)),money(c.cost),money(n.attrs.budget)]])+
+      '<p>'+esc(n.note)+'</p>'+table(['ЦОД','Позиция заказа','Количество'],c.sites.flatMap(s=>Object.entries(s.order).filter(([,v])=>v).map(([id,q])=>[card(s.site),card(id),q])))+tree(c,n.attrs.budget)+
+      (adr?table(['ADR','Ответственный','Контекст','Альтернативы','Решение','Последствия','Основания'],[[card(adr.id),...['owner','context','alternatives','rationale','consequences'].map(k=>esc(adr.attrs[k])),ids(adr.refs)]]):'')+
+      bar([act('BaselineBook','Рассчитать исходную ревизию',n.id),...(proposal?[card(proposal.id),...(adr?[b('specZip','Скачать OpenSpec',idAttr(proposal.id))]:[])]:[]),...(n.attrs.stage==='draft'?[act('Approve','Оформить ADR')]:[]),...(n.attrs.stage==='approved'?[act('Implement','Внедрить заказ')]:[]),b('tab','История проекта',idAttr('history'))]));
+  }
+  function report(a,c){
+    const sources=linkRows().filter(n=>Fleet.role(n)==='source'),decisionsList=FleetChange.variants(model(),root);
+    return section('Отчёт о закупке',bar([act('Print','Печать / PDF'),act('Notebook','Таблицы и графики в Jupyter')]))+
+      '<article id="fleetReport" class="card"><h2>'+esc(node(root).name)+'</h2><p>'+esc(root)+' · версия '+esc(DSM.head(doc()).rev)+' · '+esc(c.label)+'</p><h3>Стоимость и резерв</h3>'+comparison(a)+
+      '<h3>Размещение и восстановление</h3>'+failures(c)+'<h3 class="fleet-report-policy">Критерии выбора</h3>'+tree(c,budget)+
+      '<h3>Релизы и решения</h3>'+table(['Вариант','Релиз','Стадия','Согласованные основания'],decisionsList.map(n=>[card(n.id),card(n.release),esc(n.attrs.stage),ids(n.refs||[])]))+
+      table(['ADR','Контекст','Основание выбора','Последствия'],linkRows().filter(n=>n.kind==='adr').map(n=>[card(n.id),esc(n.attrs?.context??''),esc(n.attrs?.rationale??n.note),esc(n.attrs?.consequences??'')]))+
+      '<h3>Источники расчёта</h3>'+table(['Файл','SHA-256'],sources.map(n=>[esc(n.name),'<code>'+esc(n.attrs.sha256)+'</code>']))+'</article>';
+  }
+  function view(){
+    const roots=current();
+    let out=section('Закупка по ЦОД',bar([select('fleetRoot','Закупка',choices(roots),root),act('New','Создать закупку')])+
+      '<nav class="fleet-steps" aria-label="Этапы закупки">'+Object.entries(stages).map(([k,v])=>b('fleetStep',v,idAttr(k)+' aria-pressed="'+(step===k)+'"')).join('')+'</nav>');
+    if(step==='sources'||!root)return '<div class="stack">'+out+sources()+(root?section('Ручной ввод',entryTools()):'')+'</div>';
+    try{const a=Fleet.analyze(model(),root),c=a.choices.find(x=>x.key===key)||a.choices[0];
+      out+=step==='stock'?stock(a):step==='options'?options(a,c):step==='decision'?decisions()+evidence():report(a,c);
+    }catch(e){out+=section('Исходные данные','<p>'+esc(e.message)+'</p>'+entryTools()+bar([act('Step','Загрузить каталог','sources'),b('tab','Открыть каталог',idAttr('catalog'))]));}
+    return '<div class="stack">'+out+'</div>';
+  }
+  function preview(next,note,base=DSM.head(doc()).rev){
+    const diff=DSM.diff(model(),next);
+    if(!diff.length){toast('Данные совпадают с текущей версией');return;}
+    modal(note,Views.differences(diff),()=>push(next,note,'Закупки',base),'Применить изменения');
+  }
+  function bind(){
+    const on=(id,fn)=>{const el=document.getElementById(id);if(el)el.onchange=e=>{fn(e.target.value);render();};};
+    on('fleetRoot',v=>{root=v;plan='';});on('fleetLayer',v=>{layer=v;});on('fleetOption',v=>{key=v;});on('fleetPlan',v=>{plan=v;});on('fleetGroup',v=>{group=v;});
+    const file=document.getElementById('fleetFile');if(file)file.onchange=async()=>{
+      const f=file.files[0];if(!f)return;const snap=doc(),base=DSM.head(snap).rev;
+      try{const next=await FleetSource.ingest(snap,document.getElementById('fleetCategory').value,f.name,new Uint8Array(await f.arrayBuffer()),root,document.getElementById('fleetRequirement').value);
+        preview(next,'Загрузка · '+f.name,base);}catch(e){toast(e.message);}finally{file.value='';}
+    };
+  }
+  function handle(name,id,target){
+    if(name==='Open'){root=id;step='stock';navigate('fleet');return;}
+    if(name==='Step'){step=id;render();return;}
+    if(name==='Graph'){graph(id,root);return;}
+    if(name==='Pair'){matrix({from:id,to:target.dataset.to,layer});return;}
+    if(name==='Download'){const n=node(id);download(n.attrs.filename,FleetSource.decode(n));return;}
+    if(name==='Print'){document.body.classList.add('fleet-print');try{window.print();}finally{document.body.classList.remove('fleet-print');}return;}
+    if(name==='New'){modal('Новая закупка',field('id','ID',FleetChange.fresh(model(),'BUY'),'required')+field('name','Название','','required'),async f=>{
+      if(node(f.id))throw Error('Этот ID уже занят');await push(DSM.patch(model(),[{op:'node',value:{...f,kind:'procurement'}}]),'Создана закупка '+f.id);root=f.id;step='sources';render();
+    });return;}
+    if(['Site','Pool','Load','Release'].includes(name)){enter(name);return;}
+    if(name==='Budget'){modal('Ограничение стоимости',field('rub','Бюджет, ₽ · пустое поле снимает ограничение',budget??'','type="number" min="0" step="1"'),f=>{budget=f.rub===''?null:Number(f.rub);render();},'Пересчитать');return;}
+    if(name==='Edit'){
+      const n=node(id);modal('Состав парка · '+n.id,number('quantity','В наличии',n.attrs.quantity)+number('maxBuy','Доступно к закупке',n.attrs.maxBuy),f=>push(DSM.patch(model(),[{op:'node',value:{id,attrs:{...n.attrs,quantity:Number(f.quantity),maxBuy:Number(f.maxBuy)}}}]),'Обновлён парк '+id));return;
+    }
+    if(name==='Cluster'){preview(FleetChange.saveClusters(model(),root,layer),'Разбиение DSM · '+layer);return;}
+    if(name==='BaselineBook'){
+      const n=node(id),snap=FleetChange.historical(doc(),n);
+      notebook(root,{option:'manual',order:Object.assign({},...snap.choice.sites.map(s=>s.order)),budget:n.attrs.budget,base:snap.base.rev});return;
+    }
+    if(name==='Notebook'){notebook(root,{option:key,budget});return;}
+    if(name==='Save'){
+      const c=Fleet.analyze(model(),root).choices.find(x=>x.key===key),releases=model().nodes.filter(n=>n.kind==='release');
+      if(!releases.length)throw Error('Добавьте релиз в каталоге');if(!c.available)throw Error('Выберите доступный вариант');
+      modal('Целевое состояние',field('name','Название',c.label,'required')+sel('release','Релиз',choices(releases),releases[0].id)+txt('note','Описание целевого состояния'),
+        async f=>{await push(FleetChange.freeze(doc(),root,c,f.name,f.release,budget,f.note),'Зафиксирован вариант · '+f.name);step='decision';plan='';render();});return;
+    }
+    if(name==='Approve'){
+      const req=linkRows().filter(n=>n.kind==='requirement'),spec=linkRows().filter(n=>Fleet.role(n)==='specification');
+      modal('Архитектурное решение',sel('requirement','Требование',choices(req),'')+sel('specification','Спецификация',choices(spec),'')+
+        [['owner','Ответственный'],['context','Контекст'],['alternatives','Сравнение альтернатив'],['rationale','Обоснование выбора'],['consequences','Последствия']].map(([k,l])=>txt(k,l)).join(''),
+        f=>push(FleetChange.approve(doc(),plan,f),'Принят ADR · '+plan,f.owner));return;
+    }
+    if(name==='Implement')preview(FleetChange.implement(doc(),plan),'Внедрение · '+plan);
+  }
+  return {view,bind,handle,owner};
+}
+
+</script>
+<script>
 function installationPanel({model,esc,b,field,sel,option,table,modal,push,render,download,notebook,graph}){
   let selected='';
   const card=id=>b('objectRow',esc(id),'class="tiny" data-id="'+esc(id)+'"');
@@ -4695,7 +5321,7 @@ function installationPanel({model,esc,b,field,sel,option,table,modal,push,render
     if(!inst)return body+'<p>Создайте инсталляцию или загрузите каталог, нагрузки и связи размещения из Excel.</p>'+b('tab','Импорт из Excel','data-id="io"')+'</section>'+cover();
     body+='<div class="tools"><label>Инсталляция <select id="sizingInstall">'+plans.map(n=>option(n.id,n.name+' · '+n.id,inst.id)).join('')+'</select></label>'+card(inst.id)+'</div>';
     let p;
-    try{p=Installations.calculate(m,inst.id);}catch(e){return body+'<p class="callout">'+esc(e.message)+'</p></section>'+cover();}
+    try{p=Installations.calculate(m,inst.id);}catch(e){return body+'<p class="callout">'+esc(e.message)+'</p>'+m.nodes.filter(n=>n.kind==='procurement'&&Fleet.ids(n,'uses').includes(inst.id)).map(n=>b('fleetOpen','Сравнить парк ЦОД','data-id="'+esc(n.id)+'"')).join('')+'</section>'+cover();}
     const fmt=n=>n.toLocaleString('ru-RU');
     body+='<div class="sizing-metrics">'+[[p.bins.length,'Рабочих узлов'],[p.spare,'В резерве'],[p.required,'Всего узлов'],[p.existing,'Уже доступно'],[p.purchase,'К закупке'],[p.budget===null?'—':fmt(p.budget),'Стоимость, ₽']].map(([v,l])=>'<div><strong>'+v+'</strong><span>'+l+'</span></div>').join('')+'</div>'+
       '<p>Площадка '+card(p.cluster)+' · профиль узла '+card(p.host)+' · '+p.limits.join(' / ')+' (ядра / ГиБ RAM / ГиБ диска)</p>'+
@@ -5071,13 +5697,13 @@ function notebookPanel({doc,online,visible,render,proposed,modal,download,button
     return '<details class="card"><summary>Библиотека проекта'+(library?' · '+library.length:'')+'</summary>'+content+action('Refresh','Обновить список')+'</details>';
   }
   function view(){
-    const profiles={full:'Полный анализ DSM',installation:'Закупка и приёмка серверов',...Object.fromEntries(Object.entries(NotebookProfiles).map(([k,v])=>[k,v.name]))};
+    const profiles={full:'Полный анализ DSM',fleet:'Два ЦОД · расчёт, отказ и источники',installation:'Закупка и приёмка серверов',...Object.fromEntries(Object.entries(NotebookProfiles).map(([k,v])=>[k,v.name]))};
     const controls=session?'<p>Сохраните ячейки в Jupyter (Ctrl+S). Файл · '+esc(session.file)+'</p><div class="tools">'+action('Preview','Проверить изменения','class="primary"')+action('LiveResult','Проверить результат Python')+action('Saved','Скачать сохранённый блокнот')+action('Stop','Завершить сессию')+'</div>':
       '<div class="tools"><label>Расчёт <select id="bookProfile" aria-label="Профиль генерации">'+Object.entries(profiles).map(([k,v])=>option(k,v,profile)).join('')+'</select></label>'+action('Generate','Сгенерировать блокнот')+
       '<label class="btn">Загрузить .ipynb<input type="file" class="file-picker" id="bookFile" accept=".ipynb"></label>'+
       (online()?action('Start',starting?'Запуск…':'Запустить Jupyter',starting?'disabled':'class="primary"'):'')+'</div>'+
       (selected&&online()?'<p>Для запуска выбран файл '+esc(name)+'.</p>':!online()?'<p>Для вычислений запустите локальную мастерскую с Jupyter. Подготовка и просмотр файлов доступны здесь.</p>':'');
-    return '<fieldset class="book-controls" '+(loading||starting?'disabled':'')+'><div class="stack">'+(loading?'<p role="status">Чтение · '+esc(loading)+'</p>':'')+'<article class="card" id="bookDrop"><h2>Jupyter Notebook</h2>'+controls+(error?'<p role="alert">'+esc(error)+'</p>':'')+'</article>'+(session?'':viewer()+shelf())+'</div></fieldset>';
+    return '<fieldset class="book-controls" '+(loading||starting?'disabled':'')+'><div class="stack">'+(loading?'<p role="status">Чтение · '+esc(loading)+'</p>':'')+'<article class="card" id="bookDrop"><h2>Jupyter Notebook</h2>'+controls+(error?'<p role="alert">'+esc(error)+'</p>':'')+'</article>'+(!session&&selected?.metadata.dsm?.profile==='fleet'?'<section class="card"><h3>Файл для расчёта в Jupyter</h3><div class="tools"><label>Содержимое <select id="bookDataKind">'+[['catalog','Каталог'],['requirements','Требования'],['specifications','Спецификация'],['contracts','Контракты DSM'],['inventory','Ведомость измерений']].map(([k,v])=>option(k,v,'catalog')).join('')+'</select></label><label>Требование для спецификации <input id="bookDataReq"></label><label>Вложить исходник <input id="bookDataFile" type="file" accept=".csv,.tsv,.xlsx,.md"></label></div><p class="hint">Файл сохраняется внутри .ipynb и читается ядром при выполнении всех ячеек.</p></section>':'')+(session?'':viewer()+shelf())+'</div></fieldset>';
   }
   async function handle(which,id){
     switch(which){
@@ -5099,8 +5725,8 @@ function notebookPanel({doc,online,visible,render,proposed,modal,download,button
           const frame=document.createElement('iframe');frame.title='Jupyter Notebook';frame.src=session.url;host().replaceChildren(frame);
         }catch(e){error=e.message;}finally{starting=false;render();}
         break;
-      case 'Result':proposed(Notebook.result(selected),name+' · Python');break;
-      case 'LiveResult':proposed(Notebook.result(await request('download/'+session.id)),session.name+' · Python');break;
+      case 'Result':proposed(await FleetSource.verifyResult(Notebook.result(selected)),name+' · Python');break;
+      case 'LiveResult':proposed(await FleetSource.verifyResult(Notebook.result(await request('download/'+session.id))),session.name+' · Python');break;
       case 'Preview':proposed(await request('read/'+session.id),session.name);break;
       case 'Saved':save(session.name,await request('download/'+session.id));break;
       case 'Stop':modal('Завершить сессию Jupyter','<p>Сохраните ячейки в Jupyter. Файл останется в библиотеке проекта.</p>',async()=>{
@@ -5111,6 +5737,13 @@ function notebookPanel({doc,online,visible,render,proposed,modal,download,button
   function bind(){
     const el=id=>document.getElementById(id);
     if(el('bookProfile'))el('bookProfile').onchange=e=>{profile=e.target.value;};
+    if(el('bookDataFile'))el('bookDataFile').onchange=async e=>{
+      const file=e.target.files[0];if(!file)return;
+      const ticket=++selection;loading=file.name;
+      const category=el('bookDataKind').value,req=el('bookDataReq').value.trim();render();
+      try{const book=await FleetNotebook.attach(selected,category,file,req);if(ticket===selection){loading='';choose(book,name);toast('Вложен файл '+file.name);}}
+      catch(err){if(ticket===selection){loading='';error=err.message;render();}}
+    };
     if(el('bookFile'))el('bookFile').onchange=e=>upload(e.target.files[0]);
     if(el('bookDrop')&&!session){
       el('bookDrop').ondragover=e=>e.preventDefault();
@@ -5130,9 +5763,15 @@ function notebookPanel({doc,online,visible,render,proposed,modal,download,button
   }
   function replay(id){
     if(session||starting)throw Error('Сохраните и завершите текущую сессию Jupyter');
-    choose(Notebook.replayInstallation(doc(),id),'acceptance-'+id+'.ipynb');
+    const fleet=doc().history.at(-1).data.nodes.find(n=>n.id===id)?.attrs?.fleetRole==='simulation';
+    choose((fleet?Notebook.replayFleet:Notebook.replayInstallation)(doc(),id),'acceptance-'+id+'.ipynb');
   }
-  return {view,handle,bind,refresh,reset,installation,replay,active:()=>!!session};
+  function fleet(id,context){
+    if(session||starting)throw Error('Завершите текущую сессию Jupyter');
+    let snapshot=doc();if(context?.base){const i=snapshot.history.findIndex(h=>h.rev===context.base);if(i<0)throw Error('Исходная ревизия отсутствует');snapshot={...snapshot,history:snapshot.history.slice(0,i+1)};}
+    profile='fleet';choose(Notebook.write(snapshot,profile,id,context),'fleet-'+id+'.ipynb');
+  }
+  return {view,handle,bind,refresh,reset,installation,replay,fleet,active:()=>!!session};
 }
 
 </script>
@@ -5142,9 +5781,9 @@ function notebookPanel({doc,online,visible,render,proposed,modal,download,button
 const $=id=>document.getElementById(id), esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
 const embedded=DSM.document(JSON.parse($('project-data').textContent));
 const original='<!doctype html>\n'+document.documentElement.outerHTML;
-const tabs={sizing:'Расчёт инсталляций',journey:'Маршрут изменения',matrix:'Матрица',graph:'Граф и схема',catalog:'Каталог',plan:'Релизы и фичи',history:'Версии',io:'Обмен',notebook:'Jupyter Notebook',artifacts:'Артефакты',requirements:'Требования',requests:'Запросы',reports:'Анализ'};
+const tabs={fleet:'Закупка по ЦОД',sizing:'Расчёт инсталляций',journey:'Маршрут изменения',matrix:'Матрица',graph:'Граф и схема',catalog:'Каталог',plan:'Релизы и фичи',history:'Версии',io:'Обмен',notebook:'Jupyter Notebook',artifacts:'Артефакты',requirements:'Требования',requests:'Запросы',reports:'Анализ'};
 const kinds=Views.types;
-const sections={architecture:['sizing','journey','matrix','graph','plan','requirements','requests','artifacts','reports'],data:['catalog','notebook']};
+const sections={architecture:['fleet','sizing','journey','matrix','graph','plan','requirements','requests','artifacts','reports'],data:['catalog','notebook']};
 const lastTab={architecture:'matrix',data:'catalog'};
 let architectureFormat='diagram',returnGraph='concept',boundaryOpen=false,structure=null,workMode='architecture',registry='nodes',scenarioId='';
 function navigate(id,record=true){
@@ -5230,7 +5869,7 @@ function shell(content){
   $('workMode').innerHTML=Object.entries({architecture:'Архитектура',data:'Данные и расчёты'}).map(([k,v])=>b('workMode',v,'aria-pressed="'+(k===workMode)+'" data-id="'+k+'"')).join('');
   $('notebookHost').hidden=tab!=='notebook'||!books.active();
   $('demoGuide').hidden=doc.project!==embedded.project||!data().nodes.some(n=>n.id==='TK'&&n.note.includes('Qwen Code'))||!nodeBy('F02')||!nodeBy('F03');
-  const menu={'Изменения':['journey','requirements','requests','artifacts','plan'],'Архитектура':['sizing','catalog','matrix','graph','reports'],'Данные':['notebook','history','io']};
+  const menu={'Изменения':['journey','requirements','requests','artifacts','plan'],'Архитектура':['fleet','sizing','catalog','matrix','graph','reports'],'Данные':['notebook','history','io']};
   $('nav').innerHTML=Object.entries(menu).map(([title,items])=>'<section><h2>'+title+'</h2>'+items.map(k=>
     b('tab',tabs[k],'class="'+(k===tab?'on':'')+'" '+(k===tab?'aria-current="page" ':'')+'data-id="'+k+'"')).join('')+'</section>').join('');
   $('content').innerHTML=content;
@@ -5247,11 +5886,11 @@ function inspector(){
   if(structure)box+='<div class="callout"><b>'+esc(structure.from)+' → '+esc(structure.to)+'</b><br>'+esc(structure.reason)+'</div>'+b('structureView',tab==='catalog'?(returnGraph==='concept'?'На концептуальную схему':'Вернуться на схему'):'В реестр архитектурных связей');
   if(structure&&Object.hasOwn(Views.relations,structure.layer))box+=b('typedEdit','Изменить архитектурную связь');
   const refs=[...new Set([...(n.refs||[]),...data().nodes.filter(other=>other.refs?.includes(n.id)).map(other=>other.id)])];
-  if(n.attrs)box+=table(['Атрибут','Значение'],Object.entries(n.attrs).map(([k,v])=>[esc(k),esc(v)]));
+  if(n.attrs)box+=table(['Атрибут','Значение'],Object.entries(n.attrs).filter(([k])=>k!=='content64').map(([k,v])=>[esc(k),esc(v)]));
   const relations=data().nodes.flatMap(other=>(other.relations||[]).filter(([,to])=>other.id===n.id||to===n.id).map(([k,to])=>[idButton(other.id),esc(Views.relations[k]),idButton(to)]));
   if(relations.length)box+=table(['Объект','Связь','Цель'],relations);
   if(n.kind==='proposal')box+=toolbar([b('document','Оформить ADR','data-id="adr"'),b('specZip','Пакет OpenSpec','data-id="'+esc(n.id)+'"'),b('applySpec','Apply · применить патч','data-id="'+esc(n.id)+'" '+(n.state==='done'?'disabled':''))]);
-  if(n.attrs?.source==='Jupyter'&&n.attrs?.verification)box+=b('replayEvidence','Воспроизвести проверку в Jupyter','data-id="'+esc(n.id)+'"');
+  if(n.attrs?.source==='Jupyter'&&n.attrs?.verification||Fleet.role(n)==='simulation')box+=b('replayEvidence','Воспроизвести проверку в Jupyter','data-id="'+esc(n.id)+'"');
   if(n.kind==='installation'&&!n.attrs?.verification)box+=b('openSizing','Расчёт инсталляции','data-id="'+esc(n.id)+'"');
   if(n.kind==='requirement')box+=b('journeySelect','К маршруту изменения','data-id="'+esc(n.id)+'"');
   if(n.kind!=='requirement'){
@@ -5260,6 +5899,7 @@ function inspector(){
     const routes=[...new Set(direct)].filter(id=>by.get(id)?.kind==='requirement');
     if(routes.length)box+=toolbar(routes.map(id=>b('journeySelect','Маршрут '+esc(id),'data-id="'+esc(id)+'"')));
   }
+  const purchase=fleet.owner(n);if(purchase)box+=b('fleetOpen','К закупке '+esc(purchase),'data-id="'+esc(purchase)+'"');
   if(n.kind==='scenario')box+=b('scenarioView','Показать последовательность','data-id="'+esc(n.id)+'"');
   if(refs.length)box+='<h3>Связанные артефакты и объекты</h3>'+toolbar(refs.map(idButton));
   if(pair)box+='<div class="tools">'+[['matrix','В матрицу'],['graph','На граф'],['catalog','В реестр связей']].filter(([k])=>k!==tab).map(([k,label])=>b('pairView',label,'data-id="'+k+'"')).join('')+'</div>';
@@ -5431,6 +6071,10 @@ const books=notebookPanel({doc:()=>doc,online:()=>server,visible:()=>tab==='note
 const desk=reviewPanel({doc:()=>doc,esc,button:b,option,field,sel,table,tools:toolbar,modal,push,download,proposed,render,toast,
   inspect:id=>{registry='nodes';filter='';focus=id;pair=null;structure=null;resetCatalog();navigate('catalog');}});
 function openInstallationBook(id,context){books.installation(id,context);navigate('notebook');}
+const fleet=fleetPanel({doc:()=>doc,esc,b,option,sel,field,table,modal,push,render,download,navigate,toast,
+  notebook:(id,context)=>{books.fleet(id,context);navigate('notebook');},
+  matrix:(edge)=>{layer=edge.layer;showPair(edge.from,edge.to,'matrix');},
+  graph:(mode,id)=>{graphMode=mode;architectureFormat='diagram';focus=id;pair=null;structure=null;pages.drawing=0;navigate('graph');}});
 const sizing=installationPanel({model:data,esc,b,field,sel,option,table,modal,push,render,download,
   notebook:openInstallationBook,
   graph:(mode,id)=>{graphMode=mode;architectureFormat='diagram';focus=id;pair=null;structure=null;pages.drawing=0;navigate('graph');}});
@@ -5460,7 +6104,8 @@ function io(){return '<div class="cols"><div class="card"><h2>Загрузить
 function render(){
   if(!nodeBy(focus))focus=data().nodes[0]?.id||'';
   if(pair&&pair.some(id=>!nodeBy(id)))pair=null;
-  shell(({sizing:sizing.view,journey:journey.view,matrix,graph,catalog,plan,history,io,artifacts,requirements,requests:desk.view,reports:desk.reports,notebook:books.view})[tab]());
+  shell(({fleet:fleet.view,sizing:sizing.view,journey:journey.view,matrix,graph,catalog,plan,history,io,artifacts,requirements,requests:desk.view,reports:desk.reports,notebook:books.view})[tab]());
+  if(tab==='fleet')fleet.bind();
   if(tab==='journey')journey.bind();
   if(tab==='notebook')books.bind();
   if(tab==='requests'||tab==='reports')desk.bind();
@@ -5554,6 +6199,7 @@ $('save').onclick=()=>exportAs('json');
 document.addEventListener('click',async e=>{const t=e.target.closest('[data-action]');if(!t)return;const action=t.dataset.action,id=t.dataset.id;
   try{
     if(action==='replayEvidence'){books.replay(id);navigate('notebook');return;}
+    if(action.startsWith('fleet')){await fleet.handle(action.slice(5),id,t);return;}
     if(action==='openSizing'){sizing.select(id);navigate('sizing');return;}
     if(action.startsWith('sizing')){await sizing.handle(action.slice(6),id);return;}
     if(action==='archCsv'||action==='archMatrixCsv'){
@@ -5670,7 +6316,7 @@ async function start(){
   if(location.protocol==='http:'&&location.hostname==='127.0.0.1'&&location.pathname==='/'){
     try{const r=await fetch('/api/head',{cache:'no-store'});if(r.ok){const h=await r.json();if(h.rev!==base()||h.project&&h.project!==doc.project){const update=await fetch('/api/project',{cache:'no-store'});doc=DSM.document(await update.json());}server=true;}}catch{}}
   if(!server){try{const active=localStorage.getItem(entryKey);if(active?.startsWith('mazzy.dsm.1/'))cacheKey=active;const c=localStorage.getItem(cacheKey);if(c){const saved=DSM.document(JSON.parse(c));if(active||saved.project===embedded.project&&saved.history.some(h=>h.rev===DSM.head(embedded).rev))doc=saved;}}catch{cacheOK=false;}}
-  resetView();if(!readLocation()){if(tab==='matrix'&&(!data().nodes.length||data().nodes.some(n=>n.kind==='requirement')))tab='journey';render();}if(server)setInterval(sync,1800);
+  resetView();if(!readLocation()){if(data().nodes.some(n=>Fleet.role(n)==='stock'))tab='fleet';else if(tab==='matrix'&&(!data().nodes.length||data().nodes.some(n=>n.kind==='requirement')))tab='journey';render();}if(server)setInterval(sync,1800);
   window.addEventListener('hashchange',readLocation);
   window.addEventListener('storage',e=>{if(!server&&e.key===cacheKey&&e.newValue){if($('dialog').open||!cacheOK){toast('Есть новая версия в другой вкладке. Сохраните свою копию в JSON.');return;}try{const incoming=DSM.document(JSON.parse(e.newValue));const switched=incoming.project!==doc.project;doc=incoming;if(switched||!nodeBy(focus))resetView(switched);render();toast('Получена версия из другой вкладки');}catch{}}});
 }

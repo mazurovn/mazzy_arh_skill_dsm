@@ -1,0 +1,20 @@
+﻿id,name,kind,parent,note,attrs,relations
+BUY,Обновление вычислительного парка,procurement,,,{},"[[""uses"", ""NORTH""], [""uses"", ""SOUTH""]]"
+DC-NORTH,ЦОД Север,domain,,,{},[]
+CL-NORTH,Контур Север,cluster,DC-NORTH,,{},[]
+NORTH,Инсталляция · Север,installation,CL-NORTH,,"{""environment"": ""Север""}","[[""deployedOn"", ""CL-NORTH""], [""uses"", ""STD""], [""uses"", ""DENSE""]]"
+DC-SOUTH,ЦОД Юг,domain,,,{},[]
+CL-SOUTH,Контур Юг,cluster,DC-SOUTH,,{},[]
+SOUTH,Инсталляция · Юг,installation,CL-SOUTH,,"{""environment"": ""Юг""}","[[""deployedOn"", ""CL-SOUTH""], [""uses"", ""STD""], [""uses"", ""DENSE""]]"
+STD,Стандартный сервер,server,,,"{""cpuCores"": 8, ""ramGiB"": 32, ""diskGiB"": 400, ""unitPriceRub"": 240000}",[]
+DENSE,Сервер высокой плотности,server,,,"{""cpuCores"": 16, ""ramGiB"": 96, ""diskGiB"": 1000, ""unitPriceRub"": 420000}",[]
+NORTH-STD,NORTH / STD,artifact,NORTH,,"{""fleetRole"": ""stock"", ""quantity"": 1, ""maxBuy"": 3}","[[""uses"", ""STD""]]"
+NORTH-DENSE,NORTH / DENSE,artifact,NORTH,,"{""fleetRole"": ""stock"", ""quantity"": 0, ""maxBuy"": 3}","[[""uses"", ""DENSE""]]"
+SOUTH-STD,SOUTH / STD,artifact,SOUTH,,"{""fleetRole"": ""stock"", ""quantity"": 0, ""maxBuy"": 3}","[[""uses"", ""STD""]]"
+SOUTH-DENSE,SOUTH / DENSE,artifact,SOUTH,,"{""fleetRole"": ""stock"", ""quantity"": 1, ""maxBuy"": 3}","[[""uses"", ""DENSE""]]"
+SYS,Платформа заказов,product,,,{},[]
+API-N,Обработка заявок,service,SYS,,"{""replicas"": 2, ""cpuCores"": 4, ""ramGiB"": 12, ""diskGiB"": 80, ""antiAffinity"": true}","[[""deployedOn"", ""NORTH""]]"
+DB-N,Хранение заявок,service,SYS,,"{""replicas"": 1, ""cpuCores"": 6, ""ramGiB"": 24, ""diskGiB"": 200, ""antiAffinity"": false}","[[""deployedOn"", ""NORTH""]]"
+API-S,Обработка заявок,service,SYS,,"{""replicas"": 2, ""cpuCores"": 4, ""ramGiB"": 12, ""diskGiB"": 80, ""antiAffinity"": true}","[[""deployedOn"", ""SOUTH""]]"
+DB-S,Хранение заявок,service,SYS,,"{""replicas"": 1, ""cpuCores"": 6, ""ramGiB"": 24, ""diskGiB"": 200, ""antiAffinity"": false}","[[""deployedOn"", ""SOUTH""]]"
+REL,Ввод в эксплуатацию,release,,,"{""owner"": ""Служба эксплуатации""}",[]

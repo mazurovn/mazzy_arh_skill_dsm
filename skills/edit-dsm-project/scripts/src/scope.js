@@ -12,7 +12,7 @@ const Scope = (() => {
     let edges=model.edges.filter(e=>e.layer===layer);
     if(Object.hasOwn(Views.architectureKinds,mode)){
       const kinds=Views.architectureKinds[mode];
-      nodes=nodes.filter(n=>kinds.includes(n.kind)&&(mode!=='infra'||!n.attrs?.verification));
+      nodes=nodes.filter(n=>kinds.includes(n.kind)&&(mode!=='infra'||!n.attrs?.verification&&(n.kind!=='artifact'||['stock','order','variant'].includes(n.attrs?.fleetRole))));
       const ids=new Set(nodes.map(n=>n.id));
       edges=[...Views.structures(model),...edges].filter(e=>ids.has(e.from)&&ids.has(e.to));
     }else if(mode==='component'){

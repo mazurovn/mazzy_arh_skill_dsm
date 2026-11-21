@@ -117,6 +117,7 @@ const Formats = ((M,A)=>{
     if(!nodes.size&&!edges.length)throw Error('Пустой текст');return {kind:'merge',nodes:[...nodes.values()],edges};
   }
   function preview(doc,input){
+    if(input.kind==='fleet-result')return (typeof FleetChange!=='undefined'?FleetChange:require('./fleet-change.js')).fromBook(doc,input);
     if(input.kind==='installation-receipt')return (typeof Installations!=='undefined'?Installations:require('./installations.js')).receipt(doc,input);
     if(input.kind==='spec-package')return (typeof Specifications!=='undefined'?Specifications:require('./specifications.js')).importPackage(doc,input.files).data;
     if(input.kind==='archive')return M.head(M.document(input.doc)).data;
@@ -157,6 +158,6 @@ const Formats = ((M,A)=>{
     if(s.ops)return {kind:'patch',project:s.project,base:s.base,ops:s.ops};
     if(s.flow&&s.risk)return {kind:'replacement',data:M.legacy(s,title)};
     return {kind:'replacement',data:M.validate(s)};}
-  return {tables,readTables,emitCsv,readCsv,csv,markdown,readMd,readText,preview,parseJson,meta};
+  return {tables,readTables,emitCsv,readCsv,csv,splitCsv,markdown,readMd,readText,preview,parseJson,meta};
 })(typeof DSM!=='undefined'?DSM:require('./model.js'),typeof Analysis!=='undefined'?Analysis:require('./analysis.js'));
 if(typeof module!=='undefined')module.exports=Formats;
