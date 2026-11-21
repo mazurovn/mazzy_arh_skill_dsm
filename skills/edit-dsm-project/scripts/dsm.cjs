@@ -5,11 +5,17 @@ const usage=[
 'node dsm.cjs init PROJECT.json "Название проекта"',
 'node dsm.cjs show|analyze|history PROJECT.json',
 'node dsm.cjs preview|apply PROJECT.json PATCH.json',
-'node dsm.cjs import-preview PROJECT.json SOURCE [flow|risk]',
-'node dsm.cjs import PROJECT.json SOURCE BASE ACTOR NOTE [flow|risk]',
+'node dsm.cjs import-preview PROJECT.json SOURCE [flow|risk|result]',
+'node dsm.cjs import PROJECT.json SOURCE BASE ACTOR NOTE [flow|risk|result]',
 'node dsm.cjs diff PROJECT.json FROM TO',
 'node dsm.cjs restore PROJECT.json BASE REV ACTOR NOTE',
 'node dsm.cjs export PROJECT.json NEW_FILE.{md,csv,xlsx,ipynb,html,json,sysl}',
+'node dsm.cjs notebook PROJECT.json NEW.ipynb [full|requirements|placement|readiness]',
+'node dsm.cjs notebook-info FILE.ipynb',
+'node dsm.cjs report PROJECT.json [REPORT_KEY]',
+'node dsm.cjs spec-check PROJECT.json PROPOSAL_ID',
+'node dsm.cjs spec-export PROJECT.json PROPOSAL_ID NEW.zip',
+'node dsm.cjs change-log PROJECT.json FROM_REV TO_REV',
 'node dsm.cjs serve PROJECT.json [port=8787]',
 'node dsm.cjs mcp PROJECT.json',
 'node dsm.cjs connect PROJECT.json [json|toml]',
@@ -19,7 +25,23 @@ async function run([cmd,file,...args]){
   if(cmd==='--help'||cmd==='help'||!cmd){console.log(usage);return;}
   if(!file)throw Error(usage);
   if(cmd==='init'){const d=M.create({title:args[0]||'Новый проект',nodes:[],edges:[]});fs.writeFileSync(file,R.json(d),{flag:'wx'});return R.current(d);}
+  if(cmd==='notebook-info'){
+    const files=require('./src/notebook-files.js'),book=files.validate(JSON.parse(fs.readFileSync(file,'utf8').replace(/^\uFEFF/,'')));
+    return {format:book.nbformat,kernel:book.metadata.kernelspec,base:book.metadata.dsm?.base,cells:files.overview(book).map(c=>({index:c.i+1,type:c.type,title:c.title,outputs:c.outputs.length}))};
+  }
   const doc=R.readProject(file),h=M.head(doc);
+  if(cmd==='report'){const reports=require('./src/reports.js');return args[0]?reports.run(h.data,args[0]):reports.definitions;}
+  if(cmd==='notebook'){
+    if(!args[0])throw Error('Укажите выходной .ipynb');
+    fs.writeFileSync(args[0],R.json(require('./src/notebook.js').write(doc,args[1])),{flag:'wx'});return {file:args[0],base:h.rev};
+  }
+  if(cmd==='spec-check')return require('./src/specifications.js').readiness(h.data,args[0]);
+  if(cmd==='spec-export'){
+    if(!args[1])throw Error('Укажите ID предложения и выходной ZIP');
+    fs.writeFileSync(args[1],await require('./src/specifications.js').bundle(doc,args[0]),{flag:'wx'});return {file:args[1],base:h.rev};
+  }
+  if(cmd==='change-log'){process.stdout.write(require('./src/changes.js').changeLog(doc,args[0],args[1]));return;}
+
   if(cmd==='connect'){
     const config={command:process.execPath,args:[__filename,'mcp',fs.realpathSync(file)]};
     if(!args[0]||args[0]==='json')return {mcpServers:{'mazzy-dsm':config}};

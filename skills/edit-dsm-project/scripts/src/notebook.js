@@ -1,12 +1,13 @@
-const Notebook=((M,A,F)=>{
+const Notebook=((M,A,F,Files,Profiles)=>{
   const code=(id,source,tags=[])=>({id,cell_type:'code',metadata:{tags},execution_count:null,outputs:[],source});
   const md=(id,source)=>({id,cell_type:'markdown',metadata:{},source});
   const pre='null = None\ntrue = True\nfalse = False\nmodel = ';
-  function write(doc){
+  function write(doc,profile='full'){
+    if(profile!=='full'&&!Object.hasOwn(Profiles,profile))throw Error('Неизвестный профиль блокнота');
     const h=M.head(doc),meta=F.meta(doc);
-    const initial=Object.fromEntries(['flow','risk'].map(l=>[l,A.calculate(h.data,l)]));
+    const initial=profile==='full'?Object.fromEntries(['flow','risk'].map(l=>[l,A.calculate(h.data,l)])):{};
     const cells=[
-      md('intro','# '+h.data.title+'\n\nМастерская DSM · mazzy (mazurovn)\n\nСнимок '+h.rev+' · '+h.at+'. Измените каталог в следующей ячейке, пересчитайте блокнот и импортируйте сохранённый .ipynb в редактор. Импорт использует только данные ячейки dsm-input.'),
+      md('intro','# '+h.data.title+'\n\nМастерская DSM · mazzy (mazurovn)\n\nСнимок '+h.rev+' · '+h.at+'. Измените каталог в следующей ячейке, пересчитайте блокнот и импортируйте сохранённый .ipynb в редактор. Предпросмотр модели читает dsm-input. Для возврата вычисленного model выполните ячейку dsm-result.'),
       code('input',pre+JSON.stringify(h.data,null,2),['dsm-input']),
       md('matrix-title','## Два слоя зависимостей\nВ строке расположен потребитель контракта. Вес симметричной связи учитывается один раз. Числа в ячейках пересчитываются при выполнении.'),
       code('matrix',[
@@ -29,14 +30,33 @@ const Notebook=((M,A,F)=>{
       code('release','rows=[]\nfor r in model["nodes"]:\n    if r["kind"] != "release": continue\n    assigned = [n for n in model["nodes"] if n.get("release")==r["id"]]\n    members={n["id"] for n in assigned}\n    known=sum(n["effort"] for n in assigned if n.get("effort") is not None)\n    unknown=sum(n.get("effort") is None for n in assigned)\n    outside=sum(e["layer"]=="flow" and e["from"] in members and e["to"] not in members for e in model["edges"])\n    rows.append([r["id"],len(assigned),known,unknown,r.get("capacity"),outside])\ntable(["Релиз","Работы","Оценено","Без оценки","Ёмкость","Внешние вызовы"],rows)'),
       md('handoff','## Возврат в редактор\nСохраните блокнот и выберите его в разделе «Обмен». Просмотрите разницу и сохраните новую версию. Если после экспорта агент уже изменил проект, откройте актуальный JSON и перенесите нужные изменения через патч.')
     ];
+    if(profile!=='full'){
+      const spec=Profiles[profile];
+      cells.splice(2,cells.length-3,md('report-title','## '+spec.name+'\n'+spec.caption),code('report',spec.python));
+      meta.profile=profile;
+    }
+    cells.push(md('result-help','## Передать результат вычислений в DSM\nВыполните эту ячейку после своих изменений model и сохраните блокнот. В редакторе выберите «Проверить результат Python».'),
+      code('result',"from IPython.display import display\n"+'display({"application/vnd.mazzy.dsm+json": {"project": '+JSON.stringify(doc.project)+', "base": '+JSON.stringify(h.rev)+', "data": model}, "text/plain": "Модель подготовлена для DSM"}, raw=True)',['dsm-result']));
     return {nbformat:4,nbformat_minor:5,metadata:{kernelspec:{display_name:'Python 3',language:'python',name:'python3'},language_info:{name:'python'},dsm:meta},cells};
   }
   function read(book){
-    const cells=book.cells?.filter(c=>c.metadata?.tags?.includes('dsm-input'));if(cells?.length!==1||!book.metadata?.dsm)throw Error('Нужна одна ячейка dsm-input в блокноте редактора');
-    const raw=cells[0].source,s=Array.isArray(raw)?raw.join(''):raw;
+    Files.validate(book);
+    const cells=book.cells.filter(Files.tagged);if(cells?.length!==1||!book.metadata?.dsm)throw Error('Нужна одна ячейка dsm-input в блокноте редактора');
+    if(cells[0].cell_type!=='code')throw Error('dsm-input должна быть ячейкой кода');
+    if(!M.idOK(book.metadata.dsm.project)||!M.idOK(book.metadata.dsm.base))throw Error('Некорректные project или base в метаданных блокнота');
+    const s=Files.source(cells[0].source).replace(/\r\n/g,'\n');
     if(!s.startsWith(pre))throw Error('Сохраните префикс model = в ячейке исходных данных');
     return {...book.metadata.dsm,kind:'projection',data:M.validate(JSON.parse(s.slice(pre.length)))};
   }
-  return {write,read};
-})(typeof DSM!=='undefined'?DSM:require('./model.js'),typeof Analysis!=='undefined'?Analysis:require('./analysis.js'),typeof Formats!=='undefined'?Formats:require('./formats.js'));
+  function result(book){
+    Files.validate(book);
+    const cells=book.cells.filter(c=>c.cell_type==='code'&&c.metadata.tags?.includes('dsm-result'));
+    const payloads=cells.flatMap(c=>c.outputs.map(o=>o.data?.['application/vnd.mazzy.dsm+json']).filter(Boolean));
+    if(cells.length!==1||payloads.length!==1)throw Error('Выполните одну ячейку dsm-result и сохраните её вывод');
+    const value=payloads[0],meta=book.metadata.dsm;
+    if(!meta||!M.idOK(meta.base)||!M.idOK(meta.project)||value.project!==meta.project||value.base!==meta.base)throw Error('Результат вычислений относится к другой базе');
+    return {kind:'projection',project:value.project,base:value.base,data:M.validate(value.data)};
+  }
+  return {write,read,result};
+})(typeof DSM!=='undefined'?DSM:require('./model.js'),typeof Analysis!=='undefined'?Analysis:require('./analysis.js'),typeof Formats!=='undefined'?Formats:require('./formats.js'),typeof NotebookFiles!=='undefined'?NotebookFiles:require('./notebook-files.js'),typeof NotebookProfiles!=='undefined'?NotebookProfiles:require('./notebook-profiles.js'));
 if(typeof module!=='undefined')module.exports=Notebook;

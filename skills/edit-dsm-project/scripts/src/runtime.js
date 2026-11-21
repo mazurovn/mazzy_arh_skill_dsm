@@ -23,19 +23,21 @@ function update(file,project,base,note,actor,fn){
 }
 function html(doc){
   const src=f=>textFile(path.join(__dirname,f));
-  const files=['vendor/jszip.js','vendor/sax.js','model.js','analysis.js','formats.js','excel.js','notebook.js','sysl.js','specifications.js','enterprise.js','views.js','ui.js'];
+  const files=['vendor/jszip.js','vendor/sax.js','model.js','analysis.js','formats.js','excel.js','notebook-files.js','notebook-profiles.js','notebook.js','sysl.js','specifications.js','enterprise.js','reports.js','registers.js','changes.js','views.js','review-panel.js','notebook-panel.js','ui.js'];
   const notices=['LICENSE.txt','vendor/JSZip-LICENSE.txt','vendor/SAX-LICENSE.txt','vendor/PAKO-LICENSE.txt','vendor/BUNDLED-NOTICES.txt'].map(src).join('\n\n');
   return src('shell.html').replace('</head>',()=>'<script type="text/plain" id="licenses">'+notices.replace(/<\/script/gi,'&lt;/script')+'</script></head>').replace('/*__CSS__*/',()=>src('style.css')).replace('__PROJECT__',()=>JSON.stringify(doc).replaceAll('<','\\u003c')).replace('<!--__SCRIPTS__-->',()=>files.map(f=>'<script>\n'+src(f).replace(/<\/script/gi,'<\\/script')+'\n</script>').join('\n'));
 }
 async function readInput(file,layer='flow'){
   const k=path.extname(file).toLowerCase(),src=path.basename(file);
+  if(layer==='result'&&k!=='.ipynb')throw Error('Результат Python можно вернуть из .ipynb');
+  if(k==='.zip')return {kind:'spec-package',files:await require('./specifications.js').openPackage(fs.readFileSync(file))};
   if(k==='.xlsx')return Xlsx.read(fs.readFileSync(file),{layer,source:src});
-  const s=textFile(file);
+  const s=textFile(file).replace(/^\uFEFF/,'');
   if(k==='.json')return Fmt.parseJson(JSON.parse(s),src);
   if(k==='.md')return Fmt.readMd(s);
   if(k==='.csv'||k==='.tsv')return Fmt.readCsv(s,{layer,source:src});
   if(k==='.txt')return Fmt.readText(s);
-  if(k==='.ipynb')return Book.read(JSON.parse(s));
+  if(k==='.ipynb')return layer==='result'?Book.result(JSON.parse(s)):Book.read(JSON.parse(s));
   if(k==='.html'){const match=s.match(/<script type="application\/json" id="project-data">([\s\S]*?)<\/script>/);if(match)return Fmt.parseJson(JSON.parse(match[1]));}
   throw Error('Неизвестный формат '+k);
 }

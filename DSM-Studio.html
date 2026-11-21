@@ -15,6 +15,17 @@
 .delta-row span{background:#fbebe5}.delta-row strong{background:#dff1e6}.diff-table{max-height:45vh}.diff-table td{white-space:pre-wrap;overflow-wrap:anywhere}
 dialog:has(.diff-table){width:min(900px,95vw)}#fields textarea{font-family:ui-monospace,monospace}.table td{overflow-wrap:anywhere}
 #gridRows input{width:100%;min-width:65px}dialog:has(#gridRows){width:min(850px,95vw)}
+
+.file-picker{display:block;max-width:240px}.cell-preview,.request-card{border-top:1px solid var(--line);padding:10px 0}.cell-preview summary code{margin-right:8px}.cell-output{border-left:3px solid #3a7960}.file-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--line)}.file-item small{display:block;color:var(--muted)}.facts dt,.filter-control{font-size:12px;color:var(--muted)}.facts dd{margin:3px 0 12px;white-space:pre-wrap}.filter-control{display:grid;gap:3px}.validation{color:#973e1e}#bookDrop:has(.file-picker){border-top:3px solid var(--teal)}.cell-preview summary{overflow-wrap:anywhere}.cell-preview pre{white-space:pre-wrap;overflow-wrap:anywhere}.request-card .tools,.card details>.tools{justify-content:flex-start}dialog .field textarea{max-width:100%}
+
+.book-controls{padding:0;border:0;margin:0;min-width:0}.book-controls:disabled{opacity:.8}
+
+.matrix th.axis-selected,.matrix th.axis-selected button{background:#d2ebdf;color:#084d38}
+.matrix .cell:focus-visible{outline:2px solid #9a591e;outline-offset:1px}
+#bookDrop .tools,.book-controls .tools,.stack .tools:has(#deskScope){justify-content:flex-start;gap:10px}
+label.btn:has(.file-picker){position:relative;cursor:pointer}
+label.btn:has(.file-picker:focus-visible){outline:2px solid var(--teal);outline-offset:2px}
+.file-picker{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
 </style><script type="text/plain" id="licenses">Mazzy Attribution License 1.0
 
 Copyright © 2026 mazzy (mazurovn)
@@ -1080,7 +1091,7 @@ SOFTWARE.**
 <footer><span>© 2026 mazzy · mazurovn</span><span id="revision"></span></footer></main>
 <div id="toast" role="status" aria-live="polite"></div>
 <dialog id="dialog"><form id="form"><div class="dlghead"><h2 id="dlgTitle"></h2><button id="close" type="button" aria-label="Закрыть">×</button></div><div id="fields"></div><p id="formError" role="alert"></p><div class="actions"><button type="button" id="cancel">Отмена</button><button id="accept" class="primary" type="submit">Сохранить версию</button></div></form></dialog>
-<input id="file" type="file" hidden accept=".json,.csv,.tsv,.txt,.md,.xlsx,.ipynb,.html">
+<input id="file" type="file" hidden accept=".json,.csv,.tsv,.txt,.md,.xlsx,.ipynb,.html,.zip">
 <script type="application/json" id="project-data">{"schema":"dsm-project/1","project":"10d570de-799c-48c6-9c4d-ac088d2d6e23","history":[{"rev":"00da54d1-07ee-4879-ac3d-19cc68495d5e","parent":null,"at":"2026-11-20T14:48:55.065Z","actor":"mazurovn","note":"Исходная модель терминального ассистента","data":{"title":"Terminal Kit","nodes":[{"id":"TK","name":"Terminal Kit","kind":"product","state":"unspecified","parent":"","release":"","segment":"","bundle":"","effort":null,"capacity":null,"note":"Вымышленный терминальный помощник в духе Qwen Code. Названия, зависимости, оценки и релизы придуманы для демонстрации."},{"id":"R1","name":"Первый запуск","kind":"release","state":"unspecified","parent":"TK","release":"","segment":"","bundle":"","effort":null,"capacity":12,"note":""},{"id":"R2","name":"Командная работа","kind":"release","state":"unspecified","parent":"TK","release":"","segment":"","bundle":"","effort":null,"capacity":10,"note":""},{"id":"CLI","name":"Командная строка","kind":"module","state":"unspecified","parent":"TK","release":"","segment":"Интерфейс","bundle":"","effort":null,"capacity":null,"note":""},{"id":"CTX","name":"Контекст проекта","kind":"module","state":"unspecified","parent":"TK","release":"","segment":"Контекст","bundle":"","effort":null,"capacity":null,"note":""},{"id":"RUN","name":"Диспетчер действий","kind":"module","state":"unspecified","parent":"TK","release":"","segment":"Исполнение","bundle":"","effort":null,"capacity":null,"note":""},{"id":"CFG","name":"Профили запуска","kind":"component","state":"unspecified","parent":"TK","release":"","segment":"Настройки","bundle":"","effort":null,"capacity":null,"note":""},{"id":"LOG","name":"Журнал сессии","kind":"component","state":"unspecified","parent":"TK","release":"","segment":"Контекст","bundle":"","effort":null,"capacity":null,"note":""},{"id":"F01","name":"Выбор файлов","kind":"feature","state":"done","parent":"CTX","release":"R1","segment":"Контекст","bundle":"","effort":3,"capacity":null,"note":""},{"id":"F02","name":"Предпросмотр правки","kind":"feature","state":"review","parent":"CLI","release":"R1","segment":"Интерфейс","bundle":"","effort":5,"capacity":null,"note":""},{"id":"F03","name":"Подтверждение действия","kind":"feature","state":"active","parent":"RUN","release":"R1","segment":"Исполнение","bundle":"","effort":5,"capacity":null,"note":""},{"id":"F04","name":"Сравнение профилей","kind":"feature","state":"planned","parent":"CFG","release":"R2","segment":"Настройки","bundle":"","effort":2,"capacity":null,"note":""},{"id":"F05","name":"Возобновление сессии","kind":"feature","state":"planned","parent":"LOG","release":"R2","segment":"Контекст","bundle":"","effort":3,"capacity":null,"note":""},{"id":"F06","name":"Именованные наборы файлов","kind":"feature","state":"idea","parent":"CTX","release":"","segment":"Контекст","bundle":"","effort":null,"capacity":null,"note":""}],"edges":[{"layer":"flow","from":"CLI","to":"CTX","reason":"Запросить перечень выбранных файлов","weight":1},{"layer":"flow","from":"CLI","to":"RUN","reason":"Передать подтверждённую команду","weight":1},{"layer":"flow","from":"CLI","to":"CFG","reason":"Получить активный профиль","weight":1},{"layer":"flow","from":"RUN","to":"LOG","reason":"Записать итог действия","weight":1},{"layer":"flow","from":"CTX","to":"CFG","reason":"Взять правила отбора файлов","weight":1},{"layer":"flow","from":"F01","to":"CTX","reason":"Изменить выбор файлов","weight":1},{"layer":"flow","from":"F02","to":"CTX","reason":"Прочитать выбранные файлы","weight":1},{"layer":"flow","from":"F02","to":"RUN","reason":"Получить план изменений","weight":1},{"layer":"flow","from":"F03","to":"RUN","reason":"Разрешить выполнение текущего плана","weight":1},{"layer":"flow","from":"F04","to":"CFG","reason":"Загрузить сравниваемые профили","weight":1},{"layer":"flow","from":"F05","to":"LOG","reason":"Восстановить последнюю позицию","weight":1},{"layer":"flow","from":"F06","to":"F01","reason":"Применить именованный выбор","weight":1},{"layer":"risk","from":"F02","to":"F03","reason":"Подтверждение относится к показанной версии плана","weight":3},{"layer":"risk","from":"RUN","to":"LOG","reason":"Запись должна соответствовать завершённому действию","weight":3},{"layer":"risk","from":"CTX","to":"CFG","reason":"Одинаковая трактовка правил отбора","weight":2},{"layer":"risk","from":"F06","to":"F01","reason":"Сохранить состав именованного набора","weight":2},{"layer":"risk","from":"F05","to":"LOG","reason":"Совместимость версии записи","weight":2},{"layer":"risk","from":"CLI","to":"CFG","reason":"Совместимость названий профилей","weight":1},{"layer":"risk","from":"F02","to":"CTX","reason":"Предпросмотр основан на выбранных файлах","weight":2},{"layer":"risk","from":"F03","to":"RUN","reason":"Исключить повторное применение плана","weight":3}]}}]}</script>
 <script>
 /*!
@@ -2969,7 +2980,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 <script>
 /* Shared by the browser and the local agent. IDs remain stable through renames. */
 const DSM = (() => {
-  const kinds = ['component','module','product','release','feature','actor','capability','process','system','service','data','artifact','scenario','proposal','adr','requirement','deviation','organization','project','installation','procurement','server','cluster','domain','dataArea'];
+  const kinds = ['component','module','product','release','feature','actor','capability','process','system','service','data','artifact','scenario','proposal','adr','requirement','deviation','organization','project','installation','procurement','server','cluster','domain','dataArea','request','changeTask'];
   const states = ['idea','planned','active','review','blocked','done','unspecified'];
   const nodeCols = ['id','name','kind','state','parent','release','segment','bundle','effort','capacity','note'];
   const optionalNodeCols = ['refs','steps','attrs','relations'];
@@ -3257,6 +3268,7 @@ const Formats = ((M,A)=>{
     if(!nodes.size&&!edges.length)throw Error('Пустой текст');return {kind:'merge',nodes:[...nodes.values()],edges};
   }
   function preview(doc,input){
+    if(input.kind==='spec-package')return (typeof Specifications!=='undefined'?Specifications:require('./specifications.js')).importPackage(doc,input.files).data;
     if(input.kind==='archive')return M.head(M.document(input.doc)).data;
     if(input.kind==='projection'){
       if(input.project!==doc.project||input.base!==M.head(doc).rev)throw Error('Другая база проекции. Откройте соответствующий JSON или экспортируйте актуальную версию.');
@@ -3349,15 +3361,141 @@ if(typeof module!=='undefined')module.exports=ExcelIO;
 
 </script>
 <script>
-const Notebook=((M,A,F)=>{
+/* Shared by the offline viewer, CLI and local Jupyter server. */
+const NotebookFiles = (() => {
+  const source = value => Array.isArray(value) ? value.join('') : value ?? '';
+  const tagged = cell => cell.metadata?.tags?.includes('dsm-input');
+  const copy = obj => JSON.parse(JSON.stringify(obj));
+  function validate(book) {
+    if(book?.nbformat!==4||!Number.isInteger(book.nbformat_minor)||book.nbformat_minor<0)throw Error('Поддерживаются блокноты Jupyter nbformat 4');
+    if(!Array.isArray(book.cells)||!book.metadata||typeof book.metadata!=='object'||Array.isArray(book.metadata))throw Error('В блокноте нужны metadata и массив cells');
+    const ids=new Set();
+    for(const [i,c] of book.cells.entries()){
+      const fail=text=>{throw Error('Ячейка '+(i+1)+' · '+text);};
+      if(!c||!['code','markdown','raw'].includes(c.cell_type))fail('неизвестный тип');
+      if(typeof c.source!=='string'&&!(Array.isArray(c.source)&&c.source.every(v=>typeof v==='string')))fail('источник должен быть текстом');
+      if(!c.metadata||typeof c.metadata!=='object'||Array.isArray(c.metadata))fail('нужен объект metadata');
+      if(c.metadata.tags&&(!Array.isArray(c.metadata.tags)||!c.metadata.tags.every(t=>typeof t==='string')))fail('неверный список тегов');
+      if(book.nbformat_minor>=5&&(typeof c.id!=='string'||!/^[a-zA-Z0-9_-]{1,64}$/.test(c.id||'')||ids.has(c.id)))fail('нужен уникальный ID');
+      ids.add(c.id);
+      if(c.cell_type==='code'&&!Array.isArray(c.outputs))fail('нужен массив outputs');
+      if(c.cell_type==='code'&&!(c.execution_count===null||Number.isInteger(c.execution_count)&&c.execution_count>=0))fail('неверный счётчик исполнения');
+      if(c.cell_type==='code')for(const o of c.outputs){
+        if(!o||!['stream','execute_result','display_data','error'].includes(o.output_type))fail('неверный тип результата');
+        const multiline=x=>typeof x==='string'||Array.isArray(x)&&x.every(v=>typeof v==='string');
+        if(o.output_type==='stream'&&(!['stdout','stderr'].includes(o.name)||!multiline(o.text)))fail('неверный поток вывода');
+        if(o.output_type==='error'&&(typeof o.ename!=='string'||typeof o.evalue!=='string'||!Array.isArray(o.traceback)||!o.traceback.every(v=>typeof v==='string')))fail('неверный traceback');
+        if(['execute_result','display_data'].includes(o.output_type)&&(!o.data||typeof o.data!=='object'||Array.isArray(o.data)||('text/plain' in o.data&&!multiline(o.data['text/plain']))))fail('неверные MIME-данные');
+      }
+    }
+    return book;
+  }
+  function output(o){
+    if(o.output_type==='stream')return source(o.text);
+    if(o.output_type==='error')return [o.ename,o.evalue,...(o.traceback||[])].filter(Boolean).join('\n').replace(/\x1b\[[0-9;]*m/g,'');
+    return o.data?.['text/plain']!==undefined?source(o.data['text/plain']):'Форматы вывода · '+Object.keys(o.data||{}).join(', ');
+  }
+  function overview(book){
+    validate(book);
+    return book.cells.map((c,i)=>({i,type:c.cell_type,title:source(c.source).split(/\r?\n/).find(s=>s.trim())?.replace(/^#+\s*/,'').slice(0,110)||'Пустая ячейка',source:source(c.source),tags:c.metadata.tags||[],outputs:(c.outputs||[]).map(output),count:c.execution_count??null}));
+  }
+  function clean(book){
+    const next=copy(validate(book));
+    for(const c of next.cells)if(c.cell_type==='code'){c.outputs=[];c.execution_count=null;delete c.metadata.execution;delete c.metadata.trusted;}
+    delete next.metadata.widgets;
+    return next;
+  }
+  function fenced(text,language=''){
+    const backtick=String.fromCharCode(96);
+    let width=3;for(const match of text.matchAll(/`+/g))width=Math.max(width,match[0].length+1);
+    const fence=backtick.repeat(width);
+    return fence+language+'\n'+text+'\n'+fence;
+  }
+  function asMarkdown(book){
+    return overview(book).map(c=>{
+      if(c.type==='markdown')return c.source;
+      return [fenced(c.source,c.type==='code'?(book.metadata.language_info?.name||''):'text'),...c.outputs.map(s=>fenced(s,'text'))].join('\n\n');
+    }).join('\n\n')+'\n';
+  }
+  function asPython(book){
+    validate(book);
+    if(!isPython(book))throw Error('Экспорт .py требует блокнота Python');
+    return book.cells.map(c=>c.cell_type==='code'?'# %%\n'+source(c.source):'# %% ['+c.cell_type+']\n'+source(c.source).split('\n').map(l=>'# '+l).join('\n')).join('\n\n')+'\n';
+  }
+  function isPython(book){return /^python/i.test(book.metadata.language_info?.name||book.metadata.kernelspec?.language||book.metadata.kernelspec?.name||'python');}
+  function attach(book,generated){
+    const next=copy(validate(book));
+    if(!isPython(next))throw Error('Ячейка модели рассчитана на Python');
+    if(next.metadata.dsm||next.cells.some(c=>tagged(c)||c.metadata.tags?.includes('dsm-result')))throw Error('Блокнот уже содержит привязку DSM. Сверьте его исходную ревизию.');
+    const ids=new Set(next.cells.map(c=>c.id));
+    function fresh(original){
+      const cell=copy(original);
+      if(next.nbformat_minor<5){delete cell.id;return cell;}
+      while(ids.has(cell.id))cell.id='dsm-'+globalThis.crypto.randomUUID();
+      ids.add(cell.id);return cell;
+    }
+    next.cells.unshift(fresh(generated.cells.find(tagged)));
+    next.cells.push(fresh(generated.cells.find(c=>c.metadata.tags?.includes('dsm-result'))));
+    if(!next.metadata.kernelspec)next.metadata.kernelspec=copy(generated.metadata.kernelspec);
+    next.metadata.dsm=copy(generated.metadata.dsm);
+    return next;
+  }
+  return {validate,source,tagged,output,overview,clean,asPython,asMarkdown,attach,isPython};
+})();
+if(typeof module!=='undefined')module.exports=NotebookFiles;
+
+</script>
+<script>
+const NotebookProfiles = {
+  requirements: {
+    name:'Приёмка требований', caption:'Для каждого требования вычисляются реализации, проверяющие объекты и полнота сценария.',
+    python:`for r in (n for n in model["nodes"] if n["kind"] == "requirement"):
+    implementations = []
+    checks = []
+    for n in model["nodes"]:
+        for kind, target in n.get("relations", []):
+            if target == r["id"] and kind == "realizes": implementations.append(n["id"])
+            if target == r["id"] and kind == "verifies": checks.append(n["id"])
+    attrs = r.get("attrs", {})
+    print(r["id"], "реализация:", implementations, "проверяет:", checks, "приёмка:", all(str(attrs.get(k, "")).strip() for k in ("when", "then")))`
+  },
+  placement: {
+    name:'Инвентаризация размещения', caption:'Отчёт группирует сервисы по узлам размещения и выделяет компоненты без назначения.',
+    python:`hosts = {}
+for n in model["nodes"]:
+    targets = [target for kind, target in n.get("relations", []) if kind == "deployedOn"]
+    if targets or n["kind"] in ("component", "service"):
+        for target in targets or ["Без назначения"]:
+            hosts.setdefault(target, []).append(n["id"])
+for host, members in sorted(hosts.items()):
+    print(host, len(members), ", ".join(members))`
+  },
+  readiness: {
+    name:'Готовность изменений и релизов', caption:'Остаток ёмкости, блокировки и незакрытые задачи рассчитываются по текущему вводу.',
+    python:`for r in (n for n in model["nodes"] if n["kind"] == "release"):
+    items = [n for n in model["nodes"] if n.get("release") == r["id"]]
+    known = sum(n.get("effort") or 0 for n in items)
+    print(r["id"], "резерв:", r["capacity"] - known if r["capacity"] is not None else None, "без оценки:", sum(n.get("effort") is None for n in items))
+for proposal in (n for n in model["nodes"] if n["kind"] == "proposal"):
+    tasks = [n["id"] for n in model["nodes"] if n["kind"] == "changeTask" and n.get("parent") == proposal["id"] and n["state"] != "done"]
+    print(proposal["id"], "открытые задачи:", tasks)
+print("Блокировки:", [n["id"] for n in model["nodes"] if n["state"] == "blocked"])`
+  }
+};
+if(typeof module!=='undefined')module.exports=NotebookProfiles;
+
+</script>
+<script>
+const Notebook=((M,A,F,Files,Profiles)=>{
   const code=(id,source,tags=[])=>({id,cell_type:'code',metadata:{tags},execution_count:null,outputs:[],source});
   const md=(id,source)=>({id,cell_type:'markdown',metadata:{},source});
   const pre='null = None\ntrue = True\nfalse = False\nmodel = ';
-  function write(doc){
+  function write(doc,profile='full'){
+    if(profile!=='full'&&!Object.hasOwn(Profiles,profile))throw Error('Неизвестный профиль блокнота');
     const h=M.head(doc),meta=F.meta(doc);
-    const initial=Object.fromEntries(['flow','risk'].map(l=>[l,A.calculate(h.data,l)]));
+    const initial=profile==='full'?Object.fromEntries(['flow','risk'].map(l=>[l,A.calculate(h.data,l)])):{};
     const cells=[
-      md('intro','# '+h.data.title+'\n\nМастерская DSM · mazzy (mazurovn)\n\nСнимок '+h.rev+' · '+h.at+'. Измените каталог в следующей ячейке, пересчитайте блокнот и импортируйте сохранённый .ipynb в редактор. Импорт использует только данные ячейки dsm-input.'),
+      md('intro','# '+h.data.title+'\n\nМастерская DSM · mazzy (mazurovn)\n\nСнимок '+h.rev+' · '+h.at+'. Измените каталог в следующей ячейке, пересчитайте блокнот и импортируйте сохранённый .ipynb в редактор. Предпросмотр модели читает dsm-input. Для возврата вычисленного model выполните ячейку dsm-result.'),
       code('input',pre+JSON.stringify(h.data,null,2),['dsm-input']),
       md('matrix-title','## Два слоя зависимостей\nВ строке расположен потребитель контракта. Вес симметричной связи учитывается один раз. Числа в ячейках пересчитываются при выполнении.'),
       code('matrix',[
@@ -3380,16 +3518,35 @@ const Notebook=((M,A,F)=>{
       code('release','rows=[]\nfor r in model["nodes"]:\n    if r["kind"] != "release": continue\n    assigned = [n for n in model["nodes"] if n.get("release")==r["id"]]\n    members={n["id"] for n in assigned}\n    known=sum(n["effort"] for n in assigned if n.get("effort") is not None)\n    unknown=sum(n.get("effort") is None for n in assigned)\n    outside=sum(e["layer"]=="flow" and e["from"] in members and e["to"] not in members for e in model["edges"])\n    rows.append([r["id"],len(assigned),known,unknown,r.get("capacity"),outside])\ntable(["Релиз","Работы","Оценено","Без оценки","Ёмкость","Внешние вызовы"],rows)'),
       md('handoff','## Возврат в редактор\nСохраните блокнот и выберите его в разделе «Обмен». Просмотрите разницу и сохраните новую версию. Если после экспорта агент уже изменил проект, откройте актуальный JSON и перенесите нужные изменения через патч.')
     ];
+    if(profile!=='full'){
+      const spec=Profiles[profile];
+      cells.splice(2,cells.length-3,md('report-title','## '+spec.name+'\n'+spec.caption),code('report',spec.python));
+      meta.profile=profile;
+    }
+    cells.push(md('result-help','## Передать результат вычислений в DSM\nВыполните эту ячейку после своих изменений model и сохраните блокнот. В редакторе выберите «Проверить результат Python».'),
+      code('result',"from IPython.display import display\n"+'display({"application/vnd.mazzy.dsm+json": {"project": '+JSON.stringify(doc.project)+', "base": '+JSON.stringify(h.rev)+', "data": model}, "text/plain": "Модель подготовлена для DSM"}, raw=True)',['dsm-result']));
     return {nbformat:4,nbformat_minor:5,metadata:{kernelspec:{display_name:'Python 3',language:'python',name:'python3'},language_info:{name:'python'},dsm:meta},cells};
   }
   function read(book){
-    const cells=book.cells?.filter(c=>c.metadata?.tags?.includes('dsm-input'));if(cells?.length!==1||!book.metadata?.dsm)throw Error('Нужна одна ячейка dsm-input в блокноте редактора');
-    const raw=cells[0].source,s=Array.isArray(raw)?raw.join(''):raw;
+    Files.validate(book);
+    const cells=book.cells.filter(Files.tagged);if(cells?.length!==1||!book.metadata?.dsm)throw Error('Нужна одна ячейка dsm-input в блокноте редактора');
+    if(cells[0].cell_type!=='code')throw Error('dsm-input должна быть ячейкой кода');
+    if(!M.idOK(book.metadata.dsm.project)||!M.idOK(book.metadata.dsm.base))throw Error('Некорректные project или base в метаданных блокнота');
+    const s=Files.source(cells[0].source).replace(/\r\n/g,'\n');
     if(!s.startsWith(pre))throw Error('Сохраните префикс model = в ячейке исходных данных');
     return {...book.metadata.dsm,kind:'projection',data:M.validate(JSON.parse(s.slice(pre.length)))};
   }
-  return {write,read};
-})(typeof DSM!=='undefined'?DSM:require('./model.js'),typeof Analysis!=='undefined'?Analysis:require('./analysis.js'),typeof Formats!=='undefined'?Formats:require('./formats.js'));
+  function result(book){
+    Files.validate(book);
+    const cells=book.cells.filter(c=>c.cell_type==='code'&&c.metadata.tags?.includes('dsm-result'));
+    const payloads=cells.flatMap(c=>c.outputs.map(o=>o.data?.['application/vnd.mazzy.dsm+json']).filter(Boolean));
+    if(cells.length!==1||payloads.length!==1)throw Error('Выполните одну ячейку dsm-result и сохраните её вывод');
+    const value=payloads[0],meta=book.metadata.dsm;
+    if(!meta||!M.idOK(meta.base)||!M.idOK(meta.project)||value.project!==meta.project||value.base!==meta.base)throw Error('Результат вычислений относится к другой базе');
+    return {kind:'projection',project:value.project,base:value.base,data:M.validate(value.data)};
+  }
+  return {write,read,result};
+})(typeof DSM!=='undefined'?DSM:require('./model.js'),typeof Analysis!=='undefined'?Analysis:require('./analysis.js'),typeof Formats!=='undefined'?Formats:require('./formats.js'),typeof NotebookFiles!=='undefined'?NotebookFiles:require('./notebook-files.js'),typeof NotebookProfiles!=='undefined'?NotebookProfiles:require('./notebook-profiles.js'));
 if(typeof module!=='undefined')module.exports=Notebook;
 
 </script>
@@ -3439,29 +3596,100 @@ const Specifications = ((M,Zip)=>{
     return '# '+n.name+'\n\n'+n.note+(refs?'\n\nСвязанные ID · '+refs:'')+(n.steps?'\n\n'+n.steps.map((s,i)=>(i+1)+'. '+s.join(' → ')).join('\n'):'')+'\n';
   }
   function slug(id){
-    if(/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(id))return id;
-    return 'dsm-'+Array.from(id,c=>c.codePointAt(0).toString(16)).join('-');
+    if(!id.startsWith('dsm-u-')&&/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(id))return id;
+    return 'dsm-u-'+Array.from(id,c=>c.codePointAt(0).toString(16)).join('-');
   }
-  async function bundle(doc, proposalId){
-    const model=M.head(doc).data,proposal=model.nodes.find(n=>n.id===proposalId&&n.kind==='proposal');
+  function context(model,proposalId){
+    const proposal=model.nodes.find(n=>n.id===proposalId&&n.kind==='proposal');
     if(!proposal)throw Error('Выберите предложение OpenSpec');
-    const related=model.nodes.filter(n=>linked(n,proposal)),requirements=related.filter(n=>n.kind==='requirement'),adrs=related.filter(n=>n.kind==='adr');
-    if(!requirements.length)throw Error('Свяжите предложение хотя бы с одним требованием');
-    const change=slug(proposal.id),root='openspec/changes/'+change+'/',z=new Zip();
-    z.file('openspec/config.yaml','schema: spec-driven\n');
-    z.file(root+'.openspec.yaml','schema: spec-driven\n');
-    z.file(root+'proposal.md',document(proposal));
-    const decisions=adrs.map(n=>{const file='docs/adr/'+slug(n.id)+'.md';z.file(file,document(n));return '- ['+n.id+'](../../../'+file+')';});
-    z.file(root+'design.md','## Context\n\n'+model.title+' · '+M.head(doc).rev+'\n\n## Decisions\n\n'+(decisions.join('\n')||'Решение ожидается.')+'\n');
-    z.file(root+'tasks.md','## 1. Проверка требований\n\n'+requirements.map((r,i)=>'- ['+(r.state==='done'?'x':' ')+'] 1.'+(i+1)+' '+r.name.replace(/\s+/g,' ')).join('\n')+'\n');
+    const related=model.nodes.filter(n=>linked(n,proposal));
+    return {proposal,related,requirements:related.filter(n=>n.kind==='requirement'),adrs:related.filter(n=>n.kind==='adr'),tasks:model.nodes.filter(n=>n.kind==='changeTask'&&n.parent===proposalId)};
+  }
+  function readiness(model,id){
+    const {requirements,adrs,tasks,proposal}=context(model,id),errors=[],warnings=[];
+    if(!requirements.length)errors.push('Свяжите предложение хотя бы с одним требованием');
     for(const r of requirements){
-      if(!r.note.trim()||!String(r.attrs?.when??'').trim()||!String(r.attrs?.then??'').trim())throw Error('Для '+r.id+' заполните описание, атрибуты when и then');
-      const title=r.name.replace(/\s+/g,' ').trim();
-      z.file(root+'specs/'+slug(r.id)+'/spec.md','## ADDED Requirements\n\n### Requirement: '+title+'\n'+r.id+' SHALL '+r.note.trim()+'\n\n#### Scenario: '+title+'\n- **WHEN** '+r.attrs.when+'\n- **THEN** '+r.attrs.then+'\n');
+      const missing=['when','then'].filter(k=>typeof r.attrs?.[k]!=='string'||!r.attrs[k].trim());
+      if(!r.note.trim())missing.push('описание');
+      if(missing.length)errors.push(r.id+' · заполните '+missing.join(', '));
     }
+    if(!adrs.length)warnings.push('К предложению пока не привязан ADR');
+    if(!proposal.note.trim())warnings.push('Не заполнено описание предложения');
+    const open=tasks.filter(n=>n.state!=='done');
+    if(open.length)warnings.push('Открытые задачи · '+open.map(n=>n.id).join(', '));
+    return {errors,warnings};
+  }
+  function packageFiles(doc,id){
+    const model=M.head(doc).data,{proposal,requirements,adrs,tasks}=context(model,id);
+    const {errors}=readiness(model,id);if(errors.length)throw Error(errors.join('\n'));
+    const root='openspec/changes/'+slug(id)+'/',files={},edit={};
+    files['openspec/config.yaml']='schema: spec-driven\n';
+    files[root+'.openspec.yaml']='schema: spec-driven\n';
+    files[root+'proposal.md']=document(proposal);edit[root+'proposal.md']={type:'document',id};
+    const decisions=adrs.map(n=>{
+      const path='docs/adr/'+slug(n.id)+'.md';files[path]=document(n);edit[path]={type:'document',id:n.id};
+      return '- ['+n.id+'](../../../'+path+')';
+    });
+    files[root+'design.md']='## Context\n\n'+model.title+' · '+M.head(doc).rev+'\n\n## Decisions\n\n'+(decisions.join('\n')||'Решение ожидается.')+'\n';
+    const checklist=tasks.length?tasks:requirements;
+    files[root+'tasks.md']='## 1. '+(tasks.length?'Задачи изменения':'Проверка требований')+'\n\n'+checklist.map((r,i)=>'- ['+(r.state==='done'?'x':' ')+'] 1.'+(i+1)+' '+r.name.replace(/\s+/g,' ')).join('\n')+'\n';
+    if(tasks.length)edit[root+'tasks.md']={type:'tasks',ids:tasks.map(t=>t.id)};
+    for(const r of requirements){
+      const title=r.name.replace(/\s+/g,' ').trim(),path=root+'specs/'+slug(r.id)+'/spec.md';
+      files[path]='## ADDED Requirements\n\n### Requirement: '+title+'\n'+r.id+' SHALL '+r.note.trim()+'\n\n#### Scenario: '+title+'\n- **WHEN** '+r.attrs.when+'\n- **THEN** '+r.attrs.then+'\n';
+      edit[path]={type:'requirement',id:r.id};
+    }
+    files['dsm-package.json']=JSON.stringify({format:1,project:doc.project,base:M.head(doc).rev,proposal:id},null,2);
+    return {files,edit};
+  }
+  async function bundle(doc,id){
+    const z=new Zip();
+    for(const [path,text] of Object.entries(packageFiles(doc,id).files))z.file(path,text);
     return z.generateAsync({type:'uint8array',compression:'DEFLATE'});
   }
-  return {coverage,document,bundle};
+  async function openPackage(bytes){
+    if(bytes.byteLength>16*1024*1024)throw Error('ZIP превышает 16 МиБ');
+    const z=await Zip.loadAsync(bytes),entries=Object.values(z.files).filter(f=>!f.dir);
+    if(entries.length>1024)throw Error('Слишком много файлов в пакете');
+    let size=0;const files=Object.create(null);
+    for(const f of entries){
+      size+=f._data?.uncompressedSize||0;
+      if(size>16*1024*1024)throw Error('Распакованные файлы превышают 16 МиБ');
+      if(f.unsafeOriginalName&&f.unsafeOriginalName!==f.name)throw Error('Некорректное имя файла в ZIP');
+      if(!/\.(?:md|ya?ml|json)$/i.test(f.name))throw Error('Неподдерживаемый файл в пакете: '+f.name);
+      files[f.name]=(await f.async('string')).replace(/\r\n/g,'\n');
+    }
+    return files;
+  }
+  function importPackage(doc,files){
+    if(!files['dsm-package.json'])throw Error('Для импорта нужен пакет DSM с исходной ревизией');
+    const m=JSON.parse(files['dsm-package.json']);
+    if(m.format!==1||m.project!==doc.project||m.base!==M.head(doc).rev)throw Error('Другая база пакета OpenSpec');
+    const {files:expected,edit}=packageFiles(doc,m.proposal),ops=[];
+    for(const key of new Set([...Object.keys(expected),...Object.keys(files)])){
+      if(!Object.hasOwn(expected,key)||!Object.hasOwn(files,key))throw Error('Изменён состав пакета: '+key);
+      if(files[key]===expected[key])continue;
+      const entry=edit[key];if(!entry)throw Error('Верните исходный служебный файл: '+key);
+      const contents=files[key],node=M.head(doc).data.nodes.find(n=>n.id===entry.id);
+      if(entry.type==='document'){
+        const suffix=document(node).slice(('# '+node.name+'\n\n'+node.note).length);
+        const head=contents.match(/^# ([^\n]+)\n\n/);
+        if(!head||!contents.endsWith(suffix))throw Error('Проверьте заголовок и ссылки: '+key);
+        ops.push({op:'node',value:{id:node.id,name:head[1],note:contents.slice(head[0].length,-suffix.length)}});
+      }else if(entry.type==='requirement'){
+        const parts=contents.trimEnd().match(/^## ADDED Requirements\n\n### Requirement: ([^\n]+)\n(\S+) SHALL ([\s\S]+?)\n\n#### Scenario: ([^\n]+)\n- \*\*WHEN\*\* ([\s\S]+?)\n- \*\*THEN\*\* ([\s\S]+)$/);
+        if(!parts||parts[2]!==node.id||parts[1]!==parts[4]||[parts[3],parts[5],parts[6]].some(v=>/^(?:#{2,4} (?:Scenario:|Requirement:|ADDED Requirements)|- \*\*(?:WHEN|THEN)\*\*)/m.test(v)))throw Error('Ожидается один сценарий WHEN/THEN с названием требования: '+key);
+        ops.push({op:'node',value:{id:node.id,name:parts[1],note:parts[3],attrs:{...node.attrs,when:parts[5],then:parts[6]}}});
+      }else{
+        const normalize=s=>s.replace(/^- \[[ xX]\]/gm,'- []');
+        if(normalize(contents)!==normalize(expected[key]))throw Error('В tasks.md можно менять отметки выполнения');
+        const marks=Array.from(contents.matchAll(/^- \[([ xX])\]/gm),x=>x[1].toLowerCase()==='x');
+        entry.ids.forEach((id,i)=>{const old=M.head(doc).data.nodes.find(n=>n.id===id);if(marks[i]!== (old.state==='done'))ops.push({op:'node',value:{id,state:marks[i]?'done':'planned'}});});
+      }
+    }
+    return {kind:'projection',project:m.project,base:m.base,data:ops.length?M.patch(M.head(doc).data,ops):M.head(doc).data};
+  }
+  return {coverage,document,bundle,context,readiness,packageFiles,openPackage,importPackage};
 })(typeof DSM!=='undefined'?DSM:require('./model.js'),typeof JSZip!=='undefined'?JSZip:require('./vendor/jszip.js'));
 if(typeof module!=='undefined')module.exports=Specifications;
 
@@ -3500,10 +3728,241 @@ if(typeof module!=='undefined')module.exports=Enterprise;
 
 </script>
 <script>
+/* Report rows are plain values so the UI, CLI and CSV export share results. */
+const Reports = (() => {
+  const definitions={
+    cycles:['Циклы вызовов',['Участники','Размер']],
+    reciprocal:['Взаимные вызовы',['Объект','Партнёр','Вес туда','Вес обратно']],
+    isolated:['Объекты без связей DSM',['ID','Название','Тип']],
+    contracts:['Вызовы с совместной проверкой',['Откуда','Куда','Вес проверки','Основание']],
+    segments:['Межсегментные зависимости',['Откуда','Куда','Сегмент источника','Сегмент цели']],
+    releases:['Межрелизные контракты',['Откуда','Куда','Слой','Релиз источника','Релиз цели']],
+    consumers:['Наиболее используемые контракты',['ID','Прямые потребители','Сумма весов']],
+    placement:['Карта размещения',['Объект','Площадка','Тип площадки']],
+    unplaced:['Компоненты без размещения',['ID','Тип','Название']],
+    owners:['Объекты без владельца',['ID','Тип','Название']],
+    verification:['Требования без проверяющего объекта',['ID','Название']],
+    unchecked:['Вызовы без совместной проверки',['Откуда','Куда','Основание вызова']],
+    decisions:['ADR без предложения',['ID','Решение','Статус']],
+    singleHost:['Единственная площадка сервиса',['Объект','Единственная площадка']],
+    duplicates:['Совпадающие названия',['Название','Объекты','Количество']],
+    backlog:['Объём бэклога по сегментам',['Сегмент','Фичи','Известная оценка','Без оценки']],
+    reserve:['Резерв ёмкости релизов',['ID','Ёмкость','Известная загрузка','Остаток','Без оценки']],
+    blocked:['Потребители заблокированных объектов',['Блокировка','Зависимый объект','Глубина']]
+  };
+  function adjacent(ids,edges){
+    const map=new Map(ids.map(id=>[id,[]]));
+    for(const [from,to] of edges)map.get(from).push(to);
+    return map;
+  }
+  function components(ids,out,back){
+    const visited=new Set(),order=[];
+    for(const id of ids){
+      if(visited.has(id))continue;
+      visited.add(id);
+      const stack=[[id,0]];
+      while(stack.length){
+        const frame=stack.at(-1),neighbors=out.get(frame[0]);
+        if(frame[1]===neighbors.length){order.push(frame[0]);stack.pop();continue;}
+        const next=neighbors[frame[1]++];
+        if(!visited.has(next)){visited.add(next);stack.push([next,0]);}
+      }
+    }
+    visited.clear();
+    const groups=[];
+    for(const id of order.reverse()){
+      if(visited.has(id))continue;
+      const members=[id];visited.add(id);
+      for(let i=0;i<members.length;i++)for(const n of back.get(members[i]))if(!visited.has(n)){visited.add(n);members.push(n);}
+      if(members.length>1)groups.push([members.sort().join(', '),members.length]);
+    }
+    return groups;
+  }
+  function run(model,key){
+    if(!Object.hasOwn(definitions,key))throw Error('Неизвестный отчёт: '+key);
+    const {nodes,edges}=model,by=new Map(nodes.map(n=>[n.id,n])),ids=[...by.keys()];
+    const flow=edges.filter(e=>e.layer==='flow'),calls=flow.map(e=>[e.from,e.to]);
+    const reverse=new Map(flow.map(e=>[JSON.stringify([e.to,e.from]),e]));
+    const risk=new Map(edges.filter(e=>e.layer==='risk').map(e=>[JSON.stringify([e.from,e.to].sort()),e]));
+    const check=e=>risk.get(JSON.stringify([e.from,e.to].sort()));
+    const linked=new Set(edges.flatMap(e=>[e.from,e.to]));
+    const typed=nodes.flatMap(n=>(n.relations||[]).map(([type,to])=>({from:n.id,type,to})));
+    const targets=type=>new Set(typed.filter(r=>r.type===type).map(r=>r.to));
+    const places=new Map(ids.map(id=>[id,[]]));
+    for(const r of typed)if(r.type==='deployedOn')places.get(r.from).push(r.to);
+    const deployable=nodes.filter(n=>['component','service'].includes(n.kind));
+    const byName=new Map(),summaries=new Map();
+    let rows;
+    switch(key){
+      case 'cycles':rows=components(ids,adjacent(ids,calls),adjacent(ids,calls.map(([a,b])=>[b,a])));break;
+      case 'reciprocal':rows=flow.filter(e=>e.from<e.to&&reverse.has(JSON.stringify([e.from,e.to]))).map(e=>[e.from,e.to,e.weight,reverse.get(JSON.stringify([e.from,e.to])).weight]);break;
+      case 'isolated':rows=nodes.filter(n=>!linked.has(n.id)).map(n=>[n.id,n.name,n.kind]);break;
+      case 'contracts':rows=flow.filter(check).map(e=>[e.from,e.to,check(e).weight,check(e).reason]);break;
+      case 'segments':rows=flow.filter(e=>by.get(e.from).segment&&by.get(e.to).segment&&by.get(e.from).segment!==by.get(e.to).segment).map(e=>[e.from,e.to,by.get(e.from).segment,by.get(e.to).segment]);break;
+      case 'releases':rows=edges.filter(e=>by.get(e.from).release&&by.get(e.to).release&&by.get(e.from).release!==by.get(e.to).release).map(e=>[e.from,e.to,e.layer,by.get(e.from).release,by.get(e.to).release]);break;
+      case 'consumers':
+        for(const e of flow){const row=summaries.get(e.to)||[e.to,0,0];row[1]++;row[2]+=e.weight;summaries.set(e.to,row);}
+        rows=[...summaries.values()].sort((a,b)=>b[1]-a[1]||b[2]-a[2]||a[0].localeCompare(b[0]));break;
+      case 'placement':rows=typed.filter(r=>r.type==='deployedOn').map(r=>[r.from,r.to,by.get(r.to).kind]);break;
+      case 'unplaced':rows=deployable.filter(n=>!places.get(n.id).length).map(n=>[n.id,n.kind,n.name]);break;
+      case 'owners':{
+        const owned=targets('owns');
+        rows=nodes.filter(n=>['system','component','service','data','server','cluster'].includes(n.kind)&&!String(n.attrs?.owner??'').trim()&&!owned.has(n.id)).map(n=>[n.id,n.kind,n.name]);break;
+      }
+      case 'verification':{const verified=targets('verifies');rows=nodes.filter(n=>n.kind==='requirement'&&!verified.has(n.id)).map(n=>[n.id,n.name]);break;}
+      case 'unchecked':rows=flow.filter(e=>!check(e)).map(e=>[e.from,e.to,e.reason]);break;
+      case 'decisions':{
+        const proposals=nodes.filter(n=>n.kind==='proposal');
+        rows=nodes.filter(n=>n.kind==='adr'&&!proposals.some(p=>p.refs?.includes(n.id)||n.refs?.includes(p.id))).map(n=>[n.id,n.name,n.state]);break;
+      }
+      case 'singleHost':rows=deployable.filter(n=>places.get(n.id).length===1).map(n=>[n.id,places.get(n.id)[0]]);break;
+      case 'duplicates':
+        for(const n of nodes){const k=n.name.trim().toLocaleLowerCase().replace(/\s+/g,' ');if(!byName.has(k))byName.set(k,[]);byName.get(k).push(n);}
+        rows=[...byName.values()].filter(g=>g.length>1).map(g=>[g[0].name,g.map(n=>n.id).join(', '),g.length]);break;
+      case 'backlog':
+        for(const n of nodes.filter(n=>n.kind==='feature'&&!n.release)){const s=n.segment||'—',row=summaries.get(s)||[s,0,0,0];row[1]++;row[2]+=n.effort??0;if(n.effort===null)row[3]++;summaries.set(s,row);}
+        rows=[...summaries.values()];break;
+      case 'reserve':
+        rows=ModelForReports.plan(model).map(r=>[r.id,r.capacity,r.knownEffort,r.capacity===null?null:r.capacity-r.knownEffort,r.unknown]);break;
+      case 'blocked':{
+        const back=adjacent(ids,calls.map(([a,b])=>[b,a]));rows=[];
+        for(const n of nodes.filter(n=>n.state==='blocked')){
+          const queue=[[n.id,0]],seen=new Set([n.id]);
+          for(let i=0;i<queue.length;i++)for(const id of back.get(queue[i][0]))if(!seen.has(id)){seen.add(id);const depth=queue[i][1]+1;queue.push([id,depth]);rows.push([n.id,id,depth]);}
+        }break;
+      }
+    }
+    return {key,title:definitions[key][0],columns:definitions[key][1],rows};
+  }
+  const ModelForReports=typeof DSM!=='undefined'?DSM:require('./model.js');
+  return {definitions,run};
+})();
+if(typeof module!=='undefined')module.exports=Reports;
+
+</script>
+<script>
+const Registers=(()=>{
+  const defaults=()=>({kind:'',state:'',segment:'',release:'*',order:'initial'});
+  function match(query,...values){
+    const corpus=values.join(' ').toLocaleLowerCase();
+    return query.trim().toLocaleLowerCase().split(/\s+/).every(word=>corpus.includes(word));
+  }
+  function nodes(model,query,filters){
+    const items=model.nodes.filter(n=>(!filters.kind||filters.kind===n.kind)&&(!filters.state||filters.state===n.state)&&
+      (!filters.segment||filters.segment===n.segment)&&(filters.release==='*'||filters.release===n.release)&&
+      match(query,n.id,n.name,n.note,n.segment,n.bundle,n.state,n.kind,...Object.entries(n.attrs||{}).flat(),...(n.refs||[])));
+    if(filters.order!=='initial')items.sort((a,b)=>a[filters.order].localeCompare(b[filters.order],'ru',{numeric:true})||a.id.localeCompare(b.id));
+    return items;
+  }
+  function revisions(doc,filters){
+    const entries=[];
+    for(const [i,h] of doc.history.entries()){
+      const dt=new Date(h.at),pad=n=>String(n).padStart(2,'0'),day=dt.getFullYear()+'-'+pad(dt.getMonth()+1)+'-'+pad(dt.getDate());
+      if(filters.actor&&h.actor!==filters.actor||filters.from&&day<filters.from||filters.until&&day>filters.until||!match(filters.text,h.rev,h.note,h.actor))continue;
+      if(filters.object){
+        const id=filters.object,prev=doc.history[i-1]?.data||{title:h.data.title,nodes:[],edges:[]};
+        const differs=Model.diff(prev,h.data).some(c=>c.type==='nodes'&&c.key===id||c.type==='edges'&&[c.before,c.after].some(e=>e&&(e.from===id||e.to===id)));
+        if(!differs)continue;
+      }
+      entries.push({i,h});
+    }
+    return filters.oldest?entries:entries.reverse();
+  }
+  const Model=typeof DSM!=='undefined'?DSM:require('./model.js');
+  return {defaults,match,nodes,revisions};
+})();
+if(typeof module!=='undefined')module.exports=Registers;
+
+</script>
+<script>
+const Changes=((M)=>{
+  const priorities=['low','normal','high','critical'];
+  function text(value,label){
+    if(typeof value!=='string'||!value.trim())throw Error('Заполните поле «'+label+'»');
+    return value.trim();
+  }
+  function request(model,f){
+    if(model.nodes.some(n=>n.id===f.id))throw Error('ID запроса уже занят');
+    if(!priorities.includes(f.priority))throw Error('Неизвестный приоритет');
+    return M.patch(model,[{op:'node',value:{kind:'request',state:'idea',id:f.id,name:text(f.name,'Название'),note:text(f.problem,'Проблема'),refs:f.refs||[],
+      attrs:{requester:text(f.requester,'Инициатор'),outcome:text(f.outcome,'Ожидаемый результат'),acceptance:text(f.acceptance,'Приёмка'),priority:f.priority,owner:(f.owner||'').trim()}}}]);
+  }
+  function get(model,id,kind){
+    const n=model.nodes.find(n=>n.id===id&&n.kind===kind);
+    if(!n)throw Error('Не найдена карточка '+id);
+    return n;
+  }
+  function review(model,id,outcome,reviewer,reason){
+    const n=get(model,id,'request');
+    const states={accepted:'planned',deferred:'blocked',declined:'done'};
+    if(!Object.hasOwn(states,outcome))throw Error('Выберите решение');
+    if(model.nodes.some(p=>p.kind==='proposal'&&p.refs?.includes(id)))throw Error('По запросу уже создано предложение');
+    return M.patch(model,[{op:'node',value:{id,state:states[outcome],attrs:{...n.attrs,disposition:outcome,reviewer:text(reviewer,'Рецензент'),rationale:text(reason,'Обоснование')}}}]);
+  }
+  function promote(model,id,newId){
+    const req=get(model,id,'request');
+    if(req.attrs?.disposition!=='accepted')throw Error('Сначала примите запрос на разборе');
+    if(model.nodes.some(n=>n.id===newId||n.kind==='proposal'&&n.refs?.includes(id)))throw Error('Предложение уже существует или ID занят');
+    const refs=[id,...(req.refs||[])];
+    const note='## Why\n\n'+req.note+'\n\n## What Changes\n\n'+req.attrs.outcome+'\n\n## Capabilities\n\n'+req.attrs.acceptance+'\n\n## Impact\n\n'+(req.refs||[]).join(', ');
+    return M.patch(model,[{op:'node',value:{id,state:'active'}},{op:'node',value:{id:newId,kind:'proposal',name:req.name,state:'planned',refs,note}}]);
+  }
+  function task(model,proposal,id,name,owner){
+    if(get(model,proposal,'proposal').state==='done')throw Error('Предложение завершено');
+    if(model.nodes.some(n=>n.id===id))throw Error('ID задачи уже занят');
+    return M.patch(model,[{op:'node',value:{id,name:text(name,'Задача'),kind:'changeTask',parent:proposal,state:'planned',attrs:{owner:(owner||'').trim()}}}]);
+  }
+  function timeline(doc,id){
+    const entries=[];let previous=null;
+    for(const h of doc.history){
+      const n=h.data.nodes.find(n=>n.id===id);
+      if(n||previous){
+        const keys=new Set([...Object.keys(previous||{}),...Object.keys(n||{})]);
+        const fields=[...keys].filter(k=>JSON.stringify(previous?.[k])!==JSON.stringify(n?.[k]));
+        if(fields.length)entries.push({rev:h.rev,at:h.at,actor:h.actor,note:h.note,fields,before:previous||null,after:n||null});
+      }
+      previous=n;
+    }
+    return entries;
+  }
+  function brief(model,id){
+    const req=get(model,id,'request'),attrs=req.attrs||{};
+    const linked=model.nodes.filter(n=>req.refs?.includes(n.id)||n.refs?.includes(id));
+    return '# '+req.name+'\n\n'+req.id+' · '+req.state+'\n\n'+[
+      ['Проблема',req.note],['Ожидаемый результат',attrs.outcome],['Условия приёмки',attrs.acceptance],
+      ['Инициатор',attrs.requester],['Ответственный',attrs.owner],['Приоритет',attrs.priority],
+      ['Решение разбора',[attrs.disposition,attrs.reviewer,attrs.rationale].filter(Boolean).join(' · ')],
+      ['Связанные карточки',linked.map(n=>'- '+n.id+' · '+n.name).join('\n')]
+    ].map(([title,body])=>'## '+title+'\n\n'+(body||'—')).join('\n\n')+'\n';
+  }
+  function changeLog(doc,from,to){
+    const first=doc.history.findIndex(h=>h.rev===from),last=doc.history.findIndex(h=>h.rev===to);
+    if(first<0||last<first)throw Error('Конечная версия должна следовать за исходной');
+    const sections=doc.history.slice(first+1,last+1).map((h,i)=>{
+      const changes=M.diff(doc.history[first+i].data,h.data);
+      return '## '+h.note+'\n\n'+h.rev+' · '+h.at+' · '+h.actor+'\n\n'+(changes.length?changes.map(d=>'- '+(d.before===null?'Добавлено':d.after===null?'Удалено':'Изменено')+' · '+d.type+' · '+d.key).join('\n'):'Именованный снимок');
+    });
+    return '# Журнал изменений\n\n'+from+' → '+to+'\n\n'+(sections.join('\n\n')||'Одна версия, изменений нет.')+'\n';
+  }
+  function completeProposal(model,id){
+    const proposal=get(model,id,'proposal'),tasks=model.nodes.filter(n=>n.kind==='changeTask'&&n.parent===id);
+    if(tasks.some(t=>t.state!=='done'))throw Error('Остались открытые задачи предложения');
+    const ops=[{op:'node',value:{id,state:'done'}}];
+    for(const r of model.nodes.filter(n=>n.kind==='request'&&proposal.refs?.includes(n.id))){
+      if(!model.nodes.some(p=>p.kind==='proposal'&&p.id!==id&&p.state!=='done'&&p.refs?.includes(r.id)))ops.push({op:'node',value:{id:r.id,state:'done'}});
+    }
+    return M.patch(model,ops);
+  }
+  return {completeProposal,priorities,request,review,promote,task,timeline,brief,changeLog};
+})(typeof DSM!=='undefined'?DSM:require('./model.js'));
+if(typeof module!=='undefined')module.exports=Changes;
+
+</script>
+<script>
 /* Browser projections share the selected model identities with the DSM. */
 const Views = (() => {
   const esc = value => String(value ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
-  const types = {product:'Продукт',module:'Модуль',component:'Компонент',release:'Релиз',feature:'Фича',actor:'Участник',capability:'Способность',process:'Процесс',system:'Система',service:'Сервис',data:'Данные',artifact:'Артефакт',scenario:'Сценарий',proposal:'OpenSpec proposal',adr:'ADR',requirement:'Требование',deviation:'Отклонение',organization:'Организация',project:'Проект',installation:'Установка',procurement:'Закупка',server:'Сервер',cluster:'Кластер',domain:'Домен',dataArea:'Предметная область данных'};
+  const types = {product:'Продукт',module:'Модуль',component:'Компонент',release:'Релиз',feature:'Фича',actor:'Участник',capability:'Способность',process:'Процесс',system:'Система',service:'Сервис',data:'Данные',artifact:'Артефакт',scenario:'Сценарий',proposal:'OpenSpec proposal',adr:'ADR',requirement:'Требование',deviation:'Отклонение',organization:'Организация',project:'Проект',installation:'Установка',procurement:'Закупка',server:'Сервер',cluster:'Кластер',domain:'Домен',dataArea:'Предметная область данных',request:'Запрос на изменение',changeTask:'Задача изменения'};
   const relations={realizes:'Реализует',deployedOn:'Размещён на',dependsOn:'Зависит от',uses:'Использует',owns:'Отвечает за',produces:'Создаёт',verifies:'Проверяет'};
   const modes = {neighbors:'Окружение объекта',all:'Граф кластеров',tree:'Иерархия состава',component:'Компонентная диаграмма',concept:'Концептуальная диаграмма',sequence:'Диаграмма последовательности'};
   const fieldNames = {id:'ID',name:'Название',title:'Проект',kind:'Тип',state:'Статус',parent:'Родитель',release:'Релиз',segment:'Сегмент',bundle:'Пакет',effort:'Оценка',capacity:'Ёмкость',note:'Текст',layer:'Слой',from:'Откуда',to:'Куда',weight:'Вес',reason:'Основание',refs:'Ссылки',steps:'Шаги',attrs:'Атрибуты',relations:'Типизированные связи'};
@@ -3625,19 +4084,225 @@ const Views = (() => {
 
 </script>
 <script>
+function reviewPanel({doc,esc,button:b,option,field,sel,table,tools,modal,push,download,proposed,render,inspect,toast}){
+  let current='',scope='all',priority='',report='cycles',reportFilter='',opened=null,source='';
+  const model=()=>DSM.head(doc()).data;
+  const button=(name,label,id='',extra='')=>b('desk'+name,label,(id?'data-id="'+esc(id)+'" ':'')+extra);
+  const labels={idea:'Новые',planned:'Принятые',active:'В проработке',blocked:'Отложенные',done:'Закрытые'};
+  const priorityLabels={critical:'Критический',high:'Высокий',normal:'Обычный',low:'Низкий'};
+  function textarea(name,title,value=''){
+    return '<label class="field">'+title+'<textarea name="'+name+'" required>'+esc(value)+'</textarea></label>';
+  }
+  function selectRequest(id){
+    const requests=model().nodes.filter(n=>n.kind==='request');
+    const filtered=requests.filter(n=>(scope==='all'||n.state===scope)&&(!priority||n.attrs?.priority===priority));
+    return {requests,filtered,n:filtered.find(n=>n.id===id)||filtered[0]};
+  }
+  function view(){
+    const {requests,filtered,n}=selectRequest(current);
+    const proposals=model().nodes.filter(n=>n.kind==='proposal');
+    const promoted=n&&proposals.some(p=>p.refs?.includes(n.id));
+    const actions=tools([button('New','+ Запрос','','class="primary"'),button('OpenZip','Загрузить пакет .zip')]);
+    const panel='<section class="card"><div class="cardhead"><h2>Запросы на изменение</h2>'+actions+'</div>'+
+      '<div class="tools"><select id="deskScope" aria-label="Стадия запроса">'+Object.entries({all:'Все стадии',...labels}).map(([k,v])=>option(k,v,scope)).join('')+'</select><select id="deskPriority" aria-label="Приоритет запроса">'+Object.entries({'':'Все приоритеты',...priorityLabels}).map(([k,v])=>option(k,v,priority)).join('')+'</select></div>'+
+      (filtered.length?table(['Запрос','Название','Приоритет','Ответственный','Стадия'],filtered.map(r=>[button('Select',esc(r.id),r.id),esc(r.name),esc(priorityLabels[r.attrs?.priority]||'—'),esc(r.attrs?.owner||'—'),esc(labels[r.state]||r.state)])):'<p class="hint">'+(requests.length?'Нет запросов с такими фильтрами.':'Создайте запрос с проблемой, ожидаемым результатом и условием приёмки.')+'</p>')+'</section>';
+    const cards=proposals.map(p=>{
+      const {tasks,related}=Specifications.context(model(),p.id),check=Specifications.readiness(model(),p.id);
+      return '<details class="request-card"><summary>'+esc(p.id)+' · '+esc(p.name)+'</summary><p>'+esc(related.map(n=>n.id).join(' · '))+'</p>'+
+        check.errors.map(e=>'<p class="validation">'+esc(e)+'</p>').join('')+check.warnings.map(e=>'<p>'+esc(e)+'</p>').join('')+
+        '<p>Задачи · '+tasks.filter(n=>n.state==='done').length+' / '+tasks.length+'</p>'+tasks.map(t=>'<div class="file-item"><span>'+esc(t.name)+' · '+esc(t.attrs?.owner||'—')+'</span>'+button('TaskState',t.state==='done'?'Вернуть в работу':'Завершить',t.id,p.state==='done'?'disabled':'')+'</div>').join('')+
+        tools([button('Task','Добавить задачу',p.id,p.state==='done'?'disabled':''),button('Package','Просмотреть пакет',p.id,check.errors.length?'disabled':''),b('specZip','Скачать ZIP','data-id="'+esc(p.id)+'" '+(check.errors.length?'disabled':'')),b('applySpec','Apply','data-id="'+esc(p.id)+'" '+(p.state==='done'?'disabled':''))])+'</details>';
+    }).join('');
+    return '<div class="board"><div class="stack">'+panel+'<section class="card"><h2>Предложения OpenSpec</h2>'+ (cards||'<p>Принятый запрос можно преобразовать в предложение.</p>')+'</section></div>'+
+      (n?'<aside class="card"><h3>'+esc(n.name)+'</h3><dl class="facts">'+[['Инициатор',n.attrs?.requester],['Проблема',n.note],['Результат',n.attrs?.outcome],['Приёмка',n.attrs?.acceptance],['Решение разбора',n.attrs?.rationale]].map(([k,v])=>'<dt>'+k+'</dt><dd>'+esc(v||'—')+'</dd>').join('')+'</dl>'+tools((n.refs||[]).map(id=>button('Object',esc(id),id)))+tools([button('Review','Разобрать',n.id,promoted?'disabled':''),button('Promote','Создать предложение',n.id,' '+(n.attrs?.disposition==='accepted'&&!promoted?'':'disabled')),button('Brief','Описание .md',n.id),button('Timeline','История запроса',n.id)])+'</aside>':'')+'</div>';
+  }
+  function packageViewer(){
+    const paths=Object.keys(opened).sort(),select=sel('entry','Файл пакета',paths.map(p=>[p,p]),paths.find(p=>p.endsWith('/proposal.md'))||paths[0]);
+    modal('Содержимое пакета · '+source,select+'<pre id="deskPackageText"></pre>',()=>{
+      if(!opened['dsm-package.json'])return;
+      proposed(Specifications.importPackage(doc(),opened),source);return false;
+    },opened['dsm-package.json']?'Проверить импорт':'Закрыть');
+    const input=document.querySelector('#fields [name=entry]'),show=()=>document.getElementById('deskPackageText').textContent=opened[input.value]||'';
+    input.onchange=show;show();
+  }
+  async function zip(file){
+    if(!file)return;
+    try{if(file.size>16*1024*1024)throw Error('ZIP превышает 16 МиБ');opened=await Specifications.openPackage(await file.arrayBuffer());source=file.name;packageViewer();}catch(e){toast(e.message);}
+  }
+  function reports(){
+    const r=Reports.run(model(),report);
+    const rows=r.rows.filter(row=>row.join(' ').toLowerCase().includes(reportFilter.toLowerCase()));
+    const ids=new Set(model().nodes.map(n=>n.id));
+    return '<article class="card"><div class="cardhead"><h2>Архитектурный анализ</h2>'+button('ReportCsv','Выгрузить CSV')+'</div><div class="tools"><select id="deskReport" aria-label="Отчёт">'+Object.entries(Reports.definitions).map(([k,[name]])=>option(k,name,report)).join('')+'</select><input id="reportFilter" type="search" aria-label="Фильтр отчёта" placeholder="Найти в результатах" value="'+esc(reportFilter)+'"></div><p>Строк · '+rows.length+' из '+r.rows.length+'</p>'+
+      (rows.length?table(r.columns,rows.map(row=>row.map(v=>ids.has(v)?button('Object',esc(v),v):esc(v??'—')))):'<p>Для этого отчёта в выбранной модели нет совпадений.</p>')+'</article>';
+  }
+  async function handle(action,id){
+    const m=model();
+    switch(action){
+      case 'Select':current=id;render();break;
+      case 'Object':inspect(id);break;
+      case 'New':modal('Новый запрос на изменение','<div class="fields2">'+field('id','ID','','required')+field('name','Название','','required')+field('requester','Инициатор','','required')+field('owner','Ответственный')+sel('priority','Приоритет',Object.entries(priorityLabels),'normal')+field('objects','Связанные ID через пробел')+'</div>'+textarea('problem','Проблема')+textarea('outcome','Ожидаемый результат')+textarea('acceptance','Как проверить результат'),async f=>{
+        const next=Changes.request(model(),{...f,refs:f.objects.trim().split(/\s+/).filter(Boolean)});await push(next,'Запрос · '+f.id,f.requester);scope='all';priority='';current=f.id;render();
+      });break;
+      case 'Review':modal('Разбор запроса '+id,sel('outcome','Решение',[['accepted','Принять'],['deferred','Отложить'],['declined','Отклонить']],'accepted')+field('reviewer','Рецензент','','required')+textarea('reason','Обоснование'),f=>push(Changes.review(model(),id,f.outcome,f.reviewer,f.reason),'Разбор · '+id+' · '+f.reason,f.reviewer));break;
+      case 'Promote':modal('Предложение по запросу '+id,field('newId','ID предложения','','required'),f=>push(Changes.promote(model(),id,f.newId),'OpenSpec propose · '+f.newId+' · '+id));break;
+      case 'Task':modal('Задача предложения '+id,field('id','ID задачи','','required')+field('name','Задача','','required')+field('owner','Исполнитель'),f=>push(Changes.task(model(),id,f.id,f.name,f.owner),'Добавление задачи · '+f.id));break;
+      case 'TaskState':{const n=m.nodes.find(n=>n.id===id&&n.kind==='changeTask');await push(DSM.patch(m,[{op:'node',value:{id,state:n.state==='done'?'active':'done'}}]),'Состояние задачи · '+id);break;}
+      case 'Brief':download(id+'.md',Changes.brief(m,id),'text/markdown');break;
+      case 'Timeline':modal('История запроса '+id,table(['Ревизия','Автор','Описание','Поля'],Changes.timeline(doc(),id).map(h=>[esc(h.rev.slice(0,8)),esc(h.actor),esc(h.note),esc(h.fields.join(', '))])),()=>{},'Закрыть');break;
+      case 'Package':opened=Specifications.packageFiles(doc(),id).files;source=id;packageViewer();break;
+      case 'OpenZip':{const input=document.createElement('input');input.type='file';input.accept='.zip';input.onchange=()=>zip(input.files[0]);input.click();break;}
+      case 'ReportCsv':{const r=Reports.run(m,report);download(report+'.csv',Formats.csv([r.columns,...r.rows.filter(row=>row.join(' ').toLowerCase().includes(reportFilter.toLowerCase()))]),'text/csv');break;}
+    }
+  }
+  function bind(){
+    const el=id=>document.getElementById(id);
+    if(el('deskScope'))el('deskScope').onchange=e=>{scope=e.target.value;render();};
+    if(el('deskPriority'))el('deskPriority').onchange=e=>{priority=e.target.value;render();};
+    if(el('deskReport'))el('deskReport').onchange=e=>{report=e.target.value;reportFilter='';render();};
+    if(el('reportFilter'))el('reportFilter').oninput=e=>{reportFilter=e.target.value;render();el('reportFilter').focus();};
+  }
+  return {view,reports,bind,handle};
+}
+
+</script>
+<script>
+function notebookPanel({doc,online,visible,render,proposed,modal,download,button,option,esc,toast}) {
+  let selected=null,name='',profile='full',query='',kind='',onlyOutputs=false;
+  let session=null,starting=false,error='',library=null,generation=0,loading='',selection=0;
+  const host=()=>document.getElementById('notebookHost');
+  const limit=16*1024*1024;
+  const action=(id,label,attr='')=>button('book'+id,label,attr);
+  function save(filename,value,type='application/x-ipynb+json'){
+    download(filename,typeof value==='string'?value:JSON.stringify(value,null,2),type);
+  }
+  async function request(route,body){
+    const response=await fetch('/api/notebooks/'+route,{method:'POST',headers:{'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});
+    const value=await response.json();
+    if(!response.ok)throw Error(value.error||'Не удалось связаться с Jupyter');
+    return value;
+  }
+  function reset(){
+    selected=null;name='';library=null;error='';query='';kind='';onlyOutputs=false;generation++;selection++;loading='';
+  }
+  async function refresh(){
+    if(!online())return;
+    const ticket=++generation;
+    try{const items=await request('list');if(ticket!==generation)return;library=items;}
+    catch(e){if(ticket!==generation)return;error=e.message;}
+    if(visible())render();
+  }
+  function choose(book,label){
+    selected=NotebookFiles.validate(book);name=label;query='';kind='';onlyOutputs=false;error='';
+    render();
+  }
+  async function loadBook(label,reader){
+    const ticket=++selection;loading=label;error='';render();
+    try{
+      const book=await reader();
+      if(ticket===selection){loading='';choose(book,label);}
+    }catch(e){if(ticket===selection){loading='';error='Загрузка '+label+' · '+e.message;render();}}
+  }
+  async function upload(file){
+    if(!file)return;
+    await loadBook(file.name,async()=>{
+      if(!/\.ipynb$/i.test(file.name))throw Error('Выберите файл .ipynb');
+      if(file.size>limit)throw Error('Размер файла превышает 16 МиБ');
+      return JSON.parse((await file.text()).replace(/^\uFEFF/,''));
+    });
+  }
+  function cells(){
+    if(!selected)return '';
+    const rows=NotebookFiles.overview(selected).filter(c=>(!kind||kind===c.type)&&(!onlyOutputs||c.outputs.length)&&[c.source,...c.tags,...c.outputs].join(' ').toLowerCase().includes(query.toLowerCase()));
+    return '<p>'+rows.length+' из '+selected.cells.length+' ячеек</p>'+rows.map(c=>'<details class="cell-preview"><summary><code>'+(c.i+1)+'</code> '+esc(c.type)+' · '+esc(c.title)+'</summary><pre>'+esc(c.source)+'</pre>'+
+      (c.tags.length?'<p>Теги · '+esc(c.tags.join(', '))+'</p>':'')+(c.count===null?'':'<p>Порядок исполнения · '+c.count+'</p>')+
+      c.outputs.map(out=>'<pre class="cell-output">'+esc(out)+'</pre>').join('')+'</details>').join('');
+  }
+  function viewer(){
+    if(!selected)return '';
+    const meta=selected.metadata.dsm, h=DSM.head(doc());
+    const status=!meta?'Обычный блокнот':meta.project!==doc().project?'Другой проект':meta.base===h.rev?'Текущая ревизия':'Устаревшая ревизия';
+    return '<section class="card"><div class="cardhead"><div><h3>'+esc(name)+'</h3><p>'+status+' · '+esc(selected.metadata.kernelspec?.display_name||'Ядро не указано')+(meta?' · '+esc(meta.base):'')+'</p></div>'+action('Clear','Закрыть просмотр')+'</div><div class="tools">'+
+      (meta?action('Import','Предпросмотр модели'):action('Attach','Привязать модель',NotebookFiles.isPython(selected)?'':'disabled'))+
+      (selected.cells.some(c=>c.metadata.tags?.includes('dsm-result'))?action('Result','Проверить результат Python'):'')+action('Download','Скачать .ipynb')+action('Clean','Без выводов')+action('Markdown','Отчёт .md')+action('Python','Скрипт .py',NotebookFiles.isPython(selected)?'':'disabled')+'</div>'+
+      '<div class="tools"><input id="bookQuery" type="search" aria-label="Найти в ячейках" placeholder="Текст, тег или вывод" value="'+esc(query)+'"><select id="bookKind" aria-label="Тип ячейки">'+[['','Все ячейки'],['code','Код'],['markdown','Markdown'],['raw','Raw']].map(([k,v])=>option(k,v,kind)).join('')+'</select><label><input id="bookOutputs" type="checkbox" '+(onlyOutputs?'checked':'')+'> С выводами</label></div><div id="bookCells">'+cells()+'</div></section>';
+  }
+  function shelf(){
+    if(!online())return '';
+    const content=library?.length?library.map(item=>'<div class="file-item"><span>'+esc(item.name)+'<small>'+esc(new Date(item.updated).toLocaleString('ru-RU'))+' · '+Math.ceil(item.bytes/1024)+' КиБ</small></span>'+action('Recall','Открыть копию','data-id="'+esc(item.id)+'"')+'</div>').join(''):'<p>Сохранённые сессии появятся здесь.</p>';
+    return '<details class="card"><summary>Библиотека проекта'+(library?' · '+library.length:'')+'</summary>'+content+action('Refresh','Обновить список')+'</details>';
+  }
+  function view(){
+    const profiles={full:'Полный анализ DSM',...Object.fromEntries(Object.entries(NotebookProfiles).map(([k,v])=>[k,v.name]))};
+    const controls=session?'<p>Сохраните ячейки в Jupyter (Ctrl+S). Файл · '+esc(session.file)+'</p><div class="tools">'+action('Preview','Проверить изменения','class="primary"')+action('LiveResult','Проверить результат Python')+action('Saved','Скачать сохранённый блокнот')+action('Stop','Завершить сессию')+'</div>':
+      '<div class="tools"><label>Расчёт <select id="bookProfile" aria-label="Профиль генерации">'+Object.entries(profiles).map(([k,v])=>option(k,v,profile)).join('')+'</select></label>'+action('Generate','Сгенерировать блокнот')+
+      '<label class="btn">Загрузить .ipynb<input type="file" class="file-picker" id="bookFile" accept=".ipynb"></label>'+
+      (online()?action('Start',starting?'Запуск…':'Запустить Jupyter',starting?'disabled':'class="primary"'):'')+'</div>'+
+      (selected&&online()?'<p>Для запуска выбран файл '+esc(name)+'.</p>':!online()?'<p>Для вычислений запустите локальную мастерскую с Jupyter. Подготовка и просмотр файлов доступны здесь.</p>':'');
+    return '<fieldset class="book-controls" '+(loading||starting?'disabled':'')+'><div class="stack">'+(loading?'<p role="status">Чтение · '+esc(loading)+'</p>':'')+'<article class="card" id="bookDrop"><h2>Jupyter Notebook</h2>'+controls+(error?'<p role="alert">'+esc(error)+'</p>':'')+'</article>'+(session?'':viewer()+shelf())+'</div></fieldset>';
+  }
+  async function handle(which,id){
+    switch(which){
+      case 'Generate':choose(Notebook.write(doc(),profile),'dsm-'+profile+'-'+DSM.head(doc()).rev.slice(0,8)+'.ipynb');break;
+      case 'Clear':selected=null;name='';render();break;
+      case 'Attach':choose(NotebookFiles.attach(selected,Notebook.write(doc(),profile)),name);break;
+      case 'Import':proposed(Notebook.read(selected),name);break;
+      case 'Download':save(name,selected);break;
+      case 'Clean':save(name.replace(/\.ipynb$/i,'')+'-clean.ipynb',NotebookFiles.clean(selected));break;
+      case 'Python':save(name.replace(/\.ipynb$/i,'')+'.py',NotebookFiles.asPython(selected),'text/x-python');break;
+      case 'Markdown':save(name.replace(/\.ipynb$/i,'')+'.md',NotebookFiles.asMarkdown(selected),'text/markdown');break;
+      case 'Recall':await loadBook(library.find(s=>s.id===id)?.name||'architecture.ipynb',()=>request('download/'+id));break;
+      case 'Refresh':await refresh();break;
+      case 'Start':
+        if(starting||session)return;
+        starting=true;error='';render();
+        try{
+          session=await request('start',selected?{book:selected,name}:{profile});
+          const frame=document.createElement('iframe');frame.title='Jupyter Notebook';frame.src=session.url;host().replaceChildren(frame);
+        }catch(e){error=e.message;}finally{starting=false;render();}
+        break;
+      case 'Result':proposed(Notebook.result(selected),name+' · Python');break;
+      case 'LiveResult':proposed(Notebook.result(await request('download/'+session.id)),session.name+' · Python');break;
+      case 'Preview':proposed(await request('read/'+session.id),session.name);break;
+      case 'Saved':save(session.name,await request('download/'+session.id));break;
+      case 'Stop':modal('Завершить сессию Jupyter','<p>Сохраните ячейки в Jupyter. Файл останется в библиотеке проекта.</p>',async()=>{
+        await request('stop/'+session.id);session=null;host().replaceChildren();await refresh();
+      },'Завершить');break;
+    }
+  }
+  function bind(){
+    const el=id=>document.getElementById(id);
+    if(el('bookProfile'))el('bookProfile').onchange=e=>{profile=e.target.value;};
+    if(el('bookFile'))el('bookFile').onchange=e=>upload(e.target.files[0]);
+    if(el('bookDrop')&&!session){
+      el('bookDrop').ondragover=e=>e.preventDefault();
+      el('bookDrop').ondrop=e=>{e.preventDefault();upload(e.dataTransfer.files[0]);};
+    }
+    if(!el('bookQuery'))return;
+    const redraw=()=>{el('bookCells').innerHTML=cells();};
+    el('bookQuery').oninput=e=>{query=e.target.value;redraw();};
+    el('bookKind').onchange=e=>{kind=e.target.value;redraw();};
+    el('bookOutputs').onchange=e=>{onlyOutputs=e.target.checked;redraw();};
+  }
+  window.addEventListener('pagehide',ev=>{if(session&&!ev.persisted)fetch('/api/notebooks/stop/'+session.id,{method:'POST',headers:{'Content-Type':'application/json'},keepalive:true}).catch(()=>{});});
+  return {view,handle,bind,refresh,reset,active:()=>!!session};
+}
+
+</script>
+<script>
 (() => {
 'use strict';
 const $=id=>document.getElementById(id), esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
 const embedded=DSM.document(JSON.parse($('project-data').textContent));
 const original='<!doctype html>\n'+document.documentElement.outerHTML;
-const tabs={matrix:'Матрица',graph:'Граф и схема',catalog:'Каталог',plan:'Релизы и фичи',history:'Версии',io:'Обмен',notebook:'Jupyter Notebook',artifacts:'Артефакты',requirements:'Требования'};
+const tabs={matrix:'Матрица',graph:'Граф и схема',catalog:'Каталог',plan:'Релизы и фичи',history:'Версии',io:'Обмен',notebook:'Jupyter Notebook',artifacts:'Артефакты',requirements:'Требования',requests:'Запросы',reports:'Анализ'};
 const kinds=Views.types;
-const sections={architecture:['matrix','graph','plan','requirements','artifacts'],data:['catalog','notebook']};
+const sections={architecture:['matrix','graph','plan','requirements','requests','artifacts','reports'],data:['catalog','notebook']};
 const lastTab={architecture:'matrix',data:'catalog'};
-let structure=null,workMode='architecture',registry='nodes',scenarioId='',bookSession=null,bookStarting=false,bookError='';
+let structure=null,workMode='architecture',registry='nodes',scenarioId='';
 function navigate(id){
   for(const [mode,items] of Object.entries(sections))if(items.includes(id)){workMode=mode;lastTab[mode]=id;}
-  tab=id;render();
+  tab=id;render();if(id==='notebook')books.refresh();
 }
 function showPair(from,to,target){
   structure=null;focus=from;pair=[from,to];
@@ -3664,7 +4329,7 @@ function toast(s){$('toast').textContent=s;const v=++counter;setTimeout(()=>{if(
 function download(name,content,type='application/octet-stream'){const url=URL.createObjectURL(new Blob([content],{type}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);}
 function dynamicHtml(value){return original.replace(/(<script type="application\/json" id="project-data">)[\s\S]*?(<\/script>)/,(_,a,z)=>a+JSON.stringify(value).replaceAll('<','\\u003c')+z);}
 function getAnalysis(){const key=base()+layer;if(!analysisCache.has(key)){analysisCache.clear();analysisCache.set(key,Analysis.calculate(data(),layer));}return analysisCache.get(key);}
-function resetView(){structure=null;pair=null;selected.clear();focus=(data().nodes.find(n=>n.kind==='feature')||data().nodes[0])?.id||'';segment='';filter='';}
+function resetView(resetBooks=true){if(resetBooks)books.reset();resetCatalog();historyFilters={actor:'',object:'',from:'',until:'',text:'',oldest:false};structure=null;pair=null;selected.clear();focus=(data().nodes.find(n=>n.kind==='feature')||data().nodes[0])?.id||'';segment='';filter='';}
 function cache(){
   if(server)return;
   try{localStorage.setItem(cacheKey,JSON.stringify(doc));cacheOK=true;}catch{cacheOK=false;toast('Кэш браузера недоступен. Сохраните проект в JSON.');}
@@ -3682,16 +4347,16 @@ async function push(next,note,actor='Редактор',expected=dialogBase||base
   }
   render();toast('Версия сохранена · '+short(base()));
 }
-function modal(title,html,onSubmit,label='Сохранить версию'){dialogBase=base();$('dlgTitle').textContent=title;$('fields').innerHTML=html;$('formError').textContent='';$('accept').textContent=label;submit=onSubmit;$('dialog').showModal();}
+function modal(title,html,onSubmit,label='Сохранить версию'){dialogBase=base();$('accept').disabled=false;$('dlgTitle').textContent=title;$('fields').innerHTML=html;$('formError').textContent='';$('accept').textContent=label;submit=onSubmit;$('dialog').showModal();}
 function close(){submit=null;dialogBase=null;$('dialog').close();}
 $('cancel').onclick=$('close').onclick=close;$('dialog').addEventListener('close',()=>{submit=null;dialogBase=null;});
-$('form').onsubmit=async e=>{e.preventDefault();$('accept').disabled=true;try{if(await submit(Object.fromEntries(new FormData(e.target)))!==false)close();}catch(err){$('formError').textContent=err.message;}finally{$('accept').disabled=false;}};
+$('form').onsubmit=async e=>{e.preventDefault();const handler=submit;$('accept').disabled=true;try{if(await handler(Object.fromEntries(new FormData(e.target)))!==false)close();}catch(err){$('formError').textContent=err.message;}finally{if(submit===handler)$('accept').disabled=false;}};
 function shell(content){
   $('title').textContent=data().title;$('summary').textContent=(data().nodes.some(n=>n.kind==='product'&&n.note.startsWith('Вымышленный терминальный помощник в духе Qwen Code.'))?'Учебный пример в духе Qwen Code · ':'')+data().nodes.length+' объектов · '+data().edges.filter(x=>x.layer==='flow').length+' вызовов · '+data().edges.filter(x=>x.layer==='risk').length+' пар совместной проверки';
   $('mode').textContent=server?'Связь с локальным агентом':cacheOK?'Локальный проект':'Требуется выгрузка JSON';
   $('revision').textContent='Версия '+doc.history.length+' · '+short(base());
   $('workMode').innerHTML=Object.entries({architecture:'Архитектура',data:'Данные и расчёты'}).map(([k,v])=>b('workMode',v,'aria-pressed="'+(k===workMode)+'" data-id="'+k+'"')).join('');
-  $('notebookHost').hidden=tab!=='notebook'||!bookSession;
+  $('notebookHost').hidden=tab!=='notebook'||!books.active();
   $('demoGuide').hidden=doc.project!==embedded.project||!data().nodes.some(n=>n.id==='TK'&&n.note.includes('Qwen Code'))||!nodeBy('F02')||!nodeBy('F03');
   $('nav').innerHTML=[...sections[workMode],'history','io'].map(k=>b('tab',tabs[k],'class="'+(k===tab?'on':'')+'" data-id="'+k+'"')).join('');
   $('content').innerHTML=content;
@@ -3719,8 +4384,8 @@ function inspector(){
 function matrix(){
   const d=data(),a=getAnalysis(),order=(ordered?a.order:d.nodes.map(n=>n.id)).filter(id=>!segment||nodeBy(id).segment===segment);
   const values=Analysis.matrix(d,layer,order),segments=[...new Set(d.nodes.map(n=>n.segment).filter(Boolean))];
-  const head='<thead><tr><th></th>'+order.map(id=>'<th title="'+esc(nodeBy(id).name)+'">'+esc(id)+'</th>').join('')+'</tr></thead>';
-  const body=order.map((from,i)=>'<tr><th class="label">'+b('focus',esc(from),'title="'+esc(nodeBy(from).name)+'" data-id="'+esc(from)+'"')+'</th>'+order.map((to,j)=>{
+  const head='<thead><tr><th></th>'+order.map(id=>'<th scope="col" '+(pair?.[1]===id?'class="axis-selected" ':'')+'title="'+esc(nodeBy(id).name)+'">'+esc(id)+'</th>').join('')+'</tr></thead>';
+  const body=order.map((from,i)=>'<tr><th scope="row" class="label '+(pair?.[0]===from?'axis-selected':'')+'">'+b('focus',esc(from),'title="'+esc(nodeBy(from).name)+'" data-id="'+esc(from)+'"')+'</th>'+order.map((to,j)=>{
     const w=values[i][j],active=pair&&pair[0]===from&&pair[1]===to;
     return '<td>'+b(i===j?'focus':'cell',i===j?'·':w||'','aria-label="'+esc(from+' / '+to+' / '+w)+'" title="'+esc(from+' / '+to+' · '+w)+'" data-id="'+esc(from)+'" data-to="'+esc(to)+'" class="cell '+(i===j?'diag':'w'+Math.min(3,w))+(active?' active':'')+'"')+'</td>';
   }).join('')+'</tr>').join('');
@@ -3744,14 +4409,33 @@ function graph(){
   const drawing=sequence?Views.sequence(m,steps,focus,pair):Views.diagram(m,graphMode,layer,focus,pair,getAnalysis().groups,structure);
   return '<div class="board"><article class="card"><div class="cardhead"><h2>'+title+'</h2>'+b('svg','Скачать SVG','class="tiny" '+(drawing.includes('<svg')?'':'disabled'))+'</div>'+hint(description[graphMode]||'Выберите линию для просмотра основания и перехода к ячейке DSM.')+controls+'<div class="tools">'+selector+'</div>'+drawing+'</article>'+inspector()+'</div>';
 }
+let catalogFilters=Registers.defaults();
+let historyFilters={actor:'',object:'',from:'',until:'',text:'',oldest:false};
+function resetCatalog(){catalogFilters=Registers.defaults();filter='';}
+function filterSelect(id,title,choices,current){
+  return '<label class="filter-control">'+title+'<select id="'+id+'">'+choices.map(([k,v])=>option(k,v,current)).join('')+'</select></label>';
+}
+function catalogControls(){
+  const f=catalogFilters,d=data(),segments=[...new Set(d.nodes.map(n=>n.segment).filter(Boolean))].sort();
+  return '<details id="catalogOptions" '+(Object.keys(f).some(k=>f[k]!==Registers.defaults()[k])?'open':'')+'><summary>Фильтры и сортировка</summary><div class="tools">'+
+    filterSelect('catalog-kind','Тип',[['','Все типы'],...Object.entries(kinds)],f.kind)+filterSelect('catalog-state','Статус',[['','Все статусы'],...Object.entries(states)],f.state)+
+    filterSelect('catalog-segment','Сегмент',[['','Все сегменты'],...segments.map(v=>[v,v])],f.segment)+
+    filterSelect('catalog-release','Назначение',[['*','Все назначения'],['','Без релиза'],...d.nodes.filter(n=>n.kind==='release').map(n=>[n.id,n.name])],f.release)+
+    filterSelect('catalog-order','Порядок',[['initial','Исходный'],['id','По ID'],['name','По названию']],f.order)+b('clearCatalog','Сбросить фильтры')+'</div></details>';
+}
+function visibleCatalog(){
+  if(registry==='nodes')return Registers.nodes(data(),filter,catalogFilters);
+  const entries=registry==='structure'?Views.structures(data()):data().edges.filter(e=>e.layer===layer);
+  return entries.filter(e=>Registers.match(filter,e.from,e.to,e.layer,e.reason,e.weight));
+}
 function catalog(){
-  const query=filter.toLowerCase(),matches=(...values)=>values.join(' ').toLowerCase().includes(query);
-  const rows=registry==='nodes'?data().nodes.filter(n=>matches(n.id,n.name,n.segment)).map(n=>[idButton(n.id),esc(n.name),kinds[n.kind],states[n.state],esc(n.parent||'—'),esc(n.release||'—'),esc(n.segment||'—'),b('edit','Изменить','class="tiny" data-id="'+esc(n.id)+'"')]):
-    registry==='structure'?Views.structures(data()).filter(e=>matches(e.from,e.to,e.reason)).map(e=>[b('structure',esc(e.from+' → '+e.to),'data-id="'+esc(e.from)+'" data-to="'+esc(e.to)+'" data-layer="'+esc(e.layer)+'"'),esc(e.reason)]):
-    data().edges.filter(e=>e.layer===layer&&matches(e.from,e.to,e.reason)).map(e=>[b('cell',esc(e.from+(layer==='flow'?' → ':' ↔ ')+e.to),'data-id="'+esc(e.from)+'" data-to="'+esc(e.to)+'"'),e.weight,esc(e.reason)]);
+  const entries=visibleCatalog();
+  const rows=registry==='nodes'?entries.map(n=>[idButton(n.id),esc(n.name),kinds[n.kind],states[n.state],esc(n.parent||'—'),esc(n.release||'—'),esc(n.segment||'—'),b('edit','Изменить','class="tiny" data-id="'+esc(n.id)+'"')]):
+    registry==='structure'?entries.map(e=>[b('structure',esc(e.from+' → '+e.to),'data-id="'+esc(e.from)+'" data-to="'+esc(e.to)+'" data-layer="'+esc(e.layer)+'"'),esc(e.reason)]):
+    entries.map(e=>[b('cell',esc(e.from+(layer==='flow'?' → ':' ↔ ')+e.to),'data-id="'+esc(e.from)+'" data-to="'+esc(e.to)+'"'),e.weight,esc(e.reason)]);
   const headers=registry==='nodes'?['ID','Объект','Тип','Статус','Родитель','Релиз','Сегмент','']:registry==='structure'?['Связь','Тип']:['Связь','Вес','Основание'];
   return '<div class="board"><article class="card"><div class="cardhead"><h2>Архитектурный реестр</h2>'+toolbar([b('node','+ Объект'),b('newEdge','+ Связь'),b('grid','Ввод строк',registry==='structure'?'disabled':'')])+'</div><div class="toggle">'+[['nodes','Объекты'],['edges','Связи DSM'],['structure','Архитектурные связи']].map(([k,v])=>b('registry',v,'data-id="'+k+'" class="'+(registry===k?'on':'')+'"')).join('')+'</div>'+
-    '<div class="tools"><input id="query" placeholder="Поиск по реестру" aria-label="Поиск" value="'+esc(filter)+'">'+(registry==='edges'?layerControl():'')+'</div>'+table(headers,rows)+(rows.length?'':hint('По этому запросу записей нет.'))+'</article>'+inspector()+'</div>';
+    '<div class="tools"><input id="query" placeholder="Поиск по реестру" aria-label="Поиск" value="'+esc(filter)+'">'+(registry==='edges'?layerControl():'')+'</div>'+(registry==='nodes'?catalogControls():'')+'<div class="tools"><span>Найдено · '+entries.length+'</span>'+b('catalogCsv','CSV выборки')+'</div>'+table(headers,rows)+(rows.length?'':hint('По этому запросу записей нет.'))+'</article>'+inspector()+'</div>';
 }
 function gridInput(){
   const edges=registry==='edges',cols=edges?['from','to','weight','reason']:['id','name'];
@@ -3782,13 +4466,13 @@ function requirements(){
 function applySpec(id){
   const proposal=nodeBy(id), revision=base();
   const patch={project:doc.project,base:revision,ops:[]};
-  modal('Применить предложение '+id,hint('Вставьте согласованный JSON-патч. Изменения и перевод предложения в состояние «Готово» получат одну ревизию.')+'<label class="field">JSON-патч<textarea name="patch" required>'+esc(JSON.stringify(patch,null,2))+'</textarea></label>',f=>{
+  modal('Применить предложение '+id,hint('Вставьте согласованный JSON-патч. Изменения и перевод предложения в состояние «Готово» получат одну ревизию.')+'<label class="field">JSON-патч<textarea name="patch" required>'+esc(JSON.stringify(patch,null,2))+'</textarea></label>'+field('actor','Автор решения','Редактор','required')+field('note','Описание изменения','OpenSpec apply · '+id,'required'),f=>{
     const input=Formats.parseJson(JSON.parse(f.patch));
     if(input.kind!=='patch')throw Error('Ожидается JSON-патч с project, base и ops');
     const updated=Formats.preview(doc,input);
     if(!updated.nodes.some(n=>n.id===id&&n.kind==='proposal'))throw Error('Патч должен сохранить предложение');
-    const next=DSM.patch(updated,[{op:'node',value:{id,state:'done'}}]);
-    modal('Apply · '+proposal.name,Views.differences(DSM.diff(data(),next)),()=>push(next,'OpenSpec apply · '+id,'Редактор',revision),'Применить и сохранить');
+    const next=Changes.completeProposal(updated,id);
+    modal('Apply · '+proposal.name,Views.differences(DSM.diff(data(),next)),()=>push(next,f.note,f.actor,revision),'Применить и сохранить');
     return false;
   },'Предпросмотр');
 }
@@ -3796,27 +4480,32 @@ function artifacts(){
   const nodes=data().nodes.filter(n=>['adr','proposal','scenario','artifact'].includes(n.kind));
   return '<div class="board"><article class="card"><h2>Архитектурные артефакты</h2>'+hint('Оформите изменение как предложение OpenSpec. В ADR зафиксируйте решение и укажите ID предложения и затронутых объектов.')+toolbar([b('document','+ OpenSpec proposal','data-id="proposal"'),b('document','+ ADR','data-id="adr"'),b('makeScenario','+ Сценарий')])+table(['ID','Артефакт','Тип','Связано с',''],nodes.map(n=>[idButton(n.id),esc(n.name),kinds[n.kind],toolbar((n.refs||[]).map(idButton)),toolbar([b('edit','Изменить','data-id="'+esc(n.id)+'"'),b('documentDownload','Скачать Markdown','data-id="'+esc(n.id)+'"')])]))+'</article>'+inspector()+'</div>';
 }
-function notebook(){
-  if(!server)return '<article class="card"><h2>Jupyter Notebook</h2>'+hint('Для вычислений откройте локальную мастерскую командой ниже. В автономном HTML можно получить блокнот этой ревизии и загрузить его после редактирования.')+'<pre>node dsm.cjs serve project.json</pre>'+toolbar([b('export','Скачать .ipynb','data-id="ipynb"'),b('open','Загрузить блокнот')])+'</article>';
-  return '<article class="card"><div class="cardhead"><div><h2>Jupyter Notebook</h2>'+hint(bookSession?'Сохраните блокнот в Jupyter (Ctrl+S), затем проверьте изменения ячейки dsm-input.':'Откройте блокнот текущей ревизии. Ячейки Python выполняются на этом компьютере.')+'</div>'+
-    (bookSession?toolbar([b('bookPreview','Проверить изменения','class="primary"'),b('bookStop','Завершить сессию')]):b('bookStart',bookStarting?'Запуск…':'Запустить Jupyter',bookStarting?'disabled':'class="primary"'))+'</div>'+
-    (bookSession?hint('Файл сессии · '+esc(bookSession.file)):'')+(bookError?'<p role="alert">'+esc(bookError)+'</p>':'')+'</article>';
-}
-async function bookRequest(route){
-  const r=await fetch('/api/notebooks/'+route,{method:'POST',headers:{'Content-Type':'application/json'}});
-  const result=await r.json();if(!r.ok)throw Error(result.error);return result;
-}
+const books=notebookPanel({doc:()=>doc,online:()=>server,visible:()=>tab==='notebook',render,proposed,modal,download,button:b,option,esc,toast});
+const desk=reviewPanel({doc:()=>doc,esc,button:b,option,field,sel,table,tools:toolbar,modal,push,download,proposed,render,toast,
+  inspect:id=>{registry='nodes';filter='';focus=id;pair=null;structure=null;resetCatalog();navigate('catalog');}});
 function plan(){
   const releases=DSM.plan(data()),features=data().nodes.filter(n=>n.kind==='feature');
   const cards=releases.map(r=>'<div class="card"><span class="tag">'+esc(r.id)+'</span><h3>'+esc(r.name)+'</h3><div class="big">'+r.knownEffort+' / '+(r.capacity??'—')+'</div><div class="progress '+(r.capacity!==null&&r.knownEffort>r.capacity?'over':'')+'"><i style="width:'+Math.min(100,r.capacity?r.knownEffort/r.capacity*100:r.knownEffort?100:0)+'%"></i></div><div class="pair"><span>Без оценки</span><b>'+r.unknown+'</b></div><div class="pair"><span>Внешние вызовы / проверки</span><b>'+r.outgoing+' / '+r.crossChecks+'</b></div>'+ (r.capacity!==null&&r.knownEffort>r.capacity?'<span class="warn">Перегрузка на '+(r.knownEffort-r.capacity)+'</span>':'')+'</div>').join('');
   return '<div class="cols">'+cards+'</div><div class="card" style="margin-top:15px"><div class="cardhead"><div><h2>Планирование фич</h2>'+hint('Отметьте фичи для общего пакета, сегмента, релиза или перехода состояния. Оценки заданы в условных единицах.')+'</div>'+b('bulk','Изменить выбранные ('+selected.size+')',selected.size?'class="primary"':'disabled')+'</div>'+table(['Выбор','ID','Фича','Статус','Оценка','Релиз','Пакет'],features.map(n=>['<input type="checkbox" aria-label="Выбрать '+esc(n.id)+'" data-check="'+esc(n.id)+'" '+(selected.has(n.id)?'checked':'')+'>',esc(n.id),esc(n.name),states[n.state],n.effort??'—',esc(n.release||'Бэклог'),esc(n.bundle||'—')]))+b('node','+ Объект')+'</div>';
 }
-function history(){return '<div class="card"><div class="cardhead"><div><h2>Версии проекта</h2>'+hint('Восстановление записывает новый снимок. У каждой версии есть автор, родитель и полный каталог.')+'</div>'+b('snapshot','+ Именованный снимок')+'</div>'+table(['Версия','Сохранено','Автор','Изменение',''],doc.history.map((h,i)=>[i+1+' · <code>'+short(h.rev)+'</code>',esc(new Date(h.at).toLocaleString('ru-RU')),esc(h.actor),esc(h.note),toolbar([b('diff','Сравнить','class="tiny" data-id="'+h.rev+'"'),...(h.rev!==base()?[b('restore','Восстановить','class="tiny" data-id="'+h.rev+'"')]:[])])]).reverse())+'</div>';}
+function history(){
+  const f=historyFilters,entries=Registers.revisions(doc,f);
+  const ids=[...new Set(doc.history.flatMap(h=>h.data.nodes.map(n=>n.id)))].sort();
+  const authors=[...new Set(doc.history.map(h=>h.actor))].sort();
+  return '<div class="card"><div class="cardhead"><h2>Версии проекта</h2>'+toolbar([b('changeLog','Журнал .md'),b('snapshot','+ Именованный снимок')])+'</div>'+
+    '<details '+(Object.values(f).some(Boolean)?'open':'')+'><summary>Фильтры истории</summary><div class="tools"><input id="history-text" type="search" placeholder="Автор, описание, ревизия" aria-label="Поиск по истории" value="'+esc(f.text)+'">'+
+    filterSelect('history-actor','Автор',[['','Все авторы'],...authors.map(x=>[x,x])],f.actor)+filterSelect('history-object','Изменения объекта',[['','Все объекты'],...ids.map(x=>[x,x])],f.object)+
+    '<label>С <input type="date" id="history-from" value="'+esc(f.from)+'"></label><label>По <input type="date" id="history-until" value="'+esc(f.until)+'"></label>'+
+    '<label><input type="checkbox" id="history-oldest" '+(f.oldest?'checked':'')+'> Сначала ранние</label></div></details>'+
+    table(['Версия','Сохранено','Автор','Изменение',''],entries.map(({h,i})=>[i+1+' · <code>'+short(h.rev)+'</code>',esc(new Date(h.at).toLocaleString('ru-RU')),esc(h.actor),esc(h.note),toolbar([b('diff','Сравнить','class="tiny" data-id="'+h.rev+'"'),...(h.rev!==base()?[b('restore','Восстановить','class="tiny" data-id="'+h.rev+'"')]:[])])]))+'</div>';
+}
 function io(){return '<div class="cols"><div class="card"><h2>Загрузить данные</h2>'+hint('Откройте проект JSON или HTML с историей. Для обновления текущей версии выберите Markdown, CSV, Excel, блокнот или JSON-патч.')+b('open','Выбрать файл','class="primary"')+'<h3 style="margin-top:22px">Вставить исходный текст</h3>'+hint('Каталог: ID : название. Вызов: A -> B : основание. Совместная проверка: A ~ B [3] : основание. CSV принимает также заголовки на русском.')+'<textarea id="raw" aria-label="Исходный текст" placeholder="CLI : Интерфейс командной строки&#10;CFG : Настройки&#10;CLI -> CFG : Загрузить профиль"></textarea><div class="tools"><select id="rawType" aria-label="Формат текста"><option value="txt">Текстовый список</option><option value="csv">CSV</option><option value="md">Markdown</option><option value="json">JSON или патч</option></select>'+b('parse','Проверить импорт')+'</div><label class="field">Слой для CSV-матрицы или реестра без столбца layer<select id="importLayer">'+option('flow','Вызовы',layer)+option('risk','Совместные проверки',layer)+'</select></label></div><div class="card"><h2>Выгрузить версию</h2>'+hint('JSON и автономный HTML включают всю историю. В табличных представлениях записаны ID проекта и исходная ревизия. Отредактированную таблицу можно вернуть в ту же ревизию.')+'<div class="row export">'+['json','html','md','csv','xlsx','ipynb','sysl'].map(k=>b('export',k.toUpperCase(),'data-id="'+k+'"')).join('')+'</div><h3 style="margin-top:24px">Передать агенту</h3>'+hint('Передайте сохранённый JSON в чат или откройте его локальным CLI. Агент читает текущую версию и возвращает патч с тем же base.')+'<pre>'+esc(JSON.stringify({project:doc.project,base:base(),ops:[{op:'title',value:data().title}]},null,2))+'</pre>'+b('context','Скачать задание агенту')+'</div></div>';}
 function render(){
   if(!nodeBy(focus))focus=data().nodes[0]?.id||'';
   if(pair&&pair.some(id=>!nodeBy(id)))pair=null;
-  shell(({matrix,graph,catalog,plan,history,io,artifacts,requirements,notebook})[tab]());
+  shell(({matrix,graph,catalog,plan,history,io,artifacts,requirements,requests:desk.view,reports:desk.reports,notebook:books.view})[tab]());
+  if(tab==='notebook')books.bind();
+  if(tab==='requests'||tab==='reports')desk.bind();
   if(tab==='catalog'){
     for(const row of $('content').querySelectorAll('tbody tr')){const t=row.querySelector('[data-action]');if(t)row.classList.toggle('selected',registry==='nodes'?t.dataset.id===focus:registry==='structure'?structure?.from===t.dataset.id&&structure?.to===t.dataset.to&&structure?.layer===t.dataset.layer:!!pair&&DSM.ek({layer,from:t.dataset.id,to:t.dataset.to})===DSM.ek({layer,from:pair[0],to:pair[1]}));}
   }
@@ -3862,20 +4551,34 @@ function bulkForm(){
 async function exportAs(k){const stem='dsm-'+short(base()),m=data(),types={html:'text/html',md:'text/markdown',csv:'text/csv',json:'application/json',ipynb:'application/x-ipynb+json',xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'};
   const payload=k==='sysl'?Sysl.write(m):k==='xlsx'?await ExcelIO.write(doc):k==='html'?dynamicHtml(doc):k==='md'?Formats.markdown(doc):k==='csv'?Formats.emitCsv(doc):JSON.stringify(k==='ipynb'?Notebook.write(doc):doc,null,2);
   download(stem+'.'+k,payload,types[k]);}
-function proposed(input){
+function proposed(input,source=''){
   const archive=input.kind==='archive';const next=Formats.preview(doc,input);
   const changes=DSM.diff(data(),next);
   const title=archive?'Открыть проект с историей':'Проверить изменения';
-  const body=hint(esc(next.title)+' · '+next.nodes.length+' объектов · '+next.edges.length+' связей')+(archive?hint('Откроется отдельная копия проекта с '+input.doc.history.length+' верс.'):hint('Список изменений относительно текущей версии.'))+Views.differences(changes);
-  modal(title,body,async()=>{
+  const body=hint(esc(next.title)+' · '+next.nodes.length+' объектов · '+next.edges.length+' связей')+(archive?hint('Откроется отдельная копия проекта с '+input.doc.history.length+' верс.'):hint('Список изменений относительно текущей версии.'))+Views.differences(changes)+(!archive?importSummary(next,changes)+field('actor','Автор','Редактор','required')+field('note','Описание изменения',source?'Импорт · '+source:'Импорт данных','required'):'');
+  modal(title,body,async f=>{
     if(archive){
       if(server){download('project.html',dynamicHtml(input.doc),'text/html');toast('Скачан автономный редактор с выбранным проектом');return;}
       doc=input.doc;cacheKey='mazzy.dsm.1/'+doc.project+'/'+base();try{localStorage.setItem(entryKey,cacheKey);}catch{}cache();resetView();navigate('matrix');toast('Проект открыт');
-    }else{if(!changes.length)throw Error('Изменений нет');await push(next,'Импорт данных');}
+    }else{if(!changes.length)throw Error('Изменений нет');await push(next,f.note,f.actor);}
   },archive?(server?'Скачать отдельный HTML':'Открыть проект'):'Применить и сохранить');
+  $('accept').disabled=!archive&&!changes.length;
+}
+function importSummary(next,changes){
+  const before=new Map(DSM.plan(data()).map(r=>[r.id,r])),after=new Map(DSM.plan(next).map(r=>[r.id,r]));
+  const load=r=>r?r.knownEffort+' / '+(r.capacity??'—')+(r.unknown?' · без оценки '+r.unknown:''):'—';
+  const rows=[];
+  for(const id of new Set([...before.keys(),...after.keys()])){
+    const was=load(before.get(id)),will=load(after.get(id));
+    if(was!==will)rows.push([esc(id),was,will]);
+  }
+  const added=changes.filter(c=>c.before===null).length,removed=changes.filter(c=>c.after===null).length;
+  return '<p>Добавлено '+added+' · изменено '+(changes.length-added-removed)+' · удалено '+removed+'</p>'+(rows.length?table(['Релиз','Было · загрузка / ёмкость','Станет · загрузка / ёмкость'],rows):'');
 }
 async function parseInput(ext,txt,bytes,source){
+  if(typeof txt==='string')txt=txt.replace(/^\uFEFF/,'');
   const opts={layer:$('importLayer')?.value||'flow',source};
+  if(ext==='zip')return {kind:'spec-package',files:await Specifications.openPackage(bytes)};
   if(ext==='xlsx')return ExcelIO.read(bytes,opts);
   if(ext==='json')return Formats.parseJson(JSON.parse(txt),source);
   if(ext==='html'){const n=new DOMParser().parseFromString(txt,'text/html').querySelector('script#project-data[type="application/json"]');if(!n)throw Error('В HTML нет снимка DSM');return Formats.parseJson(JSON.parse(n.textContent));}
@@ -3883,7 +4586,7 @@ async function parseInput(ext,txt,bytes,source){
   if(ext==='csv'||ext==='tsv')return Formats.readCsv(txt,opts);if(ext==='md')return Formats.readMd(txt);if(ext==='txt')return Formats.readText(txt,opts);
   throw Error('Формат файла не поддерживается');
 }
-$('file').onchange=async()=>{try{const f=$('file').files[0];if(!f)return;const k=f.name.split('.').pop().toLowerCase();proposed(await parseInput(k,k==='xlsx'?'':await f.text(),k==='xlsx'?await f.arrayBuffer():null,f.name));}catch(e){toast(e.message);}finally{$('file').value='';}};
+$('file').onchange=async()=>{try{const f=$('file').files[0];if(!f)return;const k=f.name.split('.').pop().toLowerCase();proposed(await parseInput(k,['xlsx','zip'].includes(k)?'':await f.text(),['xlsx','zip'].includes(k)?await f.arrayBuffer():null,f.name),f.name);}catch(e){toast(e.message);}finally{$('file').value='';}};
 $('newProject').onclick=()=>modal('Новый проект',field('title','Название','','required')+sel('template','Шаблон',[['empty','Пустой проект'],['enterprise','Архитектура предприятия · закупки и установка']],'empty')+hint(server?'Будет создан отдельный автономный HTML.':'Откроется пустой проект. Сохраните текущий JSON, чтобы вернуться к его истории.'),async f=>{
   const next=DSM.create(f.template==='enterprise'?Enterprise.model(f.title):{title:f.title,nodes:[],edges:[]});
   if(server){download('new-project.html',dynamicHtml(next),'text/html');return;}
@@ -3892,11 +4595,20 @@ $('newProject').onclick=()=>modal('Новый проект',field('title','На�
 $('save').onclick=()=>exportAs('json');
 document.addEventListener('click',async e=>{const t=e.target.closest('[data-action]');if(!t)return;const action=t.dataset.action,id=t.dataset.id;
   try{
+    if(action==='clearCatalog'){resetCatalog();render();}
+    if(action==='catalogCsv'){
+      const entries=visibleCatalog(),cols=registry==='nodes'?[...DSM.nodeCols,...DSM.optionalNodeCols]:registry==='structure'?['from','to','layer','reason']:DSM.edgeCols;
+      download('dsm-'+registry+'-'+short(base())+'.csv',Formats.csv([cols,...entries.map(r=>cols.map(k=>r[k]&&typeof r[k]==='object'?JSON.stringify(r[k]):r[k]??''))]),'text/csv');
+    }
+    if(action==='changeLog'){
+      const versions=doc.history.map((h,i)=>[h.rev,(i+1)+' · '+h.note]);
+      modal('Выгрузить журнал изменений',sel('from','После версии',versions,versions[0][0])+sel('to','До версии включительно',versions,base()),f=>download('changes.md',Changes.changeLog(doc,f.from,f.to),'text/markdown'),'Скачать');
+    }
     if(action==='tab')navigate(id);
     if(action==='workMode')navigate(lastTab[id]);
     if(action==='grid')gridInput();
     if(action==='registry'){registry=id;filter='';render();}
-    if(action==='objectRow'){registry='nodes';filter='';focus=id;pair=null;navigate('catalog');}
+    if(action==='objectRow'){registry='nodes';resetCatalog();focus=id;pair=null;navigate('catalog');}
     if(action==='pairView'&&pair)showPair(...pair,id);
     if(action==='demoCell'){layer='risk';showPair('F02','F03','matrix');}
     if(action==='demoPlan'){selected.clear();selected.add('F03');navigate('plan');}
@@ -3908,13 +4620,8 @@ document.addEventListener('click',async e=>{const t=e.target.closest('[data-acti
     if(action==='applySpec')applySpec(id);
     if(action==='specZip')download(id+'.zip',await Specifications.bundle(doc,id),'application/zip');
     if(action==='svg'){const drawing=$('content').querySelector('svg');if(drawing)download('dsm-'+graphMode+'-'+short(base())+'.svg',new XMLSerializer().serializeToString(drawing),'image/svg+xml');}
-    if(action==='bookStart'&&!bookStarting){
-      bookStarting=true;bookError='';render();
-      try{bookSession=await bookRequest('start');const frame=document.createElement('iframe');frame.title='Jupyter Notebook';frame.src=bookSession.url;$('notebookHost').replaceChildren(frame);}
-      catch(err){bookError=err.message;}finally{bookStarting=false;render();}
-    }
-    if(action==='bookPreview')proposed(await bookRequest('read/'+bookSession.id));
-    if(action==='bookStop')modal('Завершить сессию Jupyter',hint('Сохраните открытые ячейки в Jupyter. Ядро будет остановлено. Файл блокнота сохранится на диске.'),async()=>{await bookRequest('stop/'+bookSession.id);bookSession=null;$('notebookHost').replaceChildren();render();},'Завершить');
+    if(action.startsWith('desk'))await desk.handle(action.slice(4),id);
+    if(action.startsWith('book'))await books.handle(action.slice(4),id);
     if(action==='layer'){structure=null;layer=id;pair=null;render();}
     if(action==='focus'){structure=null;focus=id;pair=null;render();}
     if(action==='structure'){
@@ -3930,7 +4637,7 @@ document.addEventListener('click',async e=>{const t=e.target.closest('[data-acti
     if(action==='edge'||action==='newEdge')edgeForm(action==='edge');
     if(action==='bulk')bulkForm();
     if(action==='open')$('file').click();
-    if(action==='parse')proposed(await parseInput($('rawType').value,$('raw').value,null,'Буфер обмена'));
+    if(action==='parse')proposed(await parseInput($('rawType').value,$('raw').value,null,'Буфер обмена'),'Буфер обмена');
     if(action==='export')await exportAs(id);
     if(action==='snapshot')modal('Именованный снимок',field('note','Название снимка','','required'),f=>push(data(),f.note));
     if(action==='restore'){const h=doc.history.find(h=>h.rev===id);modal('Восстановить версию '+short(id),hint(esc(h.note))+Views.differences(DSM.diff(data(),h.data)),()=>push(h.data,'Восстановление '+id));}
@@ -3940,18 +4647,33 @@ document.addEventListener('click',async e=>{const t=e.target.closest('[data-acti
     if(action==='context')download('agent-context.md','# '+data().title+'\n\n'+Formats.markdown(doc)+'\n\nПеред записью прочитайте актуальный JSON. Сформируйте JSON-патч с полями project, base, ops и описанием, проверьте его через preview, затем примените. При конфликте перечитайте проект и покажите разницу.\n','text/markdown');
   }catch(err){toast(err.message);}
 });
+document.addEventListener('keydown',e=>{
+  if(!e.target.matches('.matrix .cell'))return;
+  const td=e.target.closest('td'),row=td.parentElement,body=row.parentElement;
+  let y=row.sectionRowIndex,x=td.cellIndex;
+  switch(e.key){
+    case 'ArrowUp': y--;break;
+    case 'ArrowDown': y++;break;
+    case 'ArrowLeft': x--;break;
+    case 'ArrowRight': x++;break;
+    case 'Home': x=1;break;
+    case 'End': x=row.cells.length-1;break;
+    default:return;
+  }
+  e.preventDefault();
+  body.rows[Math.max(0,Math.min(y,body.rows.length-1))].cells[Math.max(1,Math.min(x,row.cells.length-1))].querySelector('.cell').focus();
+});
 document.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.matches('g[role=button]')){e.preventDefault();e.target.dispatchEvent(new MouseEvent('click',{bubbles:true}));}});
-document.addEventListener('change',e=>{const t=e.target;if(t.id==='order')ordered=t.value==='group';else if(t.id==='segment')segment=t.value;else if(t.id==='focusSelect'){focus=t.value;pair=null;}else if(t.id==='graphMode'){graphMode=t.value;if(graphMode==='sequence'){layer='flow';pair=null;}}else if(t.id==='scenarioSelect'){scenarioId=t.value;pair=null;}else if(t.dataset.check){if(t.checked)selected.add(t.dataset.check);else selected.delete(t.dataset.check);}else return;render();});
+document.addEventListener('change',e=>{const t=e.target;if(t.id.startsWith('catalog-'))catalogFilters[t.id.slice(8)]=t.value;else if(t.id.startsWith('history-'))historyFilters[t.id.slice(8)]=t.type==='checkbox'?t.checked:t.value;else if(t.id==='order')ordered=t.value==='group';else if(t.id==='segment')segment=t.value;else if(t.id==='focusSelect'){focus=t.value;pair=null;}else if(t.id==='graphMode'){graphMode=t.value;if(graphMode==='sequence'){layer='flow';pair=null;}}else if(t.id==='scenarioSelect'){scenarioId=t.value;pair=null;}else if(t.dataset.check){if(t.checked)selected.add(t.dataset.check);else selected.delete(t.dataset.check);}else return;render();});
 document.addEventListener('input',e=>{if(e.target.id==='query'){filter=e.target.value;render();$('query').focus();$('query').setSelectionRange(filter.length,filter.length);}});
 async function sync(){const prior=base();if(!server||$('dialog').open||tab==='io'||document.activeElement?.id==='query')return;
-  try{const r=await fetch('/api/head',{cache:'no-store'});if(!r.ok)return;const info=await r.json();if(info.rev!==base()){const full=await fetch('/api/project',{cache:'no-store'});const update=DSM.document(await full.json());if($('dialog').open||base()!==prior)return;doc=update;if(!nodeBy(focus))resetView();render();toast('Получена версия агента · '+short(base()));}}catch{}}
+  try{const r=await fetch('/api/head',{cache:'no-store'});if(!r.ok)return;const info=await r.json();if(info.rev!==base()){const full=await fetch('/api/project',{cache:'no-store'});const update=DSM.document(await full.json());if($('dialog').open||base()!==prior)return;doc=update;if(!nodeBy(focus))resetView(false);render();toast('Получена версия агента · '+short(base()));}}catch{}}
 async function start(){
   if(location.protocol==='http:'&&location.hostname==='127.0.0.1'&&location.pathname==='/'){
     try{const r=await fetch('/api/project',{cache:'no-store'});if(r.ok){doc=DSM.document(await r.json());server=true;}}catch{}}
   if(!server){try{const active=localStorage.getItem(entryKey);if(active?.startsWith('mazzy.dsm.1/'))cacheKey=active;const c=localStorage.getItem(cacheKey);if(c){const saved=DSM.document(JSON.parse(c));if(active||saved.project===embedded.project&&saved.history.some(h=>h.rev===DSM.head(embedded).rev))doc=saved;}}catch{cacheOK=false;}}
   resetView();render();if(server)setInterval(sync,1800);
-  window.addEventListener('pagehide',ev=>{if(bookSession&&!ev.persisted)fetch('/api/notebooks/stop/'+bookSession.id,{method:'POST',headers:{'Content-Type':'application/json'},keepalive:true}).catch(()=>{});});
-  window.addEventListener('storage',e=>{if(!server&&e.key===cacheKey&&e.newValue){if($('dialog').open){toast('Есть новая версия в другой вкладке');return;}try{doc=DSM.document(JSON.parse(e.newValue));resetView();render();toast('Получена версия из другой вкладки');}catch{}}});
+  window.addEventListener('storage',e=>{if(!server&&e.key===cacheKey&&e.newValue){if($('dialog').open){toast('Есть новая версия в другой вкладке');return;}try{const incoming=DSM.document(JSON.parse(e.newValue));const switched=incoming.project!==doc.project;doc=incoming;if(switched||!nodeBy(focus))resetView(switched);render();toast('Получена версия из другой вкладки');}catch{}}});
 }
 start();
 })();

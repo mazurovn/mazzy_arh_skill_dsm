@@ -1,6 +1,6 @@
 /* Shared by the browser and the local agent. IDs remain stable through renames. */
 const DSM = (() => {
-  const kinds = ['component','module','product','release','feature','actor','capability','process','system','service','data','artifact','scenario','proposal','adr','requirement','deviation','organization','project','installation','procurement','server','cluster','domain','dataArea'];
+  const kinds = ['component','module','product','release','feature','actor','capability','process','system','service','data','artifact','scenario','proposal','adr','requirement','deviation','organization','project','installation','procurement','server','cluster','domain','dataArea','request','changeTask'];
   const states = ['idea','planned','active','review','blocked','done','unspecified'];
   const nodeCols = ['id','name','kind','state','parent','release','segment','bundle','effort','capacity','note'];
   const optionalNodeCols = ['refs','steps','attrs','relations'];

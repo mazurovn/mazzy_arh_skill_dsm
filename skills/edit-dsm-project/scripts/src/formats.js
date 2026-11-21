@@ -93,6 +93,7 @@ const Formats = ((M,A)=>{
     if(!nodes.size&&!edges.length)throw Error('Пустой текст');return {kind:'merge',nodes:[...nodes.values()],edges};
   }
   function preview(doc,input){
+    if(input.kind==='spec-package')return (typeof Specifications!=='undefined'?Specifications:require('./specifications.js')).importPackage(doc,input.files).data;
     if(input.kind==='archive')return M.head(M.document(input.doc)).data;
     if(input.kind==='projection'){
       if(input.project!==doc.project||input.base!==M.head(doc).rev)throw Error('Другая база проекции. Откройте соответствующий JSON или экспортируйте актуальную версию.');

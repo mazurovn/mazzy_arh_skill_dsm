@@ -24,3 +24,25 @@
 
 
 В карточке доступны необязательные поля. `attrs` содержит словарь именованных скалярных значений. `refs` содержит ID связанных объектов. `relations` содержит пары типа и целевого ID, например `["deployedOn","S1"]`. Доступные типы — realizes, deployedOn, dependsOn, uses, owns, produces, verifies. У сценария `steps` содержит последовательность пар отправитель–получатель с существующим направленным вызовом. Массивы и словарь заменяются целиком при обновлении поля. В CSV, Excel и Markdown ячейки таких полей содержат JSON. В проекте закупок REQ-1 связывается с API, DEV-1 ссылается на затронутые объекты, а ADR-1 ссылается на предложение upgrade-memory.
+
+## Блокноты, запросы и пакеты изменений
+
+В примерах PROJECT.json обозначает рабочий проект. Новые файлы записываются под свободным именем.
+
+```bash
+node dsm.cjs notebook PROJECT.json review.ipynb requirements
+node dsm.cjs notebook-info review.ipynb
+node dsm.cjs import-preview PROJECT.json review.ipynb result
+node dsm.cjs import PROJECT.json review.ipynb BASE ACTOR "Возврат расчёта" result
+node dsm.cjs spec-check PROJECT.json PROPOSAL_ID
+node dsm.cjs spec-export PROJECT.json PROPOSAL_ID change.zip
+node dsm.cjs import-preview PROJECT.json change.zip
+node dsm.cjs report PROJECT.json placement
+node dsm.cjs change-log PROJECT.json FROM_REV TO_REV
+```
+
+Профили блокнотов — full, requirements, placement и readiness. Параметр result выбирает сохранённый MIME-вывод ячейки dsm-result. Без параметра импорт .ipynb читает dsm-input. Импорт чужой ревизии требует повторной сверки изменений.
+
+Карточка request хранит проблему в note, затронутые ID в refs. В attrs находятся requester, outcome, acceptance, priority и owner. Разбор добавляет disposition, reviewer, rationale. Предложение ссылается на запрос и требования. Задача changeTask указывает ID предложения в parent и исполнителя в attrs.owner. Решение adr связывается с предложением через refs. Для инициирования запроса, подготовки предложения и Apply с автоматическим обновлением связанных статусов используйте экран «Запросы». Через stdio MCP остаются доступны чтение модели, анализ DSM, история, сравнение, предпросмотр, применение патча и восстановление.
+
+Экспортированный ZIP содержит описание, задачи, решения и dsm-package.json с идентичностью проекта и ревизии. В том же пакете можно менять существующие документы предложения и ADR, требование с одним сценарием WHEN/THEN и флажки задач. verify-процедура для выгруженной папки — `openspec validate --all --strict`. Сторонний OpenSpec-пакет доступен для чтения в «Запросах».

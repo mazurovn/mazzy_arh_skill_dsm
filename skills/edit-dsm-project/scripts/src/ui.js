@@ -3,14 +3,14 @@
 const $=id=>document.getElementById(id), esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
 const embedded=DSM.document(JSON.parse($('project-data').textContent));
 const original='<!doctype html>\n'+document.documentElement.outerHTML;
-const tabs={matrix:'Матрица',graph:'Граф и схема',catalog:'Каталог',plan:'Релизы и фичи',history:'Версии',io:'Обмен',notebook:'Jupyter Notebook',artifacts:'Артефакты',requirements:'Требования'};
+const tabs={matrix:'Матрица',graph:'Граф и схема',catalog:'Каталог',plan:'Релизы и фичи',history:'Версии',io:'Обмен',notebook:'Jupyter Notebook',artifacts:'Артефакты',requirements:'Требования',requests:'Запросы',reports:'Анализ'};
 const kinds=Views.types;
-const sections={architecture:['matrix','graph','plan','requirements','artifacts'],data:['catalog','notebook']};
+const sections={architecture:['matrix','graph','plan','requirements','requests','artifacts','reports'],data:['catalog','notebook']};
 const lastTab={architecture:'matrix',data:'catalog'};
-let structure=null,workMode='architecture',registry='nodes',scenarioId='',bookSession=null,bookStarting=false,bookError='';
+let structure=null,workMode='architecture',registry='nodes',scenarioId='';
 function navigate(id){
   for(const [mode,items] of Object.entries(sections))if(items.includes(id)){workMode=mode;lastTab[mode]=id;}
-  tab=id;render();
+  tab=id;render();if(id==='notebook')books.refresh();
 }
 function showPair(from,to,target){
   structure=null;focus=from;pair=[from,to];
@@ -37,7 +37,7 @@ function toast(s){$('toast').textContent=s;const v=++counter;setTimeout(()=>{if(
 function download(name,content,type='application/octet-stream'){const url=URL.createObjectURL(new Blob([content],{type}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);}
 function dynamicHtml(value){return original.replace(/(<script type="application\/json" id="project-data">)[\s\S]*?(<\/script>)/,(_,a,z)=>a+JSON.stringify(value).replaceAll('<','\\u003c')+z);}
 function getAnalysis(){const key=base()+layer;if(!analysisCache.has(key)){analysisCache.clear();analysisCache.set(key,Analysis.calculate(data(),layer));}return analysisCache.get(key);}
-function resetView(){structure=null;pair=null;selected.clear();focus=(data().nodes.find(n=>n.kind==='feature')||data().nodes[0])?.id||'';segment='';filter='';}
+function resetView(resetBooks=true){if(resetBooks)books.reset();resetCatalog();historyFilters={actor:'',object:'',from:'',until:'',text:'',oldest:false};structure=null;pair=null;selected.clear();focus=(data().nodes.find(n=>n.kind==='feature')||data().nodes[0])?.id||'';segment='';filter='';}
 function cache(){
   if(server)return;
   try{localStorage.setItem(cacheKey,JSON.stringify(doc));cacheOK=true;}catch{cacheOK=false;toast('Кэш браузера недоступен. Сохраните проект в JSON.');}
@@ -55,16 +55,16 @@ async function push(next,note,actor='Редактор',expected=dialogBase||base
   }
   render();toast('Версия сохранена · '+short(base()));
 }
-function modal(title,html,onSubmit,label='Сохранить версию'){dialogBase=base();$('dlgTitle').textContent=title;$('fields').innerHTML=html;$('formError').textContent='';$('accept').textContent=label;submit=onSubmit;$('dialog').showModal();}
+function modal(title,html,onSubmit,label='Сохранить версию'){dialogBase=base();$('accept').disabled=false;$('dlgTitle').textContent=title;$('fields').innerHTML=html;$('formError').textContent='';$('accept').textContent=label;submit=onSubmit;$('dialog').showModal();}
 function close(){submit=null;dialogBase=null;$('dialog').close();}
 $('cancel').onclick=$('close').onclick=close;$('dialog').addEventListener('close',()=>{submit=null;dialogBase=null;});
-$('form').onsubmit=async e=>{e.preventDefault();$('accept').disabled=true;try{if(await submit(Object.fromEntries(new FormData(e.target)))!==false)close();}catch(err){$('formError').textContent=err.message;}finally{$('accept').disabled=false;}};
+$('form').onsubmit=async e=>{e.preventDefault();const handler=submit;$('accept').disabled=true;try{if(await handler(Object.fromEntries(new FormData(e.target)))!==false)close();}catch(err){$('formError').textContent=err.message;}finally{if(submit===handler)$('accept').disabled=false;}};
 function shell(content){
   $('title').textContent=data().title;$('summary').textContent=(data().nodes.some(n=>n.kind==='product'&&n.note.startsWith('Вымышленный терминальный помощник в духе Qwen Code.'))?'Учебный пример в духе Qwen Code · ':'')+data().nodes.length+' объектов · '+data().edges.filter(x=>x.layer==='flow').length+' вызовов · '+data().edges.filter(x=>x.layer==='risk').length+' пар совместной проверки';
   $('mode').textContent=server?'Связь с локальным агентом':cacheOK?'Локальный проект':'Требуется выгрузка JSON';
   $('revision').textContent='Версия '+doc.history.length+' · '+short(base());
   $('workMode').innerHTML=Object.entries({architecture:'Архитектура',data:'Данные и расчёты'}).map(([k,v])=>b('workMode',v,'aria-pressed="'+(k===workMode)+'" data-id="'+k+'"')).join('');
-  $('notebookHost').hidden=tab!=='notebook'||!bookSession;
+  $('notebookHost').hidden=tab!=='notebook'||!books.active();
   $('demoGuide').hidden=doc.project!==embedded.project||!data().nodes.some(n=>n.id==='TK'&&n.note.includes('Qwen Code'))||!nodeBy('F02')||!nodeBy('F03');
   $('nav').innerHTML=[...sections[workMode],'history','io'].map(k=>b('tab',tabs[k],'class="'+(k===tab?'on':'')+'" data-id="'+k+'"')).join('');
   $('content').innerHTML=content;
@@ -92,8 +92,8 @@ function inspector(){
 function matrix(){
   const d=data(),a=getAnalysis(),order=(ordered?a.order:d.nodes.map(n=>n.id)).filter(id=>!segment||nodeBy(id).segment===segment);
   const values=Analysis.matrix(d,layer,order),segments=[...new Set(d.nodes.map(n=>n.segment).filter(Boolean))];
-  const head='<thead><tr><th></th>'+order.map(id=>'<th title="'+esc(nodeBy(id).name)+'">'+esc(id)+'</th>').join('')+'</tr></thead>';
-  const body=order.map((from,i)=>'<tr><th class="label">'+b('focus',esc(from),'title="'+esc(nodeBy(from).name)+'" data-id="'+esc(from)+'"')+'</th>'+order.map((to,j)=>{
+  const head='<thead><tr><th></th>'+order.map(id=>'<th scope="col" '+(pair?.[1]===id?'class="axis-selected" ':'')+'title="'+esc(nodeBy(id).name)+'">'+esc(id)+'</th>').join('')+'</tr></thead>';
+  const body=order.map((from,i)=>'<tr><th scope="row" class="label '+(pair?.[0]===from?'axis-selected':'')+'">'+b('focus',esc(from),'title="'+esc(nodeBy(from).name)+'" data-id="'+esc(from)+'"')+'</th>'+order.map((to,j)=>{
     const w=values[i][j],active=pair&&pair[0]===from&&pair[1]===to;
     return '<td>'+b(i===j?'focus':'cell',i===j?'·':w||'','aria-label="'+esc(from+' / '+to+' / '+w)+'" title="'+esc(from+' / '+to+' · '+w)+'" data-id="'+esc(from)+'" data-to="'+esc(to)+'" class="cell '+(i===j?'diag':'w'+Math.min(3,w))+(active?' active':'')+'"')+'</td>';
   }).join('')+'</tr>').join('');
@@ -117,14 +117,33 @@ function graph(){
   const drawing=sequence?Views.sequence(m,steps,focus,pair):Views.diagram(m,graphMode,layer,focus,pair,getAnalysis().groups,structure);
   return '<div class="board"><article class="card"><div class="cardhead"><h2>'+title+'</h2>'+b('svg','Скачать SVG','class="tiny" '+(drawing.includes('<svg')?'':'disabled'))+'</div>'+hint(description[graphMode]||'Выберите линию для просмотра основания и перехода к ячейке DSM.')+controls+'<div class="tools">'+selector+'</div>'+drawing+'</article>'+inspector()+'</div>';
 }
+let catalogFilters=Registers.defaults();
+let historyFilters={actor:'',object:'',from:'',until:'',text:'',oldest:false};
+function resetCatalog(){catalogFilters=Registers.defaults();filter='';}
+function filterSelect(id,title,choices,current){
+  return '<label class="filter-control">'+title+'<select id="'+id+'">'+choices.map(([k,v])=>option(k,v,current)).join('')+'</select></label>';
+}
+function catalogControls(){
+  const f=catalogFilters,d=data(),segments=[...new Set(d.nodes.map(n=>n.segment).filter(Boolean))].sort();
+  return '<details id="catalogOptions" '+(Object.keys(f).some(k=>f[k]!==Registers.defaults()[k])?'open':'')+'><summary>Фильтры и сортировка</summary><div class="tools">'+
+    filterSelect('catalog-kind','Тип',[['','Все типы'],...Object.entries(kinds)],f.kind)+filterSelect('catalog-state','Статус',[['','Все статусы'],...Object.entries(states)],f.state)+
+    filterSelect('catalog-segment','Сегмент',[['','Все сегменты'],...segments.map(v=>[v,v])],f.segment)+
+    filterSelect('catalog-release','Назначение',[['*','Все назначения'],['','Без релиза'],...d.nodes.filter(n=>n.kind==='release').map(n=>[n.id,n.name])],f.release)+
+    filterSelect('catalog-order','Порядок',[['initial','Исходный'],['id','По ID'],['name','По названию']],f.order)+b('clearCatalog','Сбросить фильтры')+'</div></details>';
+}
+function visibleCatalog(){
+  if(registry==='nodes')return Registers.nodes(data(),filter,catalogFilters);
+  const entries=registry==='structure'?Views.structures(data()):data().edges.filter(e=>e.layer===layer);
+  return entries.filter(e=>Registers.match(filter,e.from,e.to,e.layer,e.reason,e.weight));
+}
 function catalog(){
-  const query=filter.toLowerCase(),matches=(...values)=>values.join(' ').toLowerCase().includes(query);
-  const rows=registry==='nodes'?data().nodes.filter(n=>matches(n.id,n.name,n.segment)).map(n=>[idButton(n.id),esc(n.name),kinds[n.kind],states[n.state],esc(n.parent||'—'),esc(n.release||'—'),esc(n.segment||'—'),b('edit','Изменить','class="tiny" data-id="'+esc(n.id)+'"')]):
-    registry==='structure'?Views.structures(data()).filter(e=>matches(e.from,e.to,e.reason)).map(e=>[b('structure',esc(e.from+' → '+e.to),'data-id="'+esc(e.from)+'" data-to="'+esc(e.to)+'" data-layer="'+esc(e.layer)+'"'),esc(e.reason)]):
-    data().edges.filter(e=>e.layer===layer&&matches(e.from,e.to,e.reason)).map(e=>[b('cell',esc(e.from+(layer==='flow'?' → ':' ↔ ')+e.to),'data-id="'+esc(e.from)+'" data-to="'+esc(e.to)+'"'),e.weight,esc(e.reason)]);
+  const entries=visibleCatalog();
+  const rows=registry==='nodes'?entries.map(n=>[idButton(n.id),esc(n.name),kinds[n.kind],states[n.state],esc(n.parent||'—'),esc(n.release||'—'),esc(n.segment||'—'),b('edit','Изменить','class="tiny" data-id="'+esc(n.id)+'"')]):
+    registry==='structure'?entries.map(e=>[b('structure',esc(e.from+' → '+e.to),'data-id="'+esc(e.from)+'" data-to="'+esc(e.to)+'" data-layer="'+esc(e.layer)+'"'),esc(e.reason)]):
+    entries.map(e=>[b('cell',esc(e.from+(layer==='flow'?' → ':' ↔ ')+e.to),'data-id="'+esc(e.from)+'" data-to="'+esc(e.to)+'"'),e.weight,esc(e.reason)]);
   const headers=registry==='nodes'?['ID','Объект','Тип','Статус','Родитель','Релиз','Сегмент','']:registry==='structure'?['Связь','Тип']:['Связь','Вес','Основание'];
   return '<div class="board"><article class="card"><div class="cardhead"><h2>Архитектурный реестр</h2>'+toolbar([b('node','+ Объект'),b('newEdge','+ Связь'),b('grid','Ввод строк',registry==='structure'?'disabled':'')])+'</div><div class="toggle">'+[['nodes','Объекты'],['edges','Связи DSM'],['structure','Архитектурные связи']].map(([k,v])=>b('registry',v,'data-id="'+k+'" class="'+(registry===k?'on':'')+'"')).join('')+'</div>'+
-    '<div class="tools"><input id="query" placeholder="Поиск по реестру" aria-label="Поиск" value="'+esc(filter)+'">'+(registry==='edges'?layerControl():'')+'</div>'+table(headers,rows)+(rows.length?'':hint('По этому запросу записей нет.'))+'</article>'+inspector()+'</div>';
+    '<div class="tools"><input id="query" placeholder="Поиск по реестру" aria-label="Поиск" value="'+esc(filter)+'">'+(registry==='edges'?layerControl():'')+'</div>'+(registry==='nodes'?catalogControls():'')+'<div class="tools"><span>Найдено · '+entries.length+'</span>'+b('catalogCsv','CSV выборки')+'</div>'+table(headers,rows)+(rows.length?'':hint('По этому запросу записей нет.'))+'</article>'+inspector()+'</div>';
 }
 function gridInput(){
   const edges=registry==='edges',cols=edges?['from','to','weight','reason']:['id','name'];
@@ -155,13 +174,13 @@ function requirements(){
 function applySpec(id){
   const proposal=nodeBy(id), revision=base();
   const patch={project:doc.project,base:revision,ops:[]};
-  modal('Применить предложение '+id,hint('Вставьте согласованный JSON-патч. Изменения и перевод предложения в состояние «Готово» получат одну ревизию.')+'<label class="field">JSON-патч<textarea name="patch" required>'+esc(JSON.stringify(patch,null,2))+'</textarea></label>',f=>{
+  modal('Применить предложение '+id,hint('Вставьте согласованный JSON-патч. Изменения и перевод предложения в состояние «Готово» получат одну ревизию.')+'<label class="field">JSON-патч<textarea name="patch" required>'+esc(JSON.stringify(patch,null,2))+'</textarea></label>'+field('actor','Автор решения','Редактор','required')+field('note','Описание изменения','OpenSpec apply · '+id,'required'),f=>{
     const input=Formats.parseJson(JSON.parse(f.patch));
     if(input.kind!=='patch')throw Error('Ожидается JSON-патч с project, base и ops');
     const updated=Formats.preview(doc,input);
     if(!updated.nodes.some(n=>n.id===id&&n.kind==='proposal'))throw Error('Патч должен сохранить предложение');
-    const next=DSM.patch(updated,[{op:'node',value:{id,state:'done'}}]);
-    modal('Apply · '+proposal.name,Views.differences(DSM.diff(data(),next)),()=>push(next,'OpenSpec apply · '+id,'Редактор',revision),'Применить и сохранить');
+    const next=Changes.completeProposal(updated,id);
+    modal('Apply · '+proposal.name,Views.differences(DSM.diff(data(),next)),()=>push(next,f.note,f.actor,revision),'Применить и сохранить');
     return false;
   },'Предпросмотр');
 }
@@ -169,27 +188,32 @@ function artifacts(){
   const nodes=data().nodes.filter(n=>['adr','proposal','scenario','artifact'].includes(n.kind));
   return '<div class="board"><article class="card"><h2>Архитектурные артефакты</h2>'+hint('Оформите изменение как предложение OpenSpec. В ADR зафиксируйте решение и укажите ID предложения и затронутых объектов.')+toolbar([b('document','+ OpenSpec proposal','data-id="proposal"'),b('document','+ ADR','data-id="adr"'),b('makeScenario','+ Сценарий')])+table(['ID','Артефакт','Тип','Связано с',''],nodes.map(n=>[idButton(n.id),esc(n.name),kinds[n.kind],toolbar((n.refs||[]).map(idButton)),toolbar([b('edit','Изменить','data-id="'+esc(n.id)+'"'),b('documentDownload','Скачать Markdown','data-id="'+esc(n.id)+'"')])]))+'</article>'+inspector()+'</div>';
 }
-function notebook(){
-  if(!server)return '<article class="card"><h2>Jupyter Notebook</h2>'+hint('Для вычислений откройте локальную мастерскую командой ниже. В автономном HTML можно получить блокнот этой ревизии и загрузить его после редактирования.')+'<pre>node dsm.cjs serve project.json</pre>'+toolbar([b('export','Скачать .ipynb','data-id="ipynb"'),b('open','Загрузить блокнот')])+'</article>';
-  return '<article class="card"><div class="cardhead"><div><h2>Jupyter Notebook</h2>'+hint(bookSession?'Сохраните блокнот в Jupyter (Ctrl+S), затем проверьте изменения ячейки dsm-input.':'Откройте блокнот текущей ревизии. Ячейки Python выполняются на этом компьютере.')+'</div>'+
-    (bookSession?toolbar([b('bookPreview','Проверить изменения','class="primary"'),b('bookStop','Завершить сессию')]):b('bookStart',bookStarting?'Запуск…':'Запустить Jupyter',bookStarting?'disabled':'class="primary"'))+'</div>'+
-    (bookSession?hint('Файл сессии · '+esc(bookSession.file)):'')+(bookError?'<p role="alert">'+esc(bookError)+'</p>':'')+'</article>';
-}
-async function bookRequest(route){
-  const r=await fetch('/api/notebooks/'+route,{method:'POST',headers:{'Content-Type':'application/json'}});
-  const result=await r.json();if(!r.ok)throw Error(result.error);return result;
-}
+const books=notebookPanel({doc:()=>doc,online:()=>server,visible:()=>tab==='notebook',render,proposed,modal,download,button:b,option,esc,toast});
+const desk=reviewPanel({doc:()=>doc,esc,button:b,option,field,sel,table,tools:toolbar,modal,push,download,proposed,render,toast,
+  inspect:id=>{registry='nodes';filter='';focus=id;pair=null;structure=null;resetCatalog();navigate('catalog');}});
 function plan(){
   const releases=DSM.plan(data()),features=data().nodes.filter(n=>n.kind==='feature');
   const cards=releases.map(r=>'<div class="card"><span class="tag">'+esc(r.id)+'</span><h3>'+esc(r.name)+'</h3><div class="big">'+r.knownEffort+' / '+(r.capacity??'—')+'</div><div class="progress '+(r.capacity!==null&&r.knownEffort>r.capacity?'over':'')+'"><i style="width:'+Math.min(100,r.capacity?r.knownEffort/r.capacity*100:r.knownEffort?100:0)+'%"></i></div><div class="pair"><span>Без оценки</span><b>'+r.unknown+'</b></div><div class="pair"><span>Внешние вызовы / проверки</span><b>'+r.outgoing+' / '+r.crossChecks+'</b></div>'+ (r.capacity!==null&&r.knownEffort>r.capacity?'<span class="warn">Перегрузка на '+(r.knownEffort-r.capacity)+'</span>':'')+'</div>').join('');
   return '<div class="cols">'+cards+'</div><div class="card" style="margin-top:15px"><div class="cardhead"><div><h2>Планирование фич</h2>'+hint('Отметьте фичи для общего пакета, сегмента, релиза или перехода состояния. Оценки заданы в условных единицах.')+'</div>'+b('bulk','Изменить выбранные ('+selected.size+')',selected.size?'class="primary"':'disabled')+'</div>'+table(['Выбор','ID','Фича','Статус','Оценка','Релиз','Пакет'],features.map(n=>['<input type="checkbox" aria-label="Выбрать '+esc(n.id)+'" data-check="'+esc(n.id)+'" '+(selected.has(n.id)?'checked':'')+'>',esc(n.id),esc(n.name),states[n.state],n.effort??'—',esc(n.release||'Бэклог'),esc(n.bundle||'—')]))+b('node','+ Объект')+'</div>';
 }
-function history(){return '<div class="card"><div class="cardhead"><div><h2>Версии проекта</h2>'+hint('Восстановление записывает новый снимок. У каждой версии есть автор, родитель и полный каталог.')+'</div>'+b('snapshot','+ Именованный снимок')+'</div>'+table(['Версия','Сохранено','Автор','Изменение',''],doc.history.map((h,i)=>[i+1+' · <code>'+short(h.rev)+'</code>',esc(new Date(h.at).toLocaleString('ru-RU')),esc(h.actor),esc(h.note),toolbar([b('diff','Сравнить','class="tiny" data-id="'+h.rev+'"'),...(h.rev!==base()?[b('restore','Восстановить','class="tiny" data-id="'+h.rev+'"')]:[])])]).reverse())+'</div>';}
+function history(){
+  const f=historyFilters,entries=Registers.revisions(doc,f);
+  const ids=[...new Set(doc.history.flatMap(h=>h.data.nodes.map(n=>n.id)))].sort();
+  const authors=[...new Set(doc.history.map(h=>h.actor))].sort();
+  return '<div class="card"><div class="cardhead"><h2>Версии проекта</h2>'+toolbar([b('changeLog','Журнал .md'),b('snapshot','+ Именованный снимок')])+'</div>'+
+    '<details '+(Object.values(f).some(Boolean)?'open':'')+'><summary>Фильтры истории</summary><div class="tools"><input id="history-text" type="search" placeholder="Автор, описание, ревизия" aria-label="Поиск по истории" value="'+esc(f.text)+'">'+
+    filterSelect('history-actor','Автор',[['','Все авторы'],...authors.map(x=>[x,x])],f.actor)+filterSelect('history-object','Изменения объекта',[['','Все объекты'],...ids.map(x=>[x,x])],f.object)+
+    '<label>С <input type="date" id="history-from" value="'+esc(f.from)+'"></label><label>По <input type="date" id="history-until" value="'+esc(f.until)+'"></label>'+
+    '<label><input type="checkbox" id="history-oldest" '+(f.oldest?'checked':'')+'> Сначала ранние</label></div></details>'+
+    table(['Версия','Сохранено','Автор','Изменение',''],entries.map(({h,i})=>[i+1+' · <code>'+short(h.rev)+'</code>',esc(new Date(h.at).toLocaleString('ru-RU')),esc(h.actor),esc(h.note),toolbar([b('diff','Сравнить','class="tiny" data-id="'+h.rev+'"'),...(h.rev!==base()?[b('restore','Восстановить','class="tiny" data-id="'+h.rev+'"')]:[])])]))+'</div>';
+}
 function io(){return '<div class="cols"><div class="card"><h2>Загрузить данные</h2>'+hint('Откройте проект JSON или HTML с историей. Для обновления текущей версии выберите Markdown, CSV, Excel, блокнот или JSON-патч.')+b('open','Выбрать файл','class="primary"')+'<h3 style="margin-top:22px">Вставить исходный текст</h3>'+hint('Каталог: ID : название. Вызов: A -> B : основание. Совместная проверка: A ~ B [3] : основание. CSV принимает также заголовки на русском.')+'<textarea id="raw" aria-label="Исходный текст" placeholder="CLI : Интерфейс командной строки&#10;CFG : Настройки&#10;CLI -> CFG : Загрузить профиль"></textarea><div class="tools"><select id="rawType" aria-label="Формат текста"><option value="txt">Текстовый список</option><option value="csv">CSV</option><option value="md">Markdown</option><option value="json">JSON или патч</option></select>'+b('parse','Проверить импорт')+'</div><label class="field">Слой для CSV-матрицы или реестра без столбца layer<select id="importLayer">'+option('flow','Вызовы',layer)+option('risk','Совместные проверки',layer)+'</select></label></div><div class="card"><h2>Выгрузить версию</h2>'+hint('JSON и автономный HTML включают всю историю. В табличных представлениях записаны ID проекта и исходная ревизия. Отредактированную таблицу можно вернуть в ту же ревизию.')+'<div class="row export">'+['json','html','md','csv','xlsx','ipynb','sysl'].map(k=>b('export',k.toUpperCase(),'data-id="'+k+'"')).join('')+'</div><h3 style="margin-top:24px">Передать агенту</h3>'+hint('Передайте сохранённый JSON в чат или откройте его локальным CLI. Агент читает текущую версию и возвращает патч с тем же base.')+'<pre>'+esc(JSON.stringify({project:doc.project,base:base(),ops:[{op:'title',value:data().title}]},null,2))+'</pre>'+b('context','Скачать задание агенту')+'</div></div>';}
 function render(){
   if(!nodeBy(focus))focus=data().nodes[0]?.id||'';
   if(pair&&pair.some(id=>!nodeBy(id)))pair=null;
-  shell(({matrix,graph,catalog,plan,history,io,artifacts,requirements,notebook})[tab]());
+  shell(({matrix,graph,catalog,plan,history,io,artifacts,requirements,requests:desk.view,reports:desk.reports,notebook:books.view})[tab]());
+  if(tab==='notebook')books.bind();
+  if(tab==='requests'||tab==='reports')desk.bind();
   if(tab==='catalog'){
     for(const row of $('content').querySelectorAll('tbody tr')){const t=row.querySelector('[data-action]');if(t)row.classList.toggle('selected',registry==='nodes'?t.dataset.id===focus:registry==='structure'?structure?.from===t.dataset.id&&structure?.to===t.dataset.to&&structure?.layer===t.dataset.layer:!!pair&&DSM.ek({layer,from:t.dataset.id,to:t.dataset.to})===DSM.ek({layer,from:pair[0],to:pair[1]}));}
   }
@@ -235,20 +259,34 @@ function bulkForm(){
 async function exportAs(k){const stem='dsm-'+short(base()),m=data(),types={html:'text/html',md:'text/markdown',csv:'text/csv',json:'application/json',ipynb:'application/x-ipynb+json',xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'};
   const payload=k==='sysl'?Sysl.write(m):k==='xlsx'?await ExcelIO.write(doc):k==='html'?dynamicHtml(doc):k==='md'?Formats.markdown(doc):k==='csv'?Formats.emitCsv(doc):JSON.stringify(k==='ipynb'?Notebook.write(doc):doc,null,2);
   download(stem+'.'+k,payload,types[k]);}
-function proposed(input){
+function proposed(input,source=''){
   const archive=input.kind==='archive';const next=Formats.preview(doc,input);
   const changes=DSM.diff(data(),next);
   const title=archive?'Открыть проект с историей':'Проверить изменения';
-  const body=hint(esc(next.title)+' · '+next.nodes.length+' объектов · '+next.edges.length+' связей')+(archive?hint('Откроется отдельная копия проекта с '+input.doc.history.length+' верс.'):hint('Список изменений относительно текущей версии.'))+Views.differences(changes);
-  modal(title,body,async()=>{
+  const body=hint(esc(next.title)+' · '+next.nodes.length+' объектов · '+next.edges.length+' связей')+(archive?hint('Откроется отдельная копия проекта с '+input.doc.history.length+' верс.'):hint('Список изменений относительно текущей версии.'))+Views.differences(changes)+(!archive?importSummary(next,changes)+field('actor','Автор','Редактор','required')+field('note','Описание изменения',source?'Импорт · '+source:'Импорт данных','required'):'');
+  modal(title,body,async f=>{
     if(archive){
       if(server){download('project.html',dynamicHtml(input.doc),'text/html');toast('Скачан автономный редактор с выбранным проектом');return;}
       doc=input.doc;cacheKey='mazzy.dsm.1/'+doc.project+'/'+base();try{localStorage.setItem(entryKey,cacheKey);}catch{}cache();resetView();navigate('matrix');toast('Проект открыт');
-    }else{if(!changes.length)throw Error('Изменений нет');await push(next,'Импорт данных');}
+    }else{if(!changes.length)throw Error('Изменений нет');await push(next,f.note,f.actor);}
   },archive?(server?'Скачать отдельный HTML':'Открыть проект'):'Применить и сохранить');
+  $('accept').disabled=!archive&&!changes.length;
+}
+function importSummary(next,changes){
+  const before=new Map(DSM.plan(data()).map(r=>[r.id,r])),after=new Map(DSM.plan(next).map(r=>[r.id,r]));
+  const load=r=>r?r.knownEffort+' / '+(r.capacity??'—')+(r.unknown?' · без оценки '+r.unknown:''):'—';
+  const rows=[];
+  for(const id of new Set([...before.keys(),...after.keys()])){
+    const was=load(before.get(id)),will=load(after.get(id));
+    if(was!==will)rows.push([esc(id),was,will]);
+  }
+  const added=changes.filter(c=>c.before===null).length,removed=changes.filter(c=>c.after===null).length;
+  return '<p>Добавлено '+added+' · изменено '+(changes.length-added-removed)+' · удалено '+removed+'</p>'+(rows.length?table(['Релиз','Было · загрузка / ёмкость','Станет · загрузка / ёмкость'],rows):'');
 }
 async function parseInput(ext,txt,bytes,source){
+  if(typeof txt==='string')txt=txt.replace(/^\uFEFF/,'');
   const opts={layer:$('importLayer')?.value||'flow',source};
+  if(ext==='zip')return {kind:'spec-package',files:await Specifications.openPackage(bytes)};
   if(ext==='xlsx')return ExcelIO.read(bytes,opts);
   if(ext==='json')return Formats.parseJson(JSON.parse(txt),source);
   if(ext==='html'){const n=new DOMParser().parseFromString(txt,'text/html').querySelector('script#project-data[type="application/json"]');if(!n)throw Error('В HTML нет снимка DSM');return Formats.parseJson(JSON.parse(n.textContent));}
@@ -256,7 +294,7 @@ async function parseInput(ext,txt,bytes,source){
   if(ext==='csv'||ext==='tsv')return Formats.readCsv(txt,opts);if(ext==='md')return Formats.readMd(txt);if(ext==='txt')return Formats.readText(txt,opts);
   throw Error('Формат файла не поддерживается');
 }
-$('file').onchange=async()=>{try{const f=$('file').files[0];if(!f)return;const k=f.name.split('.').pop().toLowerCase();proposed(await parseInput(k,k==='xlsx'?'':await f.text(),k==='xlsx'?await f.arrayBuffer():null,f.name));}catch(e){toast(e.message);}finally{$('file').value='';}};
+$('file').onchange=async()=>{try{const f=$('file').files[0];if(!f)return;const k=f.name.split('.').pop().toLowerCase();proposed(await parseInput(k,['xlsx','zip'].includes(k)?'':await f.text(),['xlsx','zip'].includes(k)?await f.arrayBuffer():null,f.name),f.name);}catch(e){toast(e.message);}finally{$('file').value='';}};
 $('newProject').onclick=()=>modal('Новый проект',field('title','Название','','required')+sel('template','Шаблон',[['empty','Пустой проект'],['enterprise','Архитектура предприятия · закупки и установка']],'empty')+hint(server?'Будет создан отдельный автономный HTML.':'Откроется пустой проект. Сохраните текущий JSON, чтобы вернуться к его истории.'),async f=>{
   const next=DSM.create(f.template==='enterprise'?Enterprise.model(f.title):{title:f.title,nodes:[],edges:[]});
   if(server){download('new-project.html',dynamicHtml(next),'text/html');return;}
@@ -265,11 +303,20 @@ $('newProject').onclick=()=>modal('Новый проект',field('title','На�
 $('save').onclick=()=>exportAs('json');
 document.addEventListener('click',async e=>{const t=e.target.closest('[data-action]');if(!t)return;const action=t.dataset.action,id=t.dataset.id;
   try{
+    if(action==='clearCatalog'){resetCatalog();render();}
+    if(action==='catalogCsv'){
+      const entries=visibleCatalog(),cols=registry==='nodes'?[...DSM.nodeCols,...DSM.optionalNodeCols]:registry==='structure'?['from','to','layer','reason']:DSM.edgeCols;
+      download('dsm-'+registry+'-'+short(base())+'.csv',Formats.csv([cols,...entries.map(r=>cols.map(k=>r[k]&&typeof r[k]==='object'?JSON.stringify(r[k]):r[k]??''))]),'text/csv');
+    }
+    if(action==='changeLog'){
+      const versions=doc.history.map((h,i)=>[h.rev,(i+1)+' · '+h.note]);
+      modal('Выгрузить журнал изменений',sel('from','После версии',versions,versions[0][0])+sel('to','До версии включительно',versions,base()),f=>download('changes.md',Changes.changeLog(doc,f.from,f.to),'text/markdown'),'Скачать');
+    }
     if(action==='tab')navigate(id);
     if(action==='workMode')navigate(lastTab[id]);
     if(action==='grid')gridInput();
     if(action==='registry'){registry=id;filter='';render();}
-    if(action==='objectRow'){registry='nodes';filter='';focus=id;pair=null;navigate('catalog');}
+    if(action==='objectRow'){registry='nodes';resetCatalog();focus=id;pair=null;navigate('catalog');}
     if(action==='pairView'&&pair)showPair(...pair,id);
     if(action==='demoCell'){layer='risk';showPair('F02','F03','matrix');}
     if(action==='demoPlan'){selected.clear();selected.add('F03');navigate('plan');}
@@ -281,13 +328,8 @@ document.addEventListener('click',async e=>{const t=e.target.closest('[data-acti
     if(action==='applySpec')applySpec(id);
     if(action==='specZip')download(id+'.zip',await Specifications.bundle(doc,id),'application/zip');
     if(action==='svg'){const drawing=$('content').querySelector('svg');if(drawing)download('dsm-'+graphMode+'-'+short(base())+'.svg',new XMLSerializer().serializeToString(drawing),'image/svg+xml');}
-    if(action==='bookStart'&&!bookStarting){
-      bookStarting=true;bookError='';render();
-      try{bookSession=await bookRequest('start');const frame=document.createElement('iframe');frame.title='Jupyter Notebook';frame.src=bookSession.url;$('notebookHost').replaceChildren(frame);}
-      catch(err){bookError=err.message;}finally{bookStarting=false;render();}
-    }
-    if(action==='bookPreview')proposed(await bookRequest('read/'+bookSession.id));
-    if(action==='bookStop')modal('Завершить сессию Jupyter',hint('Сохраните открытые ячейки в Jupyter. Ядро будет остановлено. Файл блокнота сохранится на диске.'),async()=>{await bookRequest('stop/'+bookSession.id);bookSession=null;$('notebookHost').replaceChildren();render();},'Завершить');
+    if(action.startsWith('desk'))await desk.handle(action.slice(4),id);
+    if(action.startsWith('book'))await books.handle(action.slice(4),id);
     if(action==='layer'){structure=null;layer=id;pair=null;render();}
     if(action==='focus'){structure=null;focus=id;pair=null;render();}
     if(action==='structure'){
@@ -303,7 +345,7 @@ document.addEventListener('click',async e=>{const t=e.target.closest('[data-acti
     if(action==='edge'||action==='newEdge')edgeForm(action==='edge');
     if(action==='bulk')bulkForm();
     if(action==='open')$('file').click();
-    if(action==='parse')proposed(await parseInput($('rawType').value,$('raw').value,null,'Буфер обмена'));
+    if(action==='parse')proposed(await parseInput($('rawType').value,$('raw').value,null,'Буфер обмена'),'Буфер обмена');
     if(action==='export')await exportAs(id);
     if(action==='snapshot')modal('Именованный снимок',field('note','Название снимка','','required'),f=>push(data(),f.note));
     if(action==='restore'){const h=doc.history.find(h=>h.rev===id);modal('Восстановить версию '+short(id),hint(esc(h.note))+Views.differences(DSM.diff(data(),h.data)),()=>push(h.data,'Восстановление '+id));}
@@ -313,18 +355,33 @@ document.addEventListener('click',async e=>{const t=e.target.closest('[data-acti
     if(action==='context')download('agent-context.md','# '+data().title+'\n\n'+Formats.markdown(doc)+'\n\nПеред записью прочитайте актуальный JSON. Сформируйте JSON-патч с полями project, base, ops и описанием, проверьте его через preview, затем примените. При конфликте перечитайте проект и покажите разницу.\n','text/markdown');
   }catch(err){toast(err.message);}
 });
+document.addEventListener('keydown',e=>{
+  if(!e.target.matches('.matrix .cell'))return;
+  const td=e.target.closest('td'),row=td.parentElement,body=row.parentElement;
+  let y=row.sectionRowIndex,x=td.cellIndex;
+  switch(e.key){
+    case 'ArrowUp': y--;break;
+    case 'ArrowDown': y++;break;
+    case 'ArrowLeft': x--;break;
+    case 'ArrowRight': x++;break;
+    case 'Home': x=1;break;
+    case 'End': x=row.cells.length-1;break;
+    default:return;
+  }
+  e.preventDefault();
+  body.rows[Math.max(0,Math.min(y,body.rows.length-1))].cells[Math.max(1,Math.min(x,row.cells.length-1))].querySelector('.cell').focus();
+});
 document.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.matches('g[role=button]')){e.preventDefault();e.target.dispatchEvent(new MouseEvent('click',{bubbles:true}));}});
-document.addEventListener('change',e=>{const t=e.target;if(t.id==='order')ordered=t.value==='group';else if(t.id==='segment')segment=t.value;else if(t.id==='focusSelect'){focus=t.value;pair=null;}else if(t.id==='graphMode'){graphMode=t.value;if(graphMode==='sequence'){layer='flow';pair=null;}}else if(t.id==='scenarioSelect'){scenarioId=t.value;pair=null;}else if(t.dataset.check){if(t.checked)selected.add(t.dataset.check);else selected.delete(t.dataset.check);}else return;render();});
+document.addEventListener('change',e=>{const t=e.target;if(t.id.startsWith('catalog-'))catalogFilters[t.id.slice(8)]=t.value;else if(t.id.startsWith('history-'))historyFilters[t.id.slice(8)]=t.type==='checkbox'?t.checked:t.value;else if(t.id==='order')ordered=t.value==='group';else if(t.id==='segment')segment=t.value;else if(t.id==='focusSelect'){focus=t.value;pair=null;}else if(t.id==='graphMode'){graphMode=t.value;if(graphMode==='sequence'){layer='flow';pair=null;}}else if(t.id==='scenarioSelect'){scenarioId=t.value;pair=null;}else if(t.dataset.check){if(t.checked)selected.add(t.dataset.check);else selected.delete(t.dataset.check);}else return;render();});
 document.addEventListener('input',e=>{if(e.target.id==='query'){filter=e.target.value;render();$('query').focus();$('query').setSelectionRange(filter.length,filter.length);}});
 async function sync(){const prior=base();if(!server||$('dialog').open||tab==='io'||document.activeElement?.id==='query')return;
-  try{const r=await fetch('/api/head',{cache:'no-store'});if(!r.ok)return;const info=await r.json();if(info.rev!==base()){const full=await fetch('/api/project',{cache:'no-store'});const update=DSM.document(await full.json());if($('dialog').open||base()!==prior)return;doc=update;if(!nodeBy(focus))resetView();render();toast('Получена версия агента · '+short(base()));}}catch{}}
+  try{const r=await fetch('/api/head',{cache:'no-store'});if(!r.ok)return;const info=await r.json();if(info.rev!==base()){const full=await fetch('/api/project',{cache:'no-store'});const update=DSM.document(await full.json());if($('dialog').open||base()!==prior)return;doc=update;if(!nodeBy(focus))resetView(false);render();toast('Получена версия агента · '+short(base()));}}catch{}}
 async function start(){
   if(location.protocol==='http:'&&location.hostname==='127.0.0.1'&&location.pathname==='/'){
     try{const r=await fetch('/api/project',{cache:'no-store'});if(r.ok){doc=DSM.document(await r.json());server=true;}}catch{}}
   if(!server){try{const active=localStorage.getItem(entryKey);if(active?.startsWith('mazzy.dsm.1/'))cacheKey=active;const c=localStorage.getItem(cacheKey);if(c){const saved=DSM.document(JSON.parse(c));if(active||saved.project===embedded.project&&saved.history.some(h=>h.rev===DSM.head(embedded).rev))doc=saved;}}catch{cacheOK=false;}}
   resetView();render();if(server)setInterval(sync,1800);
-  window.addEventListener('pagehide',ev=>{if(bookSession&&!ev.persisted)fetch('/api/notebooks/stop/'+bookSession.id,{method:'POST',headers:{'Content-Type':'application/json'},keepalive:true}).catch(()=>{});});
-  window.addEventListener('storage',e=>{if(!server&&e.key===cacheKey&&e.newValue){if($('dialog').open){toast('Есть новая версия в другой вкладке');return;}try{doc=DSM.document(JSON.parse(e.newValue));resetView();render();toast('Получена версия из другой вкладки');}catch{}}});
+  window.addEventListener('storage',e=>{if(!server&&e.key===cacheKey&&e.newValue){if($('dialog').open){toast('Есть новая версия в другой вкладке');return;}try{const incoming=DSM.document(JSON.parse(e.newValue));const switched=incoming.project!==doc.project;doc=incoming;if(switched||!nodeBy(focus))resetView(switched);render();toast('Получена версия из другой вкладки');}catch{}}});
 }
 start();
 })();

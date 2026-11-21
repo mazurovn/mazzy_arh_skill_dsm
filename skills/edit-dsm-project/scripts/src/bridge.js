@@ -32,7 +32,7 @@ function mcp(file){
     let q;try{q=JSON.parse(line);}catch{reply(null,{error:{code:-32700,message:'Parse error'}});return;}
     if(q.jsonrpc!=='2.0'||typeof q.method!=='string'){reply(q.id??null,{error:{code:-32600,message:'Invalid Request'}});return;}
     if(q.id===undefined)return;
-    if(q.method==='initialize'){reply(q.id,{result:{protocolVersion:'2025-06-18',capabilities:{tools:{}},serverInfo:{name:'mazzy-dsm',version:'1.0.0'}}});return;}
+    if(q.method==='initialize'){reply(q.id,{result:{protocolVersion:'2025-06-18',capabilities:{tools:{}},serverInfo:{name:'mazzy-dsm',version:'1.1.0'}}});return;}
     if(q.method==='ping'){reply(q.id,{result:{}});return;}
     if(q.method==='tools/list'){reply(q.id,{result:{tools:defs.map(([name,description,inputSchema])=>({name,description,inputSchema}))}});return;}
     if(q.method!=='tools/call'){reply(q.id,{error:{code:-32601,message:'Method not found'}});return;}
@@ -41,6 +41,15 @@ function mcp(file){
     try{reply(q.id,{result:{content:[{type:'text',text:JSON.stringify(invoke(file,name,args))}]}});}
     catch(err){reply(q.id,{result:{isError:true,content:[{type:'text',text:err.message}]}});}
   });
+}
+async function jsonBody(req){
+  const parts=[];let size=0;
+  for await(const part of req){
+    size+=part.length;
+    if(size>16*1024*1024)throw Object.assign(Error('Файл превышает 16 МиБ'),{status:413});
+    parts.push(part);
+  }
+  return size?JSON.parse(Buffer.concat(parts).toString('utf8')):{};
 }
 function serve(file,port){
   const http=require('node:http');
@@ -60,17 +69,22 @@ function serve(file,port){
         const origin='http://'+host;
         if(req.headers.origin!==origin||req.headers['content-type']!=='application/json'){send(403,{error:'Требуется локальный редактор'});return;}
         const [, , , action, id]=req.url.split('/');
-        if(action==='start'&&!id){send(200,await notebooks.start(R.readProject(file),origin));return;}
+        if(action==='start'&&!id){
+          const book=await notebooks.start(R.readProject(file),origin,await jsonBody(req));
+          if(res.destroyed)notebooks.stop(book.id);else send(200,book);
+          return;
+        }
+        if(action==='list'&&!id){send(200,notebooks.list(R.readProject(file).project));return;}
+        if(action==='download'&&id){send(200,notebooks.saved(R.readProject(file).project,id));return;}
         if(action==='read'&&id){send(200,notebooks.read(id));return;}
         if(action==='stop'&&id){notebooks.stop(id);send(200,{});return;}
       }
       if(req.method==='POST'&&req.url==='/api/commit'){
         if(req.headers.origin!=='http://'+host||req.headers['content-type']?.split(';')[0]!=='application/json'){send(403,{error:'Требуется локальный редактор'});return;}
-        const parts=[];let len=0;for await(const part of req){len+=part.length;if(len>16*1024*1024){send(413,{error:'Модель больше 16 МиБ'});return;}parts.push(part);}
-        const b=JSON.parse(Buffer.concat(parts).toString('utf8'));send(200,R.update(file,b.project,b.base,b.note,b.actor,()=>b.data));return;
+        const b=await jsonBody(req);send(200,R.update(file,b.project,b.base,b.note,b.actor,()=>b.data));return;
       }
       send(404,{error:'Нет такого маршрута'});
-    }catch(err){send(/Конфликт|занят/.test(err.message)?409:400,{error:err.message});}
+    }catch(err){send(err.status||(/Конфликт|занят/.test(err.message)?409:400),{error:err.message});}
   });
   process.once('exit',notebooks.close);
   for(const signal of ['SIGTERM','SIGINT'])process.once(signal,()=>{notebooks.close();process.exit(0);});
