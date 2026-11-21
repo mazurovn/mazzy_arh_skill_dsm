@@ -23,7 +23,7 @@ function update(file,project,base,note,actor,fn){
 }
 function html(doc){
   const src=f=>textFile(path.join(__dirname,f));
-  const files=['vendor/jszip.js','vendor/sax.js','model.js','analysis.js','formats.js','excel.js','notebook-files.js','notebook-profiles.js','notebook.js','sysl.js','specifications.js','enterprise.js','reports.js','registers.js','changes.js','views.js','scope.js','delivery.js','delivery-panel.js','review-panel.js','notebook-panel.js','ui.js'];
+  const files=['vendor/jszip.js','vendor/sax.js','model.js','analysis.js','formats.js','excel.js','notebook-files.js','notebook-profiles.js','installation-notebook.js','notebook.js','sysl.js','specifications.js','enterprise.js','reports.js','registers.js','changes.js','views.js','scope.js','delivery.js','installations.js','installation-panel.js','delivery-panel.js','review-panel.js','notebook-panel.js','ui.js'];
   const notices=['LICENSE.txt','vendor/JSZip-LICENSE.txt','vendor/SAX-LICENSE.txt','vendor/PAKO-LICENSE.txt','vendor/BUNDLED-NOTICES.txt'].map(src).join('\n\n');
   return src('shell.html').replace('</head>',()=>'<script type="text/plain" id="licenses">'+notices.replace(/<\/script/gi,'&lt;/script')+'</script></head>').replace('/*__CSS__*/',()=>src('style.css')).replace('__PROJECT__',()=>JSON.stringify(doc).replaceAll('<','\\u003c')).replace('<!--__SCRIPTS__-->',()=>files.map(f=>'<script>\n'+src(f).replace(/<\/script/gi,'<\\/script')+'\n</script>').join('\n'));
 }

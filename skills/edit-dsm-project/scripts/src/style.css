@@ -43,3 +43,6 @@ label.btn:has(.file-picker:focus-visible){outline:2px solid var(--teal);outline-
 @media(max-width:800px){.studio-layout{display:block}.menu-panel{position:static;margin-bottom:10px}#nav{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.board{grid-template-columns:minmax(0,1fr)}.workspace-main .tools{justify-content:flex-start}.workspace-main input{max-width:100%}}
 
 .journey-steps button{border:0;background:transparent;color:inherit;padding:0;font:inherit}.journey-steps button:hover{text-decoration:underline}.trace-line h4:focus{outline:2px solid var(--teal);outline-offset:2px}
+.sizing-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:12px;margin:18px 0}.sizing-metrics div{border-left:3px solid #96c9ba;padding-left:10px}.sizing-metrics strong,.sizing-metrics span{display:block}.sizing-metrics strong{font-size:1.45rem}.sizing-bars{display:grid;gap:.5rem;margin-top:1rem}.sizing-bars label{display:grid;grid-template-columns:90px minmax(50px,220px) auto;align-items:center;gap:.5rem}.sizing-bars meter{width:100%;accent-color:#16735c}.arch-matrix td button{margin:1px}.arch-matrix th{white-space:nowrap}
+
+.book-chart{display:block;max-width:100%;height:auto;margin:.75rem 0}

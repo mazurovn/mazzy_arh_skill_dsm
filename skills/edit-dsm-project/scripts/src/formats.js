@@ -47,7 +47,7 @@ const Formats = ((M,A)=>{
   const aliases={'код':'id','code':'id','название':'name','имя':'name','тип':'kind','состояние':'state','от':'from','к':'to','вес':'weight','обоснование':'reason','основание':'reason','релиз':'release','сегмент':'segment','оценка':'effort','ёмкость':'capacity','слой':'layer','родитель':'parent'};
   function readCsv(txt,options={}){
     const [header,...rows]=splitCsv(txt);if(!header)throw Error('Пустой CSV');
-    const cols=header.map(v=>aliases[v.trim().toLowerCase()]??v.trim().toLowerCase());
+    const cols=header.map(v=>v.trim().startsWith('attr.')?v.trim():aliases[v.trim().toLowerCase()]??v.trim().toLowerCase());
     if(cols[0]===''||cols[0]==='matrix'){
       const ids=header.slice(1),layer=options.layer||'flow', edges=[],by=new Map(rows.map(r=>[r[0],r.slice(1)]));
       if(new Set(ids).size!==ids.length||rows.length!==ids.length||ids.some(id=>!by.has(id)))throw Error('Матрица должна быть квадратной с одинаковым набором ID');
@@ -63,8 +63,32 @@ const Formats = ((M,A)=>{
       const heads=data.filter(r=>r.record==='project');if(heads.length!==1||data.some(r=>!['project','node','edge'].includes(r.record)))throw Error('Проверьте типы записей CSV');
       const h=heads[0];return {kind:'projection',project:h.project,base:h.base,data:M.validate({title:h.name,nodes:data.filter(r=>r.record==='node').map(getNode),edges:data.filter(r=>r.record==='edge').map(getEdge)})};
     }
-    if(cols.includes('from')&&cols.includes('to'))return {kind:'merge',nodes:[],edges:data.map(r=>getEdge({weight:1,layer:options.layer||'flow',...r}))};
-    if(cols.includes('id')&&cols.includes('name'))return {kind:'merge',nodes:data.map(r=>{const clean=getNode(r);return pick(clean,cols);}),edges:[]};
+    if(cols.includes('from')&&cols.includes('to')){
+      const relations=[],edges=[];
+      for(const r of data){
+        const kind=r.relation||r.layer||options.layer||'flow';
+        if(!r.relation&&['flow','risk'].includes(kind)){
+          edges.push(getEdge({...r,weight:r.weight??1,layer:kind}));continue;
+        }
+        if(![...M.relationKinds,'parent','ref','release'].includes(kind))throw Error('Неизвестный тип связи '+kind+' · '+r.from+' → '+r.to);
+        relations.push({from:r.from,to:r.to,relation:kind});
+      }
+      return {kind:'merge',nodes:[],edges,...(relations.length?{relations}:{})};
+    }
+    if(cols.includes('id')&&cols.includes('name')){
+      const attributes=[];
+      const nodes=data.map(r=>{
+        const clean=pick(getNode(r),cols);
+        for(const col of cols.filter(c=>c.startsWith('attr.')&&r[c]!=='')){
+          const key=col.slice(5),s=r[col];
+          if(!key.trim()||['__proto__','prototype','constructor'].includes(key))throw Error('Недопустимое имя атрибута '+col);
+          const v=/^-?(0|[1-9]\d*)(\.\d+)?$/.test(s)?Number(s):s==='true'?true:s==='false'?false:s;
+          attributes.push({id:r.id,key,value:v});
+        }
+        return clean;
+      });
+      return {kind:'merge',nodes,edges:[],...(attributes.length?{attributes}:{})};
+    }
     throw Error('Нужны столбцы id,name или from,to,reason, либо квадратная матрица DSM');
   }
   const escMD=v=>String(v??'').replaceAll('&','&amp;').replaceAll('|','&#124;').replaceAll('\r','&#13;').replaceAll('\n','&#10;').replace(/^ +| +$/g,x=>'&#32;'.repeat(x.length));
@@ -93,6 +117,7 @@ const Formats = ((M,A)=>{
     if(!nodes.size&&!edges.length)throw Error('Пустой текст');return {kind:'merge',nodes:[...nodes.values()],edges};
   }
   function preview(doc,input){
+    if(input.kind==='installation-receipt')return (typeof Installations!=='undefined'?Installations:require('./installations.js')).receipt(doc,input);
     if(input.kind==='spec-package')return (typeof Specifications!=='undefined'?Specifications:require('./specifications.js')).importPackage(doc,input.files).data;
     if(input.kind==='archive')return M.head(M.document(input.doc)).data;
     if(input.kind==='projection'){
@@ -105,7 +130,27 @@ const Formats = ((M,A)=>{
     if(new Set(input.nodes.map(n=>n.id)).size!==input.nodes.length)throw Error('Повтор ID во входных строках');
     if(new Set(input.edges.map(M.ek)).size!==input.edges.length)throw Error('Повтор связи во входных строках');
     const known=new Set(now.nodes.map(n=>n.id));
-    const ops=[...input.nodes.filter(n=>!input.placeholders||!known.has(n.id)).map(value=>({op:'node',value})),...input.edges.map(value=>({op:'edge',value}))];
+    const updates=new Map(input.nodes.filter(n=>!(input.placeholders===true||input.placeholderIds?.includes(n.id))||!known.has(n.id)).map(n=>[n.id,{...n}]));
+    const originals=new Map(now.nodes.map(n=>[n.id,n]));
+    function entry(id){
+      if(!updates.has(id)){if(!known.has(id))throw Error('Неизвестный объект '+id);updates.set(id,{id});}
+      return updates.get(id);
+    }
+    for(const {id,key,value} of input.attributes||[]){
+      const n=entry(id);n.attrs={...(n.attrs||originals.get(id)?.attrs),[key]:value};
+    }
+    for(const {from,to,relation} of input.relations||[]){
+      if(relation==='parent'){entry(to).parent=from;continue;}
+      if(relation==='release'){entry(from).release=to;continue;}
+      if(relation==='ref'){
+        const n=entry(from),refs=n.refs||originals.get(from)?.refs||[];
+        if(!refs.includes(to))n.refs=[...refs,to];
+        continue;
+      }
+      const n=entry(from),links=n.relations||originals.get(from)?.relations||[];
+      if(!links.some(([k,id])=>k===relation&&id===to))n.relations=[...links,[relation,to]];
+    }
+    const ops=[...[...updates.values()].map(value=>({op:'node',value})),...input.edges.map(value=>({op:'edge',value}))];
     return ops.length?M.patch(now,ops):now;
   }
   function parseJson(s,title){if(s.schema==='dsm-project/1')return {kind:'archive',doc:M.document(s)};

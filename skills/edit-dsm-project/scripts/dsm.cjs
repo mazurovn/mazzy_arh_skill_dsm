@@ -10,9 +10,10 @@ const usage=[
 'node dsm.cjs diff PROJECT.json FROM TO',
 'node dsm.cjs restore PROJECT.json BASE REV ACTOR NOTE',
 'node dsm.cjs export PROJECT.json NEW_FILE.{md,csv,xlsx,ipynb,html,json,sysl}',
-'node dsm.cjs notebook PROJECT.json NEW.ipynb [full|requirements|placement|readiness]',
+'node dsm.cjs notebook PROJECT.json NEW.ipynb [full|requirements|placement|readiness|installation] [INSTALLATION_ID]',
 'node dsm.cjs notebook-info FILE.ipynb',
 'node dsm.cjs report PROJECT.json [REPORT_KEY]',
+'node dsm.cjs installation PROJECT.json INSTALLATION_ID',
 'node dsm.cjs journey PROJECT.json REQUIREMENT_ID [--markdown]',
 'node dsm.cjs spec-check PROJECT.json PROPOSAL_ID',
 'node dsm.cjs spec-export PROJECT.json PROPOSAL_ID NEW.zip',
@@ -31,11 +32,12 @@ async function run([cmd,file,...args]){
     return {format:book.nbformat,kernel:book.metadata.kernelspec,base:book.metadata.dsm?.base,cells:files.overview(book).map(c=>({index:c.i+1,type:c.type,title:c.title,outputs:c.outputs.length}))};
   }
   const doc=R.readProject(file),h=M.head(doc);
+  if(cmd==='installation')return require('./src/installations.js').calculate(h.data,args[0]);
   if(cmd==='journey'){const delivery=require('./src/delivery.js'),chain=delivery.chain(h.data,args[0]);if(args[1]==='--markdown'){process.stdout.write(delivery.trace(chain));return;}return chain;}
   if(cmd==='report'){const reports=require('./src/reports.js');return args[0]?reports.run(h.data,args[0]):reports.definitions;}
   if(cmd==='notebook'){
     if(!args[0])throw Error('Укажите выходной .ipynb');
-    fs.writeFileSync(args[0],R.json(require('./src/notebook.js').write(doc,args[1])),{flag:'wx'});return {file:args[0],base:h.rev};
+    fs.writeFileSync(args[0],R.json(require('./src/notebook.js').write(doc,args[1],args[2])),{flag:'wx'});return {file:args[0],base:h.rev};
   }
   if(cmd==='spec-check')return require('./src/specifications.js').readiness(h.data,args[0]);
   if(cmd==='spec-export'){

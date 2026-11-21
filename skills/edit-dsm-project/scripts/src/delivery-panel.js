@@ -1,4 +1,4 @@
-function deliveryPanel({model,doc,esc,button,field,sel,table,modal,push,download,render,navigate,inspect,toast}){
+function deliveryPanel({model,doc,esc,button,field,sel,table,modal,push,download,render,navigate,inspect,toast,notebook}){
   let selected='',requestId='',proposalId='',filters={stage:'',owner:'',overdue:false};
   const action=(name,label,id='',extra='')=>button('journey'+name,label,'data-id="'+esc(id)+'" '+extra);
   const text=(name,label,initial='')=>'<label class="field">'+label+'<textarea name="'+name+'" required>'+esc(initial)+'</textarea></label>';
@@ -38,7 +38,7 @@ function deliveryPanel({model,doc,esc,button,field,sel,table,modal,push,download
     const progress='<ol class="journey-steps">'+stages.map((s,i)=>'<li class="'+(evidence[i]?'passed':'')+'">'+(evidence[i]?action('Step','✓ '+s,destinations[i]):esc(s))+'</li>').join('')+'</ol>';
     const stage=ch.stage==='plan'&&!m.nodes.some(n=>n.kind==='release')?['Release','Создать первый релиз']:buttons[ch.stage];
     const actions=area(action(stage[0],stage[1],'','class="primary"')+(p&&p.state!=='done'&&ch.stage!=='plan'&&ch.stage!=='decision'?action('Task','Добавить работу'):'')+
-      ((ch.stage==='plan'||ch.stage==='work')&&stage[0]!=='Release'?action('Release','Новый релиз'):'')+ (ch.stage==='deviation'?action('Correction','Корректирующий запрос'):'')+action('Trace','Отчёт .md')+action('Link','Ссылка на требование'));
+      ((ch.stage==='plan'||ch.stage==='work')&&stage[0]!=='Release'?action('Release','Новый релиз'):'')+ (ch.stage==='deviation'?action('Correction','Корректирующий запрос'):'')+(p?.state==='done'&&Delivery.index(m).by.get(p.attrs?.appliedObject)?.kind==='installation'?action('Notebook','Проверить в Jupyter'):'')+action('Trace','Отчёт .md')+action('Link','Ссылка на требование'));
     const pick=(arr,chosen,id,title)=>arr.length>1?select(id,title,choose(arr),chosen?.id):'';
     const line=(label,body)=>body?'<div class="trace-line" data-trace="'+label+'"><h4 tabindex="-1">'+label+'</h4>'+body+'</div>':'';
     const items=(arr)=>arr.map(objectButton).join(' ');
@@ -71,6 +71,7 @@ function deliveryPanel({model,doc,esc,button,field,sel,table,modal,push,download
   }
   async function handle(name,id){
     const m=model(),next=prefix=>Delivery.nextId(m,prefix);
+    if(name==='Notebook'){const ch=current();return notebook(ch.proposal.attrs.appliedObject,{requirement:ch.requirement.id,proposal:ch.proposal.id});}
     if(name==='Step'){[...document.querySelectorAll('[data-trace]')].find(el=>el.dataset.trace===id)?.querySelector('h4')?.focus();return;}
     if(name==='Transfer'){await transfer(id);return;}
     if(name==='Select'){selectRoute(id);return;}

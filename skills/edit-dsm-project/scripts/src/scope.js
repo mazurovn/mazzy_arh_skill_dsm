@@ -10,7 +10,12 @@ const Scope = (() => {
     const by=new Map(model.nodes.map(n=>[n.id,n]));
     let nodes=model.nodes;
     let edges=model.edges.filter(e=>e.layer===layer);
-    if(mode==='component'){
+    if(Object.hasOwn(Views.architectureKinds,mode)){
+      const kinds=Views.architectureKinds[mode];
+      nodes=nodes.filter(n=>kinds.includes(n.kind)&&(mode!=='infra'||!n.attrs?.verification));
+      const ids=new Set(nodes.map(n=>n.id));
+      edges=[...Views.structures(model),...edges].filter(e=>ids.has(e.from)&&ids.has(e.to));
+    }else if(mode==='component'){
       nodes=nodes.filter(n=>['module','component','system','service','product'].includes(n.kind));
       const eligible=new Set(nodes.map(n=>n.id));
       edges=edges.filter(e=>eligible.has(e.from)&&eligible.has(e.to));

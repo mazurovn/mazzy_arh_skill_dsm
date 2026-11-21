@@ -3,7 +3,7 @@ const Views = (() => {
   const esc = value => String(value ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
   const types = {product:'Продукт',module:'Модуль',component:'Компонент',release:'Релиз',feature:'Фича',actor:'Участник',capability:'Способность',process:'Процесс',system:'Система',service:'Сервис',data:'Данные',artifact:'Артефакт',scenario:'Сценарий',proposal:'OpenSpec proposal',adr:'ADR',requirement:'Требование',deviation:'Отклонение',organization:'Организация',project:'Проект',installation:'Установка',procurement:'Закупка',server:'Сервер',cluster:'Кластер',domain:'Домен',dataArea:'Предметная область данных',request:'Запрос на изменение',changeTask:'Задача изменения'};
   const relations={realizes:'Реализует',deployedOn:'Размещён на',dependsOn:'Зависит от',uses:'Использует',owns:'Отвечает за',produces:'Создаёт',verifies:'Проверяет'};
-  const modes = {neighbors:'Окружение объекта',all:'Граф кластеров',tree:'Иерархия состава',component:'Компонентная диаграмма',concept:'Концептуальная диаграмма',sequence:'Диаграмма последовательности'};
+  const modes = {neighbors:'Окружение объекта',all:'Граф кластеров',tree:'Иерархия состава',component:'Компонентная диаграмма',concept:'Концептуальная диаграмма',sequence:'Диаграмма последовательности',technical:'Техническая архитектура',infra:'Инфраструктурная архитектура',software:'Программная архитектура'};
   const fieldNames = {id:'ID',name:'Название',title:'Проект',kind:'Тип',state:'Статус',parent:'Родитель',release:'Релиз',segment:'Сегмент',bundle:'Пакет',effort:'Оценка',capacity:'Ёмкость',note:'Текст',layer:'Слой',from:'Откуда',to:'Куда',weight:'Вес',reason:'Основание',refs:'Ссылки',steps:'Шаги',attrs:'Атрибуты',relations:'Типизированные связи'};
   const clip = (s, limit) => s.length>limit ? s.slice(0,limit-1)+'…' : s;
   const direction = layer => layer==='risk'?' ↔ ':' → ';
@@ -45,9 +45,21 @@ const Views = (() => {
     });
     return svg(width,height,lanes.concat(messages).join(''));
   }
+  const lanes={
+    technical:{
+      'Контекст и решение':['organization','project','procurement','requirement','request','proposal','adr'],
+      'Функции и поставка':['capability','feature','changeTask','release','deviation'],
+      'Программные объекты':['product','system','service','component','module','data'],
+      'Развёртывание':['installation','cluster','server','domain']
+    },
+    infra:{'Нагрузки':['service','component','module','system'],'Инсталляции':['installation'],'Кластер и площадка':['cluster','domain'],'Оборудование и закупка':['server','procurement']},
+    software:{'Требования и функции':['requirement','capability','feature'],'Продукты и системы':['product','system'],'Сервисы и модули':['service','module'],'Компоненты и данные':['component','data','dataArea']}
+  };
+  const architectureKinds=Object.fromEntries(Object.entries(lanes).map(([mode,groups])=>[mode,Object.values(groups).flat()]));
   function structures(model) {
     return model.nodes.flatMap(n=>[
       ...(n.parent?[{layer:'parent',from:n.parent,to:n.id,reason:'Входит в состав'}]:[]),
+      ...(n.release?[{layer:'release',from:n.id,to:n.release,reason:'Назначен в релиз'}]:[]),
       ...(n.refs||[]).map(to=>({layer:'ref',from:n.id,to,reason:'Ссылка артефакта'})),
       ...(n.relations||[]).map(([kind,to])=>({layer:kind,from:n.id,to,reason:relations[kind]}))
     ]);
@@ -55,7 +67,10 @@ const Views = (() => {
   function diagram(model, mode, layer, focus, pair, clusters, selectedStructure, scope) {
     const by=scope?.by||new Map(model.nodes.map(n=>[n.id,n]));
     let nodes=model.nodes, edges=model.edges.filter(e=>e.layer===layer), columns;
-    if(mode==='tree'){
+    if(Object.hasOwn(architectureKinds,mode)){
+      edges=scope?.edges||model.edges;
+      columns=Object.entries(lanes[mode]).map(([label,kinds])=>({label,ids:nodes.filter(n=>kinds.includes(n.kind)).map(n=>n.id)}));
+    }else if(mode==='tree'){
       edges=scope?.edges||nodes.filter(n=>n.parent).map(n=>({layer:'parent',from:n.parent,to:n.id,reason:'Входит в состав'}));
       const depth=n=>{let d=0;while(n.parent){d++;n=by.get(n.parent);}return d;};
       columns=group(nodes,depth).sort((a,b)=>a.label-b.label).map(c=>({...c,label:'Уровень '+(c.label+1)}));
@@ -85,9 +100,10 @@ const Views = (() => {
       const [x,y]=positions.get(e.from),[u,v]=positions.get(e.to),same=x===u;
       const a=x+(u>=x?148:0),z=u+(same||u<x?148:0),mid=same?a+43:(a+z)/2;
       const mx=(a+6*mid+z)/8,my=(y+v)/2+22;
-      const handle=['flow','risk'].includes(e.layer)?'<circle cx="'+mx+'" cy="'+my+'" r="9" fill="white" stroke="#73a18b"/><text x="'+mx+'" y="'+(my+3)+'" text-anchor="middle" font-size="9" fill="#234c3a">'+e.weight+'</text>':'';
+      const selected=selectedStructure?.from===e.from&&selectedStructure.to===e.to&&selectedStructure.layer===e.layer;
+      const handle=['flow','risk'].includes(e.layer)?'<circle cx="'+mx+'" cy="'+my+'" r="9" fill="white" stroke="#73a18b"/><text x="'+mx+'" y="'+(my+3)+'" text-anchor="middle" font-size="9" fill="#234c3a">'+e.weight+'</text>':selected?'<text x="'+mx+'" y="'+(my-5)+'" text-anchor="middle" font-size="11" stroke="white" stroke-width="4" paint-order="stroke" fill="#794215">'+esc(e.reason)+'</text>':'';
       return link(e,'M'+a+' '+(y+22)+' C'+mid+' '+(y+22)+' '+mid+' '+(v+22)+' '+z+' '+(v+22),
-        (pair&&['risk','flow'].includes(e.layer)&&DSM.ek(e)===DSM.ek({layer,from:pair[0],to:pair[1]}))||(selectedStructure?.from===e.from&&selectedStructure.to===e.to&&selectedStructure.layer===e.layer),handle);
+        (pair&&['risk','flow'].includes(e.layer)&&DSM.ek(e)===DSM.ek({layer,from:pair[0],to:pair[1]}))||selected,handle);
     });
     return svg(columns.length*216+16,height,labels.concat(paths,nodes.map(n=>nodeBox(n,...positions.get(n.id),n.id===focus,mode==='component'))).join(''));
   }
@@ -128,5 +144,5 @@ const Views = (() => {
     return '<div class="wrap diff-table"><table class="table"><thead><tr>'+['Объект','Действие','Поле','Было','Стало'].map(t=>'<th>'+t+'</th>').join('')+'</tr></thead><tbody>'+rows.map(r=>'<tr>'+r.map(v=>'<td>'+esc(v)+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>'+
       '<details class="delta"><summary>Схема изменений</summary>'+deltaMatrix(changes)+rows.map(([id,,field,before,after])=>'<div class="delta-row"><b>'+esc(id)+' · '+esc(field)+'</b><span>'+esc(before)+'</span><i aria-label="переход">→</i><strong>'+esc(after)+'</strong></div>').join('')+'</details>';
   }
-  return {types,relations,modes,structures,diagram,sequence,differences,diffPage};
+  return {types,relations,modes,architectureKinds,structures,diagram,sequence,differences,diffPage};
 })();

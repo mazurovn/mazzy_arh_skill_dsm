@@ -46,19 +46,26 @@ const ExcelIO=((F,A,M,Zip,Sax)=>{
         end(t){if(t==='c'){const letters=(cell.r||'').match(/^[A-Z]+/i)?.[0];
           const ix=letters?[...letters.toUpperCase()].reduce((s,c)=>26*s+c.charCodeAt(0)-64,0)-1:r.length;
           if(ix>16383)throw Error('Неверная координата XLSX');
-          r[ix]=cell.t==='s'?strings[Number(val)]:cell.t==='inlineStr'?inline:val;cell=null;}
+          r[ix]=cell.t==='s'?strings[Number(val)]:cell.t==='inlineStr'?inline:cell.t==='b'?(val==='1'?'true':'false'):val;cell=null;}
           if(t==='row'&&r.some(x=>x!==''&&x!==undefined))rows.push(Array.from(r,v=>v??''));tag='';}});
       tables[name]=rows;
     }
     if(full)return F.readTables(tables);
-    const nodes=[],edges=[];for(const [name,rows] of Object.entries(tables)){
+    const nodes=[],edges=[],attributes=[],relations=[],placeholders=new Map();for(const [name,rows] of Object.entries(tables)){
       if(!rows.length)continue;
-      const imported=F.readCsv(F.csv(rows),{...options,source:name});
+      const layer=({DSM_Risk:'risk',DSM_Flow:'flow'})[name]||options.layer;
+      if(['DSM_Risk','DSM_Flow'].includes(name)&&rows[0][0]==='ID')rows[0][0]='matrix';
+      const imported=F.readCsv(F.csv(rows),{...options,layer,source:name});
       if(imported.kind!=='merge')throw Error('Для полного проекта нужны Project, Nodes и Edges');
-      nodes.push(...imported.nodes);edges.push(...imported.edges);
+      if(imported.placeholders)for(const n of imported.nodes)placeholders.set(n.id,n);
+      else nodes.push(...imported.nodes);
+      edges.push(...imported.edges);
+      attributes.push(...(imported.attributes||[]));relations.push(...(imported.relations||[]));
     }
-    if(!nodes.length&&!edges.length)throw Error('Книга пуста');
-    return {kind:'merge',nodes,edges};
+    for(const n of nodes)placeholders.delete(n.id);
+    nodes.push(...placeholders.values());
+    if(!nodes.length&&!edges.length&&!relations.length)throw Error('Книга пуста');
+    return {kind:'merge',nodes,edges,...(placeholders.size?{placeholderIds:[...placeholders.keys()]}:{}),...(attributes.length?{attributes}:{}),...(relations.length?{relations}:{})};
   }
   return {write,read};
 })(typeof Formats!=='undefined'?Formats:require('./formats.js'),typeof Analysis!=='undefined'?Analysis:require('./analysis.js'),typeof DSM!=='undefined'?DSM:require('./model.js'),typeof JSZip!=='undefined'?JSZip:require('./vendor/jszip.js'),typeof sax!=='undefined'?sax:require('./vendor/sax.js'));

@@ -42,12 +42,28 @@ function notebookPanel({doc,online,visible,render,proposed,modal,download,button
       return JSON.parse((await file.text()).replace(/^\uFEFF/,''));
     });
   }
+  function richOutput(output,summary){
+    const mime=output.data||{},asText=NotebookFiles.source;
+    if(mime['image/svg+xml']||mime['image/png']){
+      const src=mime['image/svg+xml']?'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(asText(mime['image/svg+xml'])):'data:image/png;base64,'+asText(mime['image/png']);
+      return '<img class="book-chart" alt="График вычислений Jupyter" src="'+esc(src)+'">';
+    }
+    if(mime['text/html']){
+      const template=document.createElement('template');template.innerHTML=asText(mime['text/html']);
+      const table=template.content.querySelector('table');
+      if(table){
+        const rows=Array.from(table.rows).slice(0,100).map(row=>'<tr>'+Array.from(row.cells).slice(0,40).map(cell=>'<td>'+esc(cell.textContent)+'</td>').join('')+'</tr>');
+        return '<div class="wrap"><table class="table">'+rows.join('')+'</table></div>'+(table.rows.length>100||Array.from(table.rows).some(r=>r.cells.length>40)?'<p>Показаны первые 100 строк и 40 столбцов.</p>':'');
+      }
+    }
+    return '<pre class="cell-output">'+esc(summary)+'</pre>';
+  }
   function cells(){
     if(!selected)return '';
     const rows=NotebookFiles.overview(selected).filter(c=>(!kind||kind===c.type)&&(!onlyOutputs||c.outputs.length)&&[c.source,...c.tags,...c.outputs].join(' ').toLowerCase().includes(query.toLowerCase()));
     return '<p>'+rows.length+' из '+selected.cells.length+' ячеек</p>'+rows.map(c=>'<details class="cell-preview"><summary><code>'+(c.i+1)+'</code> '+esc(c.type)+' · '+esc(c.title)+'</summary><pre>'+esc(c.source)+'</pre>'+
       (c.tags.length?'<p>Теги · '+esc(c.tags.join(', '))+'</p>':'')+(c.count===null?'':'<p>Порядок исполнения · '+c.count+'</p>')+
-      c.outputs.map(out=>'<pre class="cell-output">'+esc(out)+'</pre>').join('')+'</details>').join('');
+      c.outputs.map((out,i)=>richOutput(selected.cells[c.i].outputs[i],out)).join('')+'</details>').join('');
   }
   function viewer(){
     if(!selected)return '';
@@ -64,7 +80,7 @@ function notebookPanel({doc,online,visible,render,proposed,modal,download,button
     return '<details class="card"><summary>Библиотека проекта'+(library?' · '+library.length:'')+'</summary>'+content+action('Refresh','Обновить список')+'</details>';
   }
   function view(){
-    const profiles={full:'Полный анализ DSM',...Object.fromEntries(Object.entries(NotebookProfiles).map(([k,v])=>[k,v.name]))};
+    const profiles={full:'Полный анализ DSM',installation:'Закупка и приёмка серверов',...Object.fromEntries(Object.entries(NotebookProfiles).map(([k,v])=>[k,v.name]))};
     const controls=session?'<p>Сохраните ячейки в Jupyter (Ctrl+S). Файл · '+esc(session.file)+'</p><div class="tools">'+action('Preview','Проверить изменения','class="primary"')+action('LiveResult','Проверить результат Python')+action('Saved','Скачать сохранённый блокнот')+action('Stop','Завершить сессию')+'</div>':
       '<div class="tools"><label>Расчёт <select id="bookProfile" aria-label="Профиль генерации">'+Object.entries(profiles).map(([k,v])=>option(k,v,profile)).join('')+'</select></label>'+action('Generate','Сгенерировать блокнот')+
       '<label class="btn">Загрузить .ipynb<input type="file" class="file-picker" id="bookFile" accept=".ipynb"></label>'+
@@ -116,5 +132,14 @@ function notebookPanel({doc,online,visible,render,proposed,modal,download,button
     el('bookOutputs').onchange=e=>{onlyOutputs=e.target.checked;redraw();};
   }
   window.addEventListener('pagehide',ev=>{if(session&&!ev.persisted)fetch('/api/notebooks/stop/'+session.id,{method:'POST',headers:{'Content-Type':'application/json'},keepalive:true}).catch(()=>{});});
-  return {view,handle,bind,refresh,reset,active:()=>!!session};
+  function installation(id,context){
+    if(session||starting)throw Error('Сохраните и завершите текущую сессию Jupyter перед открытием другого блокнота');
+    profile='installation';
+    choose(Notebook.write(doc(),profile,id,context),'installation-'+id+'.ipynb');
+  }
+  function replay(id){
+    if(session||starting)throw Error('Сохраните и завершите текущую сессию Jupyter');
+    choose(Notebook.replayInstallation(doc(),id),'acceptance-'+id+'.ipynb');
+  }
+  return {view,handle,bind,refresh,reset,installation,replay,active:()=>!!session};
 }
