@@ -1,6 +1,7 @@
 const Formats = ((M,A)=>{
-  const allCols=['record',...M.nodeCols,...M.edgeCols,'project','base'];
-  const row=(o,cols)=>cols.map(k=>o[k]??'');
+  const nodeCols=[...M.nodeCols,...M.optionalNodeCols];
+  const allCols=['record',...nodeCols,...M.edgeCols,'project','base'];
+  const row=(o,cols)=>cols.map(k=>o[k]!==null&&typeof o[k]==='object'?JSON.stringify(o[k]):o[k]??'');
   function object(cols,cells){
     if(cells.length>cols.length) throw Error('Лишние столбцы в строке: '+cells.join(', '));
     return Object.fromEntries(cols.map((k,i)=>[k,cells[i]??'']));
@@ -9,11 +10,12 @@ const Formats = ((M,A)=>{
   function tables(doc){
     const d=M.head(doc).data,m=meta(doc);
     return {Project:[['project','base','title'],[m.project,m.base,m.title]],
-      Nodes:[M.nodeCols,...d.nodes.map(n=>row(n,M.nodeCols))],Edges:[M.edgeCols,...d.edges.map(e=>row(e,M.edgeCols))]};
+      Nodes:[nodeCols,...d.nodes.map(n=>row(n,nodeCols))],Edges:[M.edgeCols,...d.edges.map(e=>row(e,M.edgeCols))]};
   }
   function pick(o,cols){return Object.fromEntries(cols.filter(k=>k in o).map(k=>[k,o[k]]));}
   function getNode(o){
-    const n=pick(o,M.nodeCols);
+    const n=pick(o,nodeCols);
+    for(const k of M.optionalNodeCols){if(n[k])n[k]=JSON.parse(n[k]);else delete n[k];}
     for(const k of ['effort','capacity'])if(k in n)n[k]=n[k]===''?null:Number(n[k]);
     if(!n.kind)delete n.kind;if(!n.state)delete n.state;return M.node(n);
   }

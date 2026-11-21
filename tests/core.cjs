@@ -75,3 +75,39 @@ test('text agent uses configured model; preview, explicit apply and questions',a
   questions=['Уточните выпуск'];assert.notEqual((await run('--apply')).code,0);assert.equal(R.readProject(file).history.length,1);
   questions=[];assert.equal((await run('--apply')).code,0);assert.equal(R.readProject(file).history.length,2);
 });
+test('enterprise links, typed attributes and repeated scenario calls survive projections',async t=>{
+  const enterprise=R.readProject(path.join(root,'example/enterprise-architecture.dsm.json'));
+  const state=M.head(enterprise), change=M.patch(state.data,[{op:'node',value:{id:'SC-1',steps:[['API','STORE'],['API','STORE']]}}]);
+  const actual=M.commit(enterprise,change,state.rev,'Повтор сообщения','QA');
+  const {dir}=workspace(t);
+  for(const format of ['md','csv','xlsx','ipynb','html','json']){
+    const file=path.join(dir,'enterprise.'+format);
+    fs.writeFileSync(file,await R.exportBytes(actual,format));
+    assert.deepEqual(R.Fmt.preview(actual,await R.readInput(file)),change,format);
+  }
+  assert.deepEqual(R.analyze(enterprise).requirements,[{id:'REQ-1',implementations:['API'],deviations:['DEV-1']}]);
+  const patch=value=>M.patch(state.data,[{op:'node',value}]);
+  assert.throws(()=>patch({id:'API',relations:[['deployedOn','MISSING']]}),/ссылка/);
+  assert.throws(()=>patch({id:'ADR-1',refs:['MISSING']}),/ссылка/);
+  assert.throws(()=>patch({id:'SC-1',steps:[['S1','LOT']]}),/отсутствует вызов/);
+  assert.throws(()=>patch({id:'S1',attrs:{memory:{size:16}}}),/Атрибуты/);
+  assert.deepEqual(M.diff(state.data,M.copy(state.data)),[]);
+  assert.equal(M.diff(state.data,patch({id:'S1',attrs:{}})).length,1);
+});
+test('OpenSpec bundle links decision files and requires an acceptance scenario',async()=>{
+  const enterprise=R.readProject(path.join(root,'example/enterprise-architecture.dsm.json'));
+  const specs=require(path.join(src,'specifications.js')),zip=require(path.join(src,'vendor/jszip.js'));
+  const bundle=await zip.loadAsync(await specs.bundle(enterprise,'upgrade-memory'));
+  const files=Object.keys(bundle.files);
+  const design=files.find(s=>s.endsWith('design.md'));
+  const text=await bundle.file(design).async('string');
+  const link=text.match(/\]\(([^)]+)\)/)[1];
+  assert.ok(bundle.file(path.posix.normalize(path.posix.join(path.posix.dirname(design),link))));
+  const spec=await bundle.file(files.find(s=>s.endsWith('/spec.md'))).async('string');
+  assert.match(spec,/SHALL/);assert.match(spec,/\*\*WHEN\*\*/);
+  const state=M.head(enterprise),updated=M.patch(state.data,[{op:'node',value:{id:'REQ-1',attrs:{}}}]);
+  await assert.rejects(specs.bundle(M.commit(enterprise,updated,state.rev,'Изменение','QA'),'upgrade-memory'),/when/);
+});
+test('release HTML matches the assembled standalone application',()=>{
+  assert.equal(fs.readFileSync(path.join(root,'DSM-Studio.html'),'utf8')===R.html(doc),true);
+});

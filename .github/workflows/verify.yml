@@ -5,7 +5,7 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -19,6 +19,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python -m pip install playwright nbformat nbclient ipykernel openpyxl
+      - run: python -m pip install playwright nbformat nbclient openpyxl "ipykernel>=6,<8" "notebook>=7.5,<7.6" "jupyterlab>=4.5,<4.6" "mcp>=1,<2"
       - run: python -m playwright install --with-deps chromium
+      - run: python tests/mcp_client.py
       - run: python tests/browser_notebook.py
+      - run: npx --yes @fission-ai/openspec@2.1.1 validate --all --strict

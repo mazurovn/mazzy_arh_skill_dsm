@@ -24,20 +24,28 @@ function signature(dir) {
   return hash.digest('hex');
 }
 
-function copySkill(target) {
+function copySkill(target, upgrade, workspace) {
   const source = path.join(__dirname, 'skills', 'edit-dsm-project');
   const expected = signature(source);
-  if (!fs.existsSync(target)) {
-    fs.mkdirSync(path.dirname(target), {recursive:true});
-    const stage = fs.mkdtempSync(path.join(path.dirname(target), '.dsm-install-'));
-    try {
-      fs.cpSync(source, stage, {recursive:true});
-      fs.renameSync(stage, target);
-    } finally {
-      fs.rmSync(stage, {recursive:true, force:true});
+  const exists=fs.existsSync(target);
+  if(exists&&signature(target)===expected)return;
+  if(exists&&!upgrade)throw Error('Локальная версия навыка отличается. Для обновления с резервной копией используйте --upgrade.');
+  fs.mkdirSync(path.dirname(target), {recursive:true});
+  const stage=fs.mkdtempSync(path.join(path.dirname(target),'.dsm-install-'));
+  let backup;
+  try {
+    fs.cpSync(source,stage,{recursive:true});
+    if(signature(stage)!==expected)throw Error('Не удалось проверить скопированный навык');
+    if(exists){
+      const backups=path.join(workspace,'.dsm-backups');
+      fs.mkdirSync(backups,{recursive:true});
+      backup=path.join(fs.mkdtempSync(path.join(backups,'skill-')),'edit-dsm-project');
+      fs.renameSync(target,backup);
     }
-  }
-  if (signature(target) !== expected) throw Error('Локальная версия навыка отличается. Сохраните её и выберите отдельную рабочую папку.');
+    try{fs.renameSync(stage,target);}catch(error){if(backup)fs.renameSync(backup,target);throw error;}
+    if(backup)console.log('Предыдущая версия навыка сохранена в '+backup);
+  }finally{fs.rmSync(stage,{recursive:true,force:true});}
+
 }
 
 function seed(source, dest) {
@@ -107,21 +115,47 @@ async function smoke(cli,sample) {
   }
 }
 
+function installJupyter(workspace){
+  const dir=path.join(workspace,'.dsm-python');
+  const windows=process.platform==='win32';
+  const python=path.join(dir,windows?'Scripts/python.exe':'bin/python');
+  const packages=['notebook>=7.5,<7.6','jupyterlab>=4.5,<4.6','ipykernel>=6,<8'];
+  const useUv=spawnSync('uv',['--version'],{stdio:'ignore'}).status===0;
+  function run(cmd,args){
+    const result=spawnSync(cmd,args,{stdio:'inherit'});
+    if(result.error||result.status!==0)throw Error('Не удалось настроить Jupyter: '+(result.error?.message||cmd));
+  }
+  if(!fs.existsSync(python)){
+    if(useUv)run('uv',['venv',dir]);
+    else run(windows?'python':'python3',['-m','venv',dir]);
+  }
+  if(useUv)run('uv',['pip','install','--python',python,...packages]);
+  else run(python,['-m','pip','install',...packages]);
+}
+
 async function main(args) {
-  let workspace=path.join(os.homedir(),'mazzy-dsm-workspace'),launch=false;
+  let workspace=path.join(os.homedir(),'mazzy-dsm-workspace'),launch=false,upgrade=false,jupyter=false;
   for(let i=0;i<args.length;i++) {
     if(args[i]==='--workspace' && args[i+1]) workspace=path.resolve(args[++i]);
     else if(args[i]==='--serve') launch=true;
-    else if(args[i]==='--help') { console.log('node install-local.cjs [--workspace DIRECTORY] [--serve]');return; }
+    else if(args[i]==='--upgrade')upgrade=true;
+    else if(args[i]==='--jupyter')jupyter=true;
+    else if(args[i]==='--help') { console.log('node install-local.cjs [--workspace DIRECTORY] [--serve] [--upgrade] [--jupyter]');return; }
     else throw Error('Неизвестный аргумент '+args[i]);
   }
   if(Number(process.versions.node.split('.')[0])<22) throw Error('Требуется Node.js 22 или новее');
   const target=path.join(workspace,'.agents','skills','edit-dsm-project');
   const cli=path.join(target,'scripts','dsm.cjs');
   const sample=path.join(__dirname,'example','terminal-kit.dsm.json'),project=path.join(workspace,'project.json');
-  copySkill(target);
-  seed(sample,project);
-  configure(workspace,cli,project);
+  fs.mkdirSync(workspace,{recursive:true});
+  const lock=path.join(workspace,'.dsm-install.lock');
+  const fd=fs.openSync(lock,'wx');
+  try{
+    copySkill(target,upgrade,workspace);
+    seed(sample,project);
+    configure(workspace,cli,project);
+    if(jupyter)installJupyter(workspace);
+  }finally{fs.closeSync(fd);fs.unlinkSync(lock);}
   const current=request(cli,project,'dsm_read',{});
   const check=await smoke(cli,sample);
   console.log(JSON.stringify({host:os.hostname(),platform:process.platform,workspace,project,revision:current.base,check},null,2));

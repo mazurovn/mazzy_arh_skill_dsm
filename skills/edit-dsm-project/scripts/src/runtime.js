@@ -23,7 +23,7 @@ function update(file,project,base,note,actor,fn){
 }
 function html(doc){
   const src=f=>textFile(path.join(__dirname,f));
-  const files=['vendor/jszip.js','vendor/sax.js','model.js','analysis.js','formats.js','excel.js','notebook.js','ui.js'];
+  const files=['vendor/jszip.js','vendor/sax.js','model.js','analysis.js','formats.js','excel.js','notebook.js','sysl.js','specifications.js','enterprise.js','views.js','ui.js'];
   const notices=['LICENSE.txt','vendor/JSZip-LICENSE.txt','vendor/SAX-LICENSE.txt','vendor/PAKO-LICENSE.txt','vendor/BUNDLED-NOTICES.txt'].map(src).join('\n\n');
   return src('shell.html').replace('</head>',()=>'<script type="text/plain" id="licenses">'+notices.replace(/<\/script/gi,'&lt;/script')+'</script></head>').replace('/*__CSS__*/',()=>src('style.css')).replace('__PROJECT__',()=>JSON.stringify(doc).replaceAll('<','\\u003c')).replace('<!--__SCRIPTS__-->',()=>files.map(f=>'<script>\n'+src(f).replace(/<\/script/gi,'<\\/script')+'\n</script>').join('\n'));
 }
@@ -40,9 +40,9 @@ async function readInput(file,layer='flow'){
   throw Error('Неизвестный формат '+k);
 }
 async function exportBytes(doc,k){
-  switch(k){case 'html':return html(doc);case 'md':return Fmt.markdown(doc);case 'csv':return Fmt.emitCsv(doc);case 'xlsx':return Xlsx.write(doc);case 'ipynb':return json(Book.write(doc));case 'json':return json(doc);default:throw Error('Неизвестный формат экспорта');}
+  switch(k){case 'sysl':return require('./sysl.js').write(Model.head(doc).data);case 'html':return html(doc);case 'md':return Fmt.markdown(doc);case 'csv':return Fmt.emitCsv(doc);case 'xlsx':return Xlsx.write(doc);case 'ipynb':return json(Book.write(doc));case 'json':return json(doc);default:throw Error('Неизвестный формат экспорта');}
 }
 function current(doc){const h=Model.head(doc);return {project:doc.project,base:h.rev,version:doc.history.length,actor:h.actor,note:h.note,data:h.data};}
-function analyze(doc){const d=Model.head(doc).data;return {flow:AnalysisRun.calculate(d,'flow'),risk:AnalysisRun.calculate(d,'risk'),releases:Model.plan(d)};}
+function analyze(doc){const d=Model.head(doc).data;return {flow:AnalysisRun.calculate(d,'flow'),risk:AnalysisRun.calculate(d,'risk'),releases:Model.plan(d),requirements:require('./specifications.js').coverage(d).map(r=>({id:r.requirement.id,implementations:r.implementations.map(n=>n.id),deviations:r.deviations.map(n=>n.id)}))};}
 function preview(doc,input){const after=Fmt.preview(doc,input);return {project:doc.project,base:Model.head(doc).rev,changes:Model.diff(Model.head(doc).data,after),releases:Model.plan(after)};}
 module.exports={Model,Fmt,readProject,readInput,update,exportBytes,html,json,current,analyze,preview};

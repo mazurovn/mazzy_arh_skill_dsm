@@ -1,0 +1,336 @@
+{
+  "schema": "dsm-project/1",
+  "project": "05a8f2d1-44ec-4f60-8d59-4a05546db317",
+  "history": [
+    {
+      "rev": "bb9cf265-152c-4a62-869f-9e18bef5507c",
+      "parent": null,
+      "at": "2026-11-21T15:31:28.584Z",
+      "actor": "Мастерская DSM",
+      "note": "Учебный пример закупок и установки",
+      "data": {
+        "title": "Архитектура поставок",
+        "nodes": [
+          {
+            "id": "ORG",
+            "name": "Дирекция снабжения",
+            "kind": "organization",
+            "state": "unspecified",
+            "parent": "",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Учебная организация. Названия и показатели синтетические."
+          },
+          {
+            "id": "SUPPLY",
+            "name": "Закупки",
+            "kind": "domain",
+            "state": "unspecified",
+            "parent": "ORG",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": ""
+          },
+          {
+            "id": "DATA",
+            "name": "Данные поставщиков",
+            "kind": "dataArea",
+            "state": "unspecified",
+            "parent": "SUPPLY",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": ""
+          },
+          {
+            "id": "BUY",
+            "name": "Электронная заявка",
+            "kind": "project",
+            "state": "unspecified",
+            "parent": "ORG",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": ""
+          },
+          {
+            "id": "LOT",
+            "name": "Закупка вычислительных ресурсов",
+            "kind": "procurement",
+            "state": "unspecified",
+            "parent": "BUY",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "",
+            "attrs": {
+              "owner": "Отдел снабжения"
+            },
+            "refs": [
+              "INSTALL"
+            ]
+          },
+          {
+            "id": "INSTALL",
+            "name": "Промышленная установка",
+            "kind": "installation",
+            "state": "unspecified",
+            "parent": "BUY",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": ""
+          },
+          {
+            "id": "POOL",
+            "name": "Кластер закупок",
+            "kind": "cluster",
+            "state": "unspecified",
+            "parent": "INSTALL",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": ""
+          },
+          {
+            "id": "S1",
+            "name": "Основной сервер",
+            "kind": "server",
+            "state": "unspecified",
+            "parent": "POOL",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "",
+            "attrs": {
+              "memoryGiB": 16
+            }
+          },
+          {
+            "id": "PORTAL",
+            "name": "Портал закупок",
+            "kind": "product",
+            "state": "unspecified",
+            "parent": "SUPPLY",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": ""
+          },
+          {
+            "id": "API",
+            "name": "Сервис заявок",
+            "kind": "component",
+            "state": "unspecified",
+            "parent": "PORTAL",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "",
+            "relations": [
+              [
+                "deployedOn",
+                "S1"
+              ],
+              [
+                "realizes",
+                "REQ-1"
+              ]
+            ]
+          },
+          {
+            "id": "STORE",
+            "name": "Реестр поставщиков",
+            "kind": "component",
+            "state": "unspecified",
+            "parent": "PORTAL",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "",
+            "relations": [
+              [
+                "uses",
+                "DATA"
+              ]
+            ]
+          },
+          {
+            "id": "REL",
+            "name": "Пилот",
+            "kind": "release",
+            "state": "unspecified",
+            "parent": "BUY",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": 8,
+            "note": ""
+          },
+          {
+            "id": "F1",
+            "name": "Проверка заявки",
+            "kind": "feature",
+            "state": "unspecified",
+            "parent": "API",
+            "release": "REL",
+            "segment": "",
+            "bundle": "",
+            "effort": 3,
+            "capacity": null,
+            "note": ""
+          },
+          {
+            "id": "REQ-1",
+            "name": "Хранение реестра на сервере с резервом",
+            "kind": "requirement",
+            "state": "unspecified",
+            "parent": "BUY",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "обеспечивать минимум 32 ГиБ памяти на основном сервере.",
+            "attrs": {
+              "when": "сервис вводится в эксплуатацию",
+              "then": "паспорт сервера показывает минимум 32 ГиБ"
+            }
+          },
+          {
+            "id": "DEV-1",
+            "name": "Недостаточный объём памяти",
+            "kind": "deviation",
+            "state": "review",
+            "parent": "",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "",
+            "refs": [
+              "S1",
+              "API",
+              "REQ-1"
+            ],
+            "attrs": {
+              "expected": "32 ГиБ",
+              "actual": "16 ГиБ"
+            }
+          },
+          {
+            "id": "upgrade-memory",
+            "name": "Увеличить память сервера",
+            "kind": "proposal",
+            "state": "review",
+            "parent": "",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "## Why\n\nСерверу пилота требуется резерв памяти.\n\n## What Changes\n\nУвеличить память до 32 ГиБ и закрыть отклонение после проверки.\n\n## Capabilities\n\n### New Capabilities\n\n- Сервер с резервом для сервиса заявок.\n\n## Impact\n\nПилотная установка портала закупок.",
+            "refs": [
+              "REQ-1",
+              "DEV-1",
+              "S1"
+            ]
+          },
+          {
+            "id": "ADR-1",
+            "name": "Расширение существующего узла",
+            "kind": "adr",
+            "state": "done",
+            "parent": "",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "## Контекст\n\nПилот размещён на S1.\n\n## Решение\n\nСогласовать поставку памяти в действующий сервер.\n\n## Последствия\n\nТребуется окно обслуживания.",
+            "refs": [
+              "upgrade-memory",
+              "S1",
+              "LOT"
+            ]
+          },
+          {
+            "id": "SC-1",
+            "name": "Проверка поставщика",
+            "kind": "scenario",
+            "state": "unspecified",
+            "parent": "",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "",
+            "steps": [
+              [
+                "PORTAL",
+                "API"
+              ],
+              [
+                "API",
+                "STORE"
+              ]
+            ],
+            "refs": [
+              "REQ-1"
+            ]
+          }
+        ],
+        "edges": [
+          {
+            "layer": "flow",
+            "from": "PORTAL",
+            "to": "API",
+            "weight": 1,
+            "reason": "Передать заявку на проверку"
+          },
+          {
+            "layer": "flow",
+            "from": "API",
+            "to": "STORE",
+            "weight": 2,
+            "reason": "Проверить статус поставщика"
+          },
+          {
+            "layer": "risk",
+            "from": "API",
+            "to": "STORE",
+            "weight": 3,
+            "reason": "Версия карточки поставщика совпадает с версией в заявке"
+          }
+        ]
+      }
+    }
+  ]
+}

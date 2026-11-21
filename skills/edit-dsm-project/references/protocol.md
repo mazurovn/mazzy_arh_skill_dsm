@@ -2,7 +2,7 @@
 
 Полный JSON хранит schema `dsm-project/1`, project и последовательность history. Запись содержит rev, parent, at, actor, note и полное data. Начальная запись имеет parent=null. В data хранятся title, nodes и edges. Симметричный ключ risk не зависит от порядка концов. Основание каждой связи хранится в reason. ID элементов можно использовать в средах с разным языком интерфейса.
 
-Узел имеет постоянный id, name, kind (product, module, component, feature, release), state (unspecified, idea, planned, active, review, blocked, done), parent, release, segment, bundle, effort, capacity и note. Для пустой ссылки использовать пустую строку, для неизвестной оценки — null. Родители образуют лес. Поле release ссылается на узел вида release. Указывать capacity только у релиза. Общая единица для effort и capacity определяется командой проекта.
+Узел имеет постоянный id, name, kind (включая продукт, компонент, сервер, кластер, домен, область данных, требование, отклонение, предложение и ADR), state (unspecified, idea, planned, active, review, blocked, done), parent, release, segment, bundle, effort, capacity и note. Для пустой ссылки использовать пустую строку, для неизвестной оценки — null. Родители образуют лес. Поле release ссылается на узел вида release. Указывать capacity только у релиза. Общая единица для effort и capacity определяется командой проекта.
 
 Патч содержит project и base из show, actor, note и непустой массив ops. Одна транзакция может добавить несколько зависимых объектов. Порядок операций сохраняется. Итог проходит проверку внешних ключей и циклов родителей.
 
@@ -21,3 +21,6 @@
 В MCP доступны dsm_read, dsm_analyze, dsm_history, dsm_diff, dsm_preview, dsm_apply и dsm_restore. Для preview передать только project, base и ops. При apply добавить actor и note. Ошибка устаревшей базы завершает запрос без записи. Для чата без инструментов приложить актуальный JSON и попросить вернуть патч. Его можно просмотреть через «Обмен → Вставить исходный текст → JSON или патч».
 
 Все файлы навыка кроме сторонних библиотек распространяются на условиях Mazzy Attribution License 1.0. Указание автора при переиспользовании: mazzy (mazurovn). Полный текст включён в scripts/src/LICENSE.txt.
+
+
+В карточке доступны необязательные поля. `attrs` содержит словарь именованных скалярных значений. `refs` содержит ID связанных объектов. `relations` содержит пары типа и целевого ID, например `["deployedOn","S1"]`. Доступные типы — realizes, deployedOn, dependsOn, uses, owns, produces, verifies. У сценария `steps` содержит последовательность пар отправитель–получатель с существующим направленным вызовом. Массивы и словарь заменяются целиком при обновлении поля. В CSV, Excel и Markdown ячейки таких полей содержат JSON. В проекте закупок REQ-1 связывается с API, DEV-1 ссылается на затронутые объекты, а ADR-1 ссылается на предложение upgrade-memory.

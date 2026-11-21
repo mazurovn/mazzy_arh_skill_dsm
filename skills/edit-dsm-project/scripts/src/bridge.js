@@ -44,8 +44,9 @@ function mcp(file){
 }
 function serve(file,port){
   const http=require('node:http');
+  const notebooks=require('./jupyter.js')(file);
   const srv=http.createServer(async(req,res)=>{
-    const send=(status,data,type='application/json')=>{res.writeHead(status,{'Content-Type':type+'; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(type==='application/json'?JSON.stringify(data):data);};
+    const send=(status,data,type='application/json')=>{res.writeHead(status,{'Content-Type':type+'; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Content-Security-Policy':"frame-ancestors 'none'"});res.end(type==='application/json'?JSON.stringify(data):data);};
     try{
       const host='127.0.0.1:'+srv.address().port;
       if(req.headers.host!==host||req.headers.origin&&req.headers.origin!=='http://'+host){send(403,{error:'Несовпадение локального адреса'});return;}
@@ -55,6 +56,14 @@ function serve(file,port){
         if(req.url==='/api/project'){send(200,doc);return;}
         if(req.url==='/api/head'){send(200,{rev:M.head(doc).rev});return;}
       }
+      if(req.method==='POST'&&req.url.startsWith('/api/notebooks/')){
+        const origin='http://'+host;
+        if(req.headers.origin!==origin||req.headers['content-type']!=='application/json'){send(403,{error:'Требуется локальный редактор'});return;}
+        const [, , , action, id]=req.url.split('/');
+        if(action==='start'&&!id){send(200,await notebooks.start(R.readProject(file),origin));return;}
+        if(action==='read'&&id){send(200,notebooks.read(id));return;}
+        if(action==='stop'&&id){notebooks.stop(id);send(200,{});return;}
+      }
       if(req.method==='POST'&&req.url==='/api/commit'){
         if(req.headers.origin!=='http://'+host||req.headers['content-type']?.split(';')[0]!=='application/json'){send(403,{error:'Требуется локальный редактор'});return;}
         const parts=[];let len=0;for await(const part of req){len+=part.length;if(len>16*1024*1024){send(413,{error:'Модель больше 16 МиБ'});return;}parts.push(part);}
@@ -63,6 +72,8 @@ function serve(file,port){
       send(404,{error:'Нет такого маршрута'});
     }catch(err){send(/Конфликт|занят/.test(err.message)?409:400,{error:err.message});}
   });
+  process.once('exit',notebooks.close);
+  for(const signal of ['SIGTERM','SIGINT'])process.once(signal,()=>{notebooks.close();process.exit(0);});
   srv.listen(port,'127.0.0.1',()=>console.log('http://127.0.0.1:'+srv.address().port));
 }
 module.exports={mcp,serve,invoke,defs};

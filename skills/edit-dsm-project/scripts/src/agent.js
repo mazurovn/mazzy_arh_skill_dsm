@@ -14,7 +14,7 @@ const instruction=[
   'Верни один JSON-объект {"summary":"короткое описание","questions":[],"ops":[]} без разметки.',
   'Для аналитического вопроса достаточно summary и пустого ops. Для неоднозначного изменения включи конкретный вопрос в questions.',
   'node: {"op":"node","value":{"id":"F03","release":"R2"}} создаёт или частично обновляет объект.',
-  'Допустимые kind: component, module, product, release, feature. state: idea, planned, active, review, blocked, done, unspecified.',
+  'Типы kind: '+R.Model.kinds.join(', ')+'. Состояния state: '+R.Model.states.join(', ')+'. refs хранит ссылки на ID, steps у scenario хранит упорядоченные пары существующих вызовов.',
   'Узел содержит id, name, kind, state, parent, release, segment, bundle, effort, capacity, note. Неизвестная оценка null.',
   'edge: {"op":"edge","value":{"layer":"flow","from":"A","to":"B","weight":1,"reason":"явный контракт"}}.',
   'flow направлен от потребителя к контракту. risk хранит одну неупорядоченную пару с обоснованием.',
