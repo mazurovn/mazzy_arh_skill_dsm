@@ -12,6 +12,10 @@ jobs:
         with:
           node-version: '22'
       - run: node --test tests/core.cjs
+      - name: Install twice in a clean local workspace
+        run: |
+          node install-local.cjs --workspace "$RUNNER_TEMP/DSM workspace"
+          node install-local.cjs --workspace "$RUNNER_TEMP/DSM workspace"
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
