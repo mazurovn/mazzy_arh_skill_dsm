@@ -38,6 +38,14 @@ def load(page, kind, path):
 def native(page,url):
     button(page,'Рассчитать в Jupyter').click()
     page.locator('#bookDataKind').select_option('inventory')
+    page.locator('#bookDataReq').fill('REQ-HA')
+    page.locator('#content details').filter(has=page.locator('[data-action=bookRefresh]')).locator('summary').click()
+    with page.expect_response(lambda r:r.url.endswith('/api/notebooks/list')):
+        button(page,'Обновить список').click()
+    # The async list refresh replaces the form DOM.
+    expect(page.locator('#content details[open]').filter(has=page.locator('[data-action=bookRefresh]'))).to_have_count(0)
+    expect(page.locator('#bookDataKind')).to_have_value('inventory')
+    expect(page.locator('#bookDataReq')).to_have_value('REQ-HA')
     page.locator('#bookDataFile').set_input_files(SOURCE/'inventory.csv')
     expect(page.locator('#toast')).to_contain_text('Вложен файл inventory.csv')
     button(page,'Запустить Jupyter').click()

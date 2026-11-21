@@ -1,5 +1,6 @@
 function fleetPanel({doc,esc,b,option,sel,field,table,modal,push,render,download,navigate,toast,notebook,matrix,graph}){
   let root='',step='sources',key='resilient',group='site',layer='flow',budget=null,plan='';
+  let category='catalog',requirement='',projectId='';
   const stages={sources:'Источники',stock:'Текущий парк',options:'Варианты и резерв',decision:'ADR и релиз',report:'Отчёт'};
   const categories={catalog:'Каталог',requirements:'Требования',specifications:'Спецификации',contracts:'Связи DSM'};
   const money=v=>v==null?'—':v.toLocaleString('ru-RU')+' ₽';
@@ -16,7 +17,7 @@ function fleetPanel({doc,esc,b,option,sel,field,table,modal,push,render,download
   const select=(id,title,options,current)=>'<label class="field">'+title+'<select id="'+id+'">'+options.map(([v,l])=>option(v,l,current)).join('')+'</select></label>';
   const number=(k,label,val,min=0)=>field(k,label,val,'type="number" min="'+min+'" step="1" required');
   const txt=(k,label)=>'<label class="field">'+label+'<textarea name="'+k+'" required></textarea></label>';
-  function current(){const roots=model().nodes.filter(n=>n.kind==='procurement');if(!roots.some(n=>n.id===root))root=roots[0]?.id||'';return roots;}
+  function current(){if(projectId!==doc().project){projectId=doc().project;category='catalog';requirement='';root='';plan='';}const roots=model().nodes.filter(n=>n.kind==='procurement');if(!roots.some(n=>n.id===root))root=roots[0]?.id||'';return roots;}
   function owner(n){
     const m=model(),roots=m.nodes.filter(x=>x.kind==='procurement');
     for(const r of roots.sort((a,b)=>(b.id===root)-(a.id===root))){
@@ -29,8 +30,8 @@ function fleetPanel({doc,esc,b,option,sel,field,table,modal,push,render,download
   function sources(){
     const records=linkRows().filter(n=>Fleet.role(n)==='source');
     const requirements=linkRows().filter(n=>n.kind==='requirement');
-    return section('Загрузить исходные данные',bar([select('fleetCategory','Содержимое файла',Object.entries(categories),'catalog'),
-      select('fleetRequirement','Связать спецификацию с требованием',[['','Из файла'],...choices(requirements)],''),
+    return section('Загрузить исходные данные',bar([select('fleetCategory','Содержимое файла',Object.entries(categories),category),
+      select('fleetRequirement','Связать спецификацию с требованием',[['','Из файла'],...choices(requirements)],requirement),
       '<label class="field">Файл CSV, TSV, Excel или Markdown<input id="fleetFile" type="file" accept=".csv,.tsv,.xlsx,.md"></label>'])+
       table(['Документ','Тип','Байт','SHA-256','Исходные записи',''],records.map(n=>[card(n.id)+' '+esc(n.name),esc(categories[n.attrs.category]),n.attrs.bytes,'<code title="'+esc(n.attrs.sha256)+'">'+esc(n.attrs.sha256.slice(0,12))+'</code>',ids(n.refs||[]),act('Download','Скачать оригинал',n.id)])))+
       section('Требования и спецификации',table(['ID','Описание','Основание','Связано с'],linkRows().filter(n=>n.kind==='requirement'||Fleet.role(n)==='specification').map(n=>[card(n.id),esc(n.name),esc(n.note),ids(n.refs||[])])));
@@ -143,10 +144,13 @@ function fleetPanel({doc,esc,b,option,sel,field,table,modal,push,render,download
   }
   function bind(){
     const on=(id,fn)=>{const el=document.getElementById(id);if(el)el.onchange=e=>{fn(e.target.value);render();};};
-    on('fleetRoot',v=>{root=v;plan='';});on('fleetLayer',v=>{layer=v;});on('fleetOption',v=>{key=v;});on('fleetPlan',v=>{plan=v;});on('fleetGroup',v=>{group=v;});
+    on('fleetRoot',v=>{root=v;plan='';requirement='';});on('fleetLayer',v=>{layer=v;});on('fleetOption',v=>{key=v;});on('fleetPlan',v=>{plan=v;});on('fleetGroup',v=>{group=v;});
+    const kind=document.getElementById('fleetCategory'),req=document.getElementById('fleetRequirement');
+    if(kind)kind.onchange=e=>{category=e.target.value;};
+    if(req)req.onchange=e=>{requirement=e.target.value;};
     const file=document.getElementById('fleetFile');if(file)file.onchange=async()=>{
-      const f=file.files[0];if(!f)return;const snap=doc(),base=DSM.head(snap).rev;
-      try{const next=await FleetSource.ingest(snap,document.getElementById('fleetCategory').value,f.name,new Uint8Array(await f.arrayBuffer()),root,document.getElementById('fleetRequirement').value);
+      const f=file.files[0];if(!f)return;const snap=doc(),base=DSM.head(snap).rev,owner=root,kind=category,linked=requirement;
+      try{const next=await FleetSource.ingest(snap,kind,f.name,new Uint8Array(await f.arrayBuffer()),owner,linked);
         preview(next,'Загрузка · '+f.name,base);}catch(e){toast(e.message);}finally{file.value='';}
     };
   }

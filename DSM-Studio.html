@@ -5110,6 +5110,7 @@ if(typeof module!=='undefined')module.exports=FleetSource;
 <script>
 function fleetPanel({doc,esc,b,option,sel,field,table,modal,push,render,download,navigate,toast,notebook,matrix,graph}){
   let root='',step='sources',key='resilient',group='site',layer='flow',budget=null,plan='';
+  let category='catalog',requirement='',projectId='';
   const stages={sources:'Источники',stock:'Текущий парк',options:'Варианты и резерв',decision:'ADR и релиз',report:'Отчёт'};
   const categories={catalog:'Каталог',requirements:'Требования',specifications:'Спецификации',contracts:'Связи DSM'};
   const money=v=>v==null?'—':v.toLocaleString('ru-RU')+' ₽';
@@ -5126,7 +5127,7 @@ function fleetPanel({doc,esc,b,option,sel,field,table,modal,push,render,download
   const select=(id,title,options,current)=>'<label class="field">'+title+'<select id="'+id+'">'+options.map(([v,l])=>option(v,l,current)).join('')+'</select></label>';
   const number=(k,label,val,min=0)=>field(k,label,val,'type="number" min="'+min+'" step="1" required');
   const txt=(k,label)=>'<label class="field">'+label+'<textarea name="'+k+'" required></textarea></label>';
-  function current(){const roots=model().nodes.filter(n=>n.kind==='procurement');if(!roots.some(n=>n.id===root))root=roots[0]?.id||'';return roots;}
+  function current(){if(projectId!==doc().project){projectId=doc().project;category='catalog';requirement='';root='';plan='';}const roots=model().nodes.filter(n=>n.kind==='procurement');if(!roots.some(n=>n.id===root))root=roots[0]?.id||'';return roots;}
   function owner(n){
     const m=model(),roots=m.nodes.filter(x=>x.kind==='procurement');
     for(const r of roots.sort((a,b)=>(b.id===root)-(a.id===root))){
@@ -5139,8 +5140,8 @@ function fleetPanel({doc,esc,b,option,sel,field,table,modal,push,render,download
   function sources(){
     const records=linkRows().filter(n=>Fleet.role(n)==='source');
     const requirements=linkRows().filter(n=>n.kind==='requirement');
-    return section('Загрузить исходные данные',bar([select('fleetCategory','Содержимое файла',Object.entries(categories),'catalog'),
-      select('fleetRequirement','Связать спецификацию с требованием',[['','Из файла'],...choices(requirements)],''),
+    return section('Загрузить исходные данные',bar([select('fleetCategory','Содержимое файла',Object.entries(categories),category),
+      select('fleetRequirement','Связать спецификацию с требованием',[['','Из файла'],...choices(requirements)],requirement),
       '<label class="field">Файл CSV, TSV, Excel или Markdown<input id="fleetFile" type="file" accept=".csv,.tsv,.xlsx,.md"></label>'])+
       table(['Документ','Тип','Байт','SHA-256','Исходные записи',''],records.map(n=>[card(n.id)+' '+esc(n.name),esc(categories[n.attrs.category]),n.attrs.bytes,'<code title="'+esc(n.attrs.sha256)+'">'+esc(n.attrs.sha256.slice(0,12))+'</code>',ids(n.refs||[]),act('Download','Скачать оригинал',n.id)])))+
       section('Требования и спецификации',table(['ID','Описание','Основание','Связано с'],linkRows().filter(n=>n.kind==='requirement'||Fleet.role(n)==='specification').map(n=>[card(n.id),esc(n.name),esc(n.note),ids(n.refs||[])])));
@@ -5253,10 +5254,13 @@ function fleetPanel({doc,esc,b,option,sel,field,table,modal,push,render,download
   }
   function bind(){
     const on=(id,fn)=>{const el=document.getElementById(id);if(el)el.onchange=e=>{fn(e.target.value);render();};};
-    on('fleetRoot',v=>{root=v;plan='';});on('fleetLayer',v=>{layer=v;});on('fleetOption',v=>{key=v;});on('fleetPlan',v=>{plan=v;});on('fleetGroup',v=>{group=v;});
+    on('fleetRoot',v=>{root=v;plan='';requirement='';});on('fleetLayer',v=>{layer=v;});on('fleetOption',v=>{key=v;});on('fleetPlan',v=>{plan=v;});on('fleetGroup',v=>{group=v;});
+    const kind=document.getElementById('fleetCategory'),req=document.getElementById('fleetRequirement');
+    if(kind)kind.onchange=e=>{category=e.target.value;};
+    if(req)req.onchange=e=>{requirement=e.target.value;};
     const file=document.getElementById('fleetFile');if(file)file.onchange=async()=>{
-      const f=file.files[0];if(!f)return;const snap=doc(),base=DSM.head(snap).rev;
-      try{const next=await FleetSource.ingest(snap,document.getElementById('fleetCategory').value,f.name,new Uint8Array(await f.arrayBuffer()),root,document.getElementById('fleetRequirement').value);
+      const f=file.files[0];if(!f)return;const snap=doc(),base=DSM.head(snap).rev,owner=root,kind=category,linked=requirement;
+      try{const next=await FleetSource.ingest(snap,kind,f.name,new Uint8Array(await f.arrayBuffer()),owner,linked);
         preview(next,'Загрузка · '+f.name,base);}catch(e){toast(e.message);}finally{file.value='';}
     };
   }
@@ -5617,6 +5621,7 @@ function reviewPanel({doc,esc,button:b,option,field,sel,table,tools,modal,push,d
 <script>
 function notebookPanel({doc,online,visible,render,proposed,modal,download,button,option,esc,toast}) {
   let selected=null,name='',profile='full',query='',kind='',onlyOutputs=false;
+  let attachmentCategory='catalog',attachmentRequirement='';
   let session=null,starting=false,error='',library=null,generation=0,loading='',selection=0;
   const host=()=>document.getElementById('notebookHost');
   const limit=16*1024*1024;
@@ -5631,6 +5636,7 @@ function notebookPanel({doc,online,visible,render,proposed,modal,download,button
     return value;
   }
   function reset(){
+    attachmentCategory='catalog';attachmentRequirement='';
     selected=null;name='';library=null;error='';query='';kind='';onlyOutputs=false;generation++;selection++;loading='';
   }
   async function refresh(){
@@ -5703,7 +5709,7 @@ function notebookPanel({doc,online,visible,render,proposed,modal,download,button
       '<label class="btn">Загрузить .ipynb<input type="file" class="file-picker" id="bookFile" accept=".ipynb"></label>'+
       (online()?action('Start',starting?'Запуск…':'Запустить Jupyter',starting?'disabled':'class="primary"'):'')+'</div>'+
       (selected&&online()?'<p>Для запуска выбран файл '+esc(name)+'.</p>':!online()?'<p>Для вычислений запустите локальную мастерскую с Jupyter. Подготовка и просмотр файлов доступны здесь.</p>':'');
-    return '<fieldset class="book-controls" '+(loading||starting?'disabled':'')+'><div class="stack">'+(loading?'<p role="status">Чтение · '+esc(loading)+'</p>':'')+'<article class="card" id="bookDrop"><h2>Jupyter Notebook</h2>'+controls+(error?'<p role="alert">'+esc(error)+'</p>':'')+'</article>'+(!session&&selected?.metadata.dsm?.profile==='fleet'?'<section class="card"><h3>Файл для расчёта в Jupyter</h3><div class="tools"><label>Содержимое <select id="bookDataKind">'+[['catalog','Каталог'],['requirements','Требования'],['specifications','Спецификация'],['contracts','Контракты DSM'],['inventory','Ведомость измерений']].map(([k,v])=>option(k,v,'catalog')).join('')+'</select></label><label>Требование для спецификации <input id="bookDataReq"></label><label>Вложить исходник <input id="bookDataFile" type="file" accept=".csv,.tsv,.xlsx,.md"></label></div><p class="hint">Файл сохраняется внутри .ipynb и читается ядром при выполнении всех ячеек.</p></section>':'')+(session?'':viewer()+shelf())+'</div></fieldset>';
+    return '<fieldset class="book-controls" '+(loading||starting?'disabled':'')+'><div class="stack">'+(loading?'<p role="status">Чтение · '+esc(loading)+'</p>':'')+'<article class="card" id="bookDrop"><h2>Jupyter Notebook</h2>'+controls+(error?'<p role="alert">'+esc(error)+'</p>':'')+'</article>'+(!session&&selected?.metadata.dsm?.profile==='fleet'?'<section class="card"><h3>Файл для расчёта в Jupyter</h3><div class="tools"><label>Содержимое <select id="bookDataKind">'+[['catalog','Каталог'],['requirements','Требования'],['specifications','Спецификация'],['contracts','Контракты DSM'],['inventory','Ведомость измерений']].map(([k,v])=>option(k,v,attachmentCategory)).join('')+'</select></label><label>Требование для спецификации <input id="bookDataReq" value="'+esc(attachmentRequirement)+'"></label><label>Вложить исходник <input id="bookDataFile" type="file" accept=".csv,.tsv,.xlsx,.md"></label></div><p class="hint">Файл сохраняется внутри .ipynb и читается ядром при выполнении всех ячеек.</p></section>':'')+(session?'':viewer()+shelf())+'</div></fieldset>';
   }
   async function handle(which,id){
     switch(which){
@@ -5737,10 +5743,12 @@ function notebookPanel({doc,online,visible,render,proposed,modal,download,button
   function bind(){
     const el=id=>document.getElementById(id);
     if(el('bookProfile'))el('bookProfile').onchange=e=>{profile=e.target.value;};
+    if(el('bookDataKind'))el('bookDataKind').onchange=e=>{attachmentCategory=e.target.value;};
+    if(el('bookDataReq'))el('bookDataReq').oninput=e=>{attachmentRequirement=e.target.value;};
     if(el('bookDataFile'))el('bookDataFile').onchange=async e=>{
       const file=e.target.files[0];if(!file)return;
       const ticket=++selection;loading=file.name;
-      const category=el('bookDataKind').value,req=el('bookDataReq').value.trim();render();
+      const category=attachmentCategory,req=attachmentRequirement.trim();render();
       try{const book=await FleetNotebook.attach(selected,category,file,req);if(ticket===selection){loading='';choose(book,name);toast('Вложен файл '+file.name);}}
       catch(err){if(ticket===selection){loading='';error=err.message;render();}}
     };

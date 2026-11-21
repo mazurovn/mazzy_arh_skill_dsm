@@ -36,7 +36,7 @@ function mcp(file){
     let q;try{q=JSON.parse(line);}catch{reply(null,{error:{code:-32700,message:'Parse error'}});return;}
     if(q.jsonrpc!=='2.0'||typeof q.method!=='string'){reply(q.id??null,{error:{code:-32600,message:'Invalid Request'}});return;}
     if(q.id===undefined)return;
-    if(q.method==='initialize'){reply(q.id,{result:{protocolVersion:'2025-06-18',capabilities:{tools:{}},serverInfo:{name:'mazzy-dsm',version:'1.4.0'}}});return;}
+    if(q.method==='initialize'){reply(q.id,{result:{protocolVersion:'2025-06-18',capabilities:{tools:{}},serverInfo:{name:'mazzy-dsm',version:'1.4.1'}}});return;}
     if(q.method==='ping'){reply(q.id,{result:{}});return;}
     if(q.method==='tools/list'){reply(q.id,{result:{tools:defs.map(([name,description,inputSchema])=>({name,description,inputSchema}))}});return;}
     if(q.method!=='tools/call'){reply(q.id,{error:{code:-32601,message:'Method not found'}});return;}

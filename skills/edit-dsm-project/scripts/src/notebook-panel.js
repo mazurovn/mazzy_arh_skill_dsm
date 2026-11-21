@@ -1,5 +1,6 @@
 function notebookPanel({doc,online,visible,render,proposed,modal,download,button,option,esc,toast}) {
   let selected=null,name='',profile='full',query='',kind='',onlyOutputs=false;
+  let attachmentCategory='catalog',attachmentRequirement='';
   let session=null,starting=false,error='',library=null,generation=0,loading='',selection=0;
   const host=()=>document.getElementById('notebookHost');
   const limit=16*1024*1024;
@@ -14,6 +15,7 @@ function notebookPanel({doc,online,visible,render,proposed,modal,download,button
     return value;
   }
   function reset(){
+    attachmentCategory='catalog';attachmentRequirement='';
     selected=null;name='';library=null;error='';query='';kind='';onlyOutputs=false;generation++;selection++;loading='';
   }
   async function refresh(){
@@ -86,7 +88,7 @@ function notebookPanel({doc,online,visible,render,proposed,modal,download,button
       '<label class="btn">Загрузить .ipynb<input type="file" class="file-picker" id="bookFile" accept=".ipynb"></label>'+
       (online()?action('Start',starting?'Запуск…':'Запустить Jupyter',starting?'disabled':'class="primary"'):'')+'</div>'+
       (selected&&online()?'<p>Для запуска выбран файл '+esc(name)+'.</p>':!online()?'<p>Для вычислений запустите локальную мастерскую с Jupyter. Подготовка и просмотр файлов доступны здесь.</p>':'');
-    return '<fieldset class="book-controls" '+(loading||starting?'disabled':'')+'><div class="stack">'+(loading?'<p role="status">Чтение · '+esc(loading)+'</p>':'')+'<article class="card" id="bookDrop"><h2>Jupyter Notebook</h2>'+controls+(error?'<p role="alert">'+esc(error)+'</p>':'')+'</article>'+(!session&&selected?.metadata.dsm?.profile==='fleet'?'<section class="card"><h3>Файл для расчёта в Jupyter</h3><div class="tools"><label>Содержимое <select id="bookDataKind">'+[['catalog','Каталог'],['requirements','Требования'],['specifications','Спецификация'],['contracts','Контракты DSM'],['inventory','Ведомость измерений']].map(([k,v])=>option(k,v,'catalog')).join('')+'</select></label><label>Требование для спецификации <input id="bookDataReq"></label><label>Вложить исходник <input id="bookDataFile" type="file" accept=".csv,.tsv,.xlsx,.md"></label></div><p class="hint">Файл сохраняется внутри .ipynb и читается ядром при выполнении всех ячеек.</p></section>':'')+(session?'':viewer()+shelf())+'</div></fieldset>';
+    return '<fieldset class="book-controls" '+(loading||starting?'disabled':'')+'><div class="stack">'+(loading?'<p role="status">Чтение · '+esc(loading)+'</p>':'')+'<article class="card" id="bookDrop"><h2>Jupyter Notebook</h2>'+controls+(error?'<p role="alert">'+esc(error)+'</p>':'')+'</article>'+(!session&&selected?.metadata.dsm?.profile==='fleet'?'<section class="card"><h3>Файл для расчёта в Jupyter</h3><div class="tools"><label>Содержимое <select id="bookDataKind">'+[['catalog','Каталог'],['requirements','Требования'],['specifications','Спецификация'],['contracts','Контракты DSM'],['inventory','Ведомость измерений']].map(([k,v])=>option(k,v,attachmentCategory)).join('')+'</select></label><label>Требование для спецификации <input id="bookDataReq" value="'+esc(attachmentRequirement)+'"></label><label>Вложить исходник <input id="bookDataFile" type="file" accept=".csv,.tsv,.xlsx,.md"></label></div><p class="hint">Файл сохраняется внутри .ipynb и читается ядром при выполнении всех ячеек.</p></section>':'')+(session?'':viewer()+shelf())+'</div></fieldset>';
   }
   async function handle(which,id){
     switch(which){
@@ -120,10 +122,12 @@ function notebookPanel({doc,online,visible,render,proposed,modal,download,button
   function bind(){
     const el=id=>document.getElementById(id);
     if(el('bookProfile'))el('bookProfile').onchange=e=>{profile=e.target.value;};
+    if(el('bookDataKind'))el('bookDataKind').onchange=e=>{attachmentCategory=e.target.value;};
+    if(el('bookDataReq'))el('bookDataReq').oninput=e=>{attachmentRequirement=e.target.value;};
     if(el('bookDataFile'))el('bookDataFile').onchange=async e=>{
       const file=e.target.files[0];if(!file)return;
       const ticket=++selection;loading=file.name;
-      const category=el('bookDataKind').value,req=el('bookDataReq').value.trim();render();
+      const category=attachmentCategory,req=attachmentRequirement.trim();render();
       try{const book=await FleetNotebook.attach(selected,category,file,req);if(ticket===selection){loading='';choose(book,name);toast('Вложен файл '+file.name);}}
       catch(err){if(ticket===selection){loading='';error=err.message;render();}}
     };
