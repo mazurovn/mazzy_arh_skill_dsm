@@ -44,19 +44,32 @@ def native(page,url):
     frame=page.frame_locator('#notebookHost iframe')
     first=frame.locator('.jp-CodeCell .cm-content').first
     expect(first).to_contain_text('null = None',timeout=90000)
-    # Notebook 7 virtualizes long documents; use its own Run menu.
+    # Wait for a real kernel round trip before dispatching Run All to Notebook 7.
+    first.click()
+    page.keyboard.press('Control+Enter')
+    expect(frame.locator('.jp-CodeCell .jp-InputPrompt').first).to_contain_text('[1]',timeout=60000)
     frame.get_by_role('menuitem',name='Run',exact=True).click()
     frame.get_by_text('Run All Cells',exact=True).click()
     session=next(s for s in saved_book(url,'list') if s['active'])
-    deadline=time.monotonic()+65
+    deadline=time.monotonic()+90
+    save=frame.locator('button[data-command="docmanager:save"], button[title^="Save"], button[aria-label^="Save"]').first
     while time.monotonic()<deadline:
-        first.click()
-        page.keyboard.press('Control+s')
-        time.sleep(.65)
+        if save.is_visible() and save.is_enabled():
+            save.click()
+        else:
+            first.click()
+            page.keyboard.press('Control+s')
+        time.sleep(.8)
         book=saved_book(url,'download/'+session['id'])
+        for cell in book['cells']:
+            for output in cell.get('outputs',[]):
+                if output.get('output_type')=='error':
+                    raise AssertionError((cell.get('id'),output.get('ename'),output.get('evalue')))
         if any('application/vnd.mazzy.fleet+json' in o.get('data',{}) for c in book['cells'] for o in c.get('outputs',[])):
             break
-    else:raise AssertionError('Fleet notebook did not persist its verification')
+    else:
+        counts=[(c.get('id'),c.get('execution_count')) for c in book['cells'] if c['cell_type']=='code']
+        raise AssertionError(('Native Notebook 7 did not save the result',counts))
     button(page,'Проверить результат Python').click()
     expect(page.locator('#fields')).to_contain_text('SIM-')
     page.locator('#accept').click()
