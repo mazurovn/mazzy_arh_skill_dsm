@@ -11,7 +11,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node --test tests/core.cjs tests/workbench.cjs
+      - run: node --test tests/core.cjs tests/workbench.cjs tests/enterprise_delivery.cjs
       - name: Install twice in a clean local workspace
         run: |
           node install-local.cjs --workspace "$RUNNER_TEMP/DSM workspace"
@@ -24,6 +24,7 @@ jobs:
       - run: python tests/mcp_client.py
       - run: python tests/browser_notebook.py
       - run: python tests/workbench_browser.py
+      - run: python tests/delivery_browser.py
       - run: npm install -g @fission-ai/openspec@2.1.1
       - run: openspec validate --all --strict
       - run: python tests/openspec_roundtrip.py

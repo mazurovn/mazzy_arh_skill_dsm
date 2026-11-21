@@ -37,6 +37,7 @@ node dsm.cjs import PROJECT.json review.ipynb BASE ACTOR "Возврат рас�
 node dsm.cjs spec-check PROJECT.json PROPOSAL_ID
 node dsm.cjs spec-export PROJECT.json PROPOSAL_ID change.zip
 node dsm.cjs import-preview PROJECT.json change.zip
+node dsm.cjs journey PROJECT.json REQ-1 --markdown
 node dsm.cjs report PROJECT.json placement
 node dsm.cjs change-log PROJECT.json FROM_REV TO_REV
 ```
@@ -46,3 +47,6 @@ node dsm.cjs change-log PROJECT.json FROM_REV TO_REV
 Карточка request хранит проблему в note, затронутые ID в refs. В attrs находятся requester, outcome, acceptance, priority и owner. Разбор добавляет disposition, reviewer, rationale. Предложение ссылается на запрос и требования. Задача changeTask указывает ID предложения в parent и исполнителя в attrs.owner. Решение adr связывается с предложением через refs. Для инициирования запроса, подготовки предложения и Apply с автоматическим обновлением связанных статусов используйте экран «Запросы». Через stdio MCP остаются доступны чтение модели, анализ DSM, история, сравнение, предпросмотр, применение патча и восстановление.
 
 Экспортированный ZIP содержит описание, задачи, решения и dsm-package.json с идентичностью проекта и ревизии. В том же пакете можно менять существующие документы предложения и ADR, требование с одним сценарием WHEN/THEN и флажки задач. verify-процедура для выгруженной папки — `openspec validate --all --strict`. Сторонний OpenSpec-пакет доступен для чтения в «Запросах».
+
+
+Для чтения маршрута передайте в `dsm_analyze` аргумент `{"requirement":"REQ-1"}`. В ответе есть текущая стадия, запрос, предложение, решения, работы релизов, наблюдения и отклонения. CLI без `--markdown` выдаёт тот же JSON. Изменения проходят через обычные preview и apply с актуальной базой. Для наблюдения во внедрении укажите среду, фактический результат и исполнителя.

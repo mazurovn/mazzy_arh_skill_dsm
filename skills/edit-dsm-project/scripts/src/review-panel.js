@@ -61,7 +61,7 @@ function reviewPanel({doc,esc,button:b,option,field,sel,table,tools,modal,push,d
       case 'Review':modal('Разбор запроса '+id,sel('outcome','Решение',[['accepted','Принять'],['deferred','Отложить'],['declined','Отклонить']],'accepted')+field('reviewer','Рецензент','','required')+textarea('reason','Обоснование'),f=>push(Changes.review(model(),id,f.outcome,f.reviewer,f.reason),'Разбор · '+id+' · '+f.reason,f.reviewer));break;
       case 'Promote':modal('Предложение по запросу '+id,field('newId','ID предложения','','required'),f=>push(Changes.promote(model(),id,f.newId),'OpenSpec propose · '+f.newId+' · '+id));break;
       case 'Task':modal('Задача предложения '+id,field('id','ID задачи','','required')+field('name','Задача','','required')+field('owner','Исполнитель'),f=>push(Changes.task(model(),id,f.id,f.name,f.owner),'Добавление задачи · '+f.id));break;
-      case 'TaskState':{const n=m.nodes.find(n=>n.id===id&&n.kind==='changeTask');await push(DSM.patch(m,[{op:'node',value:{id,state:n.state==='done'?'active':'done'}}]),'Состояние задачи · '+id);break;}
+      case 'TaskState':{const n=m.nodes.find(n=>n.id===id&&n.kind==='changeTask');await push(Delivery.taskState(m,id),'Состояние задачи · '+id);break;}
       case 'Brief':download(id+'.md',Changes.brief(m,id),'text/markdown');break;
       case 'Timeline':modal('История запроса '+id,table(['Ревизия','Автор','Описание','Поля'],Changes.timeline(doc(),id).map(h=>[esc(h.rev.slice(0,8)),esc(h.actor),esc(h.note),esc(h.fields.join(', '))])),()=>{},'Закрыть');break;
       case 'Package':opened=Specifications.packageFiles(doc(),id).files;source=id;packageViewer();break;

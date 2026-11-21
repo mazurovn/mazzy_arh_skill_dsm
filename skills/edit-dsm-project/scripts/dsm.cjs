@@ -13,6 +13,7 @@ const usage=[
 'node dsm.cjs notebook PROJECT.json NEW.ipynb [full|requirements|placement|readiness]',
 'node dsm.cjs notebook-info FILE.ipynb',
 'node dsm.cjs report PROJECT.json [REPORT_KEY]',
+'node dsm.cjs journey PROJECT.json REQUIREMENT_ID [--markdown]',
 'node dsm.cjs spec-check PROJECT.json PROPOSAL_ID',
 'node dsm.cjs spec-export PROJECT.json PROPOSAL_ID NEW.zip',
 'node dsm.cjs change-log PROJECT.json FROM_REV TO_REV',
@@ -30,6 +31,7 @@ async function run([cmd,file,...args]){
     return {format:book.nbformat,kernel:book.metadata.kernelspec,base:book.metadata.dsm?.base,cells:files.overview(book).map(c=>({index:c.i+1,type:c.type,title:c.title,outputs:c.outputs.length}))};
   }
   const doc=R.readProject(file),h=M.head(doc);
+  if(cmd==='journey'){const delivery=require('./src/delivery.js'),chain=delivery.chain(h.data,args[0]);if(args[1]==='--markdown'){process.stdout.write(delivery.trace(chain));return;}return chain;}
   if(cmd==='report'){const reports=require('./src/reports.js');return args[0]?reports.run(h.data,args[0]):reports.definitions;}
   if(cmd==='notebook'){
     if(!args[0])throw Error('Укажите выходной .ipynb');

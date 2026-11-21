@@ -31,7 +31,7 @@ const Views = (() => {
     return '<g role="button" tabindex="0" aria-label="'+title+'" data-action="'+action+'" data-id="'+esc(e.from)+'" data-to="'+esc(e.to)+'" data-layer="'+e.layer+'"><title>'+title+'</title>'+
       '<path d="'+path+'" fill="none" stroke="transparent" stroke-width="14"/><path d="'+path+'" fill="none" stroke="'+(active?'#a55412':selectable?'#49937c':'#758894')+'" stroke-width="'+(active?3:2)+'" '+(e.layer==='risk'?'stroke-dasharray="5 3"':'marker-end="url(#arrow)"')+'/>'+label+'</g>';
   }
-  function sequence(model, steps, focus, pair) {
+  function sequence(model, steps, focus, pair, offset=0) {
     const by=new Map(model.nodes.map(n=>[n.id,n]));
     const edges=new Map(model.edges.filter(e=>e.layer==='flow').map(e=>[DSM.ek(e),e]));
     if(!steps.length)return '<p class="empty">Добавьте сценарий и укажите вызовы в порядке выполнения.</p>';
@@ -40,7 +40,7 @@ const Views = (() => {
     const lanes=ids.map(id=>'<path d="M'+pos.get(id)+' 62V'+(height-12)+'" stroke="#9fb6aa" stroke-dasharray="5 4"/>'+nodeBox(by.get(id),pos.get(id)-74,14,id===focus));
     const messages=steps.map(([from,to],i)=>{
       const e=edges.get(DSM.ek({layer:'flow',from,to})), x=pos.get(from), u=pos.get(to), y=101+66*i;
-      const label='<text x="'+((x+u)/2)+'" y="'+(y-9)+'" text-anchor="middle" font-size="12" fill="#193e31">'+esc((i+1)+'. '+clip(e.reason,Math.max(19,Math.floor(Math.abs(x-u)/8))))+'</text>';
+      const label='<text x="'+((x+u)/2)+'" y="'+(y-9)+'" text-anchor="middle" font-size="12" fill="#193e31">'+esc((offset+i+1)+'. '+clip(e.reason,Math.max(19,Math.floor(Math.abs(x-u)/8))))+'</text>';
       return link(e,'M'+x+' '+y+'H'+u,pair?.[0]===from&&pair?.[1]===to,label);
     });
     return svg(width,height,lanes.concat(messages).join(''));
@@ -52,11 +52,11 @@ const Views = (() => {
       ...(n.relations||[]).map(([kind,to])=>({layer:kind,from:n.id,to,reason:relations[kind]}))
     ]);
   }
-  function diagram(model, mode, layer, focus, pair, clusters, selectedStructure) {
-    const by=new Map(model.nodes.map(n=>[n.id,n]));
+  function diagram(model, mode, layer, focus, pair, clusters, selectedStructure, scope) {
+    const by=scope?.by||new Map(model.nodes.map(n=>[n.id,n]));
     let nodes=model.nodes, edges=model.edges.filter(e=>e.layer===layer), columns;
     if(mode==='tree'){
-      edges=nodes.filter(n=>n.parent).map(n=>({layer:'parent',from:n.parent,to:n.id,reason:'Входит в состав'}));
+      edges=scope?.edges||nodes.filter(n=>n.parent).map(n=>({layer:'parent',from:n.parent,to:n.id,reason:'Входит в состав'}));
       const depth=n=>{let d=0;while(n.parent){d++;n=by.get(n.parent);}return d;};
       columns=group(nodes,depth).sort((a,b)=>a.label-b.label).map(c=>({...c,label:'Уровень '+(c.label+1)}));
     }else if(mode==='component'){
@@ -64,7 +64,7 @@ const Views = (() => {
       const ids=new Set(nodes.map(n=>n.id));edges=edges.filter(e=>ids.has(e.from)&&ids.has(e.to));
       columns=group(nodes,n=>types[n.kind]);
     }else if(mode==='concept'){
-      edges=structures(model);
+      edges=scope?.edges||structures(model);
       columns=group(nodes,n=>n.segment||types[n.kind]);
     }else if(mode==='neighbors'){
       edges=edges.filter(e=>e.from===focus||e.to===focus);
@@ -106,7 +106,17 @@ const Views = (() => {
     const order=[...ids];if(!order.length)return '';
     return '<h3>Изменённые ячейки DSM</h3><div class="wrap"><table class="table"><thead><tr><th></th>'+order.map(id=>'<th>'+esc(id)+'</th>').join('')+'</tr></thead><tbody>'+order.map(from=>'<tr><th>'+esc(from)+'</th>'+order.map(to=>'<td>'+(cells.get(JSON.stringify([from,to]))||'·')+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>';
   }
-  function differences(changes) {
+  let activeChanges=[];
+  function differences(changes,number=0) {
+    activeChanges=changes;
+    if(changes.length<=32)return differenceRows(changes);
+    const page=Math.min(Math.max(0,number),Math.ceil(changes.length/32)-1),start=page*32;
+    const step=(label,n,disabled)=>'<button type="button" data-action="diffPage" data-page="'+n+'" '+(disabled?'disabled':'')+'>'+label+'</button>';
+    return '<div class="paged-diff"><div class="pager">Изменения '+(start+1)+'–'+Math.min(start+32,changes.length)+' / '+changes.length+
+      step('Назад',page-1,page===0)+step('Далее',page+1,start+32>=changes.length)+'</div>'+differenceRows(changes.slice(start,start+32))+'</div>';
+  }
+  const diffPage=number=>differences(activeChanges,number);
+  function differenceRows(changes) {
     if(!changes.length)return '<p>Модели совпадают.</p>';
     const rows=changes.flatMap(c=>{
       const item=c.after??c.before;
@@ -118,5 +128,5 @@ const Views = (() => {
     return '<div class="wrap diff-table"><table class="table"><thead><tr>'+['Объект','Действие','Поле','Было','Стало'].map(t=>'<th>'+t+'</th>').join('')+'</tr></thead><tbody>'+rows.map(r=>'<tr>'+r.map(v=>'<td>'+esc(v)+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>'+
       '<details class="delta"><summary>Схема изменений</summary>'+deltaMatrix(changes)+rows.map(([id,,field,before,after])=>'<div class="delta-row"><b>'+esc(id)+' · '+esc(field)+'</b><span>'+esc(before)+'</span><i aria-label="переход">→</i><strong>'+esc(after)+'</strong></div>').join('')+'</details>';
   }
-  return {types,relations,modes,structures,diagram,sequence,differences};
+  return {types,relations,modes,structures,diagram,sequence,differences,diffPage};
 })();

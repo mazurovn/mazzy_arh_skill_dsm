@@ -1,0 +1,606 @@
+{
+  "date": "2026-11-22",
+  "baseline": "v1.1.0",
+  "release": "v1.2.0",
+  "browser": "Google Chrome 157.0.8103.38 (headless)",
+  "host": "Dell Inspiron 15 7000 Gaming, i7-7700HQ, Linux x86_64",
+  "group_limit_mib": 768,
+  "swap_mib": 0,
+  "viewport": [
+    1440,
+    900
+  ],
+  "matrix_segment_scoped_runs": "Домен 1",
+  "runs": {
+    "before-small": {
+      "objects": 200,
+      "revisions": 32,
+      "edges": 487,
+      "bytes": 3096969,
+      "samples": {
+        "history_first_ms": [
+          83,
+          87,
+          77
+        ],
+        "history_other_ms": [
+          65,
+          65,
+          63
+        ],
+        "history_repeat_ms": [
+          64,
+          64,
+          63
+        ],
+        "neighbors_ms": [
+          59,
+          46,
+          44
+        ],
+        "component_ms": [
+          32,
+          32,
+          26
+        ],
+        "component_nodes": [
+          83,
+          83,
+          83
+        ],
+        "concept_ms": [
+          31,
+          36,
+          32
+        ],
+        "concept_nodes": [
+          200,
+          200,
+          200
+        ],
+        "tree_ms": [
+          28,
+          30,
+          30
+        ],
+        "tree_nodes": [
+          200,
+          200,
+          200
+        ],
+        "all_ms": [
+          51,
+          52,
+          47
+        ],
+        "all_nodes": [
+          200,
+          200,
+          200
+        ],
+        "sequence_ms": [
+          31,
+          30,
+          30
+        ],
+        "sequence_nodes": [
+          181,
+          181,
+          181
+        ],
+        "matrix_ms": [
+          809,
+          721,
+          765
+        ],
+        "matrix_cells": [
+          40000,
+          40000,
+          40000
+        ],
+        "matrix_select_ms": [
+          698,
+          811,
+          796
+        ]
+      },
+      "median": {
+        "history_first_ms": 83,
+        "history_other_ms": 65,
+        "history_repeat_ms": 64,
+        "neighbors_ms": 46,
+        "component_ms": 32,
+        "component_nodes": 83,
+        "concept_ms": 32,
+        "concept_nodes": 200,
+        "tree_ms": 30,
+        "tree_nodes": 200,
+        "all_ms": 51,
+        "all_nodes": 200,
+        "sequence_ms": 30,
+        "sequence_nodes": 181,
+        "matrix_ms": 765,
+        "matrix_cells": 40000,
+        "matrix_select_ms": 796
+      },
+      "peak_group_memory": "760.4M"
+    },
+    "after-small": {
+      "objects": 200,
+      "revisions": 32,
+      "edges": 487,
+      "bytes": 3096969,
+      "samples": {
+        "history_first_ms": [
+          35,
+          12,
+          22
+        ],
+        "history_other_ms": [
+          28,
+          27,
+          27
+        ],
+        "history_repeat_ms": [
+          31,
+          32,
+          32
+        ],
+        "neighbors_ms": [
+          35,
+          31,
+          31
+        ],
+        "component_ms": [
+          29,
+          31,
+          32
+        ],
+        "component_nodes": [
+          48,
+          48,
+          48
+        ],
+        "concept_ms": [
+          28,
+          28,
+          28
+        ],
+        "concept_nodes": [
+          48,
+          48,
+          48
+        ],
+        "tree_ms": [
+          27,
+          28,
+          28
+        ],
+        "tree_nodes": [
+          48,
+          48,
+          48
+        ],
+        "all_ms": [
+          28,
+          28,
+          29
+        ],
+        "all_nodes": [
+          48,
+          48,
+          48
+        ],
+        "sequence_ms": [
+          28,
+          29,
+          28
+        ],
+        "sequence_nodes": [
+          41,
+          41,
+          41
+        ],
+        "matrix_ms": [
+          42,
+          37,
+          35
+        ],
+        "matrix_cells": [
+          1024,
+          1024,
+          1024
+        ],
+        "matrix_select_ms": [
+          32,
+          34,
+          31
+        ]
+      },
+      "median": {
+        "history_first_ms": 22,
+        "history_other_ms": 27,
+        "history_repeat_ms": 32,
+        "neighbors_ms": 31,
+        "component_ms": 31,
+        "component_nodes": 48,
+        "concept_ms": 28,
+        "concept_nodes": 48,
+        "tree_ms": 28,
+        "tree_nodes": 48,
+        "all_ms": 28,
+        "all_nodes": 48,
+        "sequence_ms": 28,
+        "sequence_nodes": 41,
+        "matrix_ms": 37,
+        "matrix_cells": 1024,
+        "matrix_select_ms": 32
+      },
+      "peak_group_memory": "369.3M"
+    },
+    "before-scoped": {
+      "objects": 1200,
+      "revisions": 32,
+      "edges": 2987,
+      "bytes": 18066849,
+      "samples": {
+        "history_first_ms": [
+          347,
+          352,
+          352
+        ],
+        "history_other_ms": [
+          328,
+          330,
+          336
+        ],
+        "history_repeat_ms": [
+          323,
+          333,
+          326
+        ],
+        "neighbors_ms": [
+          519,
+          509,
+          513
+        ],
+        "component_ms": [
+          115,
+          114,
+          116
+        ],
+        "component_nodes": [
+          500,
+          500,
+          500
+        ],
+        "concept_ms": [
+          168,
+          167,
+          179
+        ],
+        "concept_nodes": [
+          1200,
+          1200,
+          1200
+        ],
+        "tree_ms": [
+          152,
+          149,
+          145
+        ],
+        "tree_nodes": [
+          1200,
+          1200,
+          1200
+        ],
+        "all_ms": [
+          255,
+          248,
+          252
+        ],
+        "all_nodes": [
+          1200,
+          1200,
+          1200
+        ],
+        "sequence_ms": [
+          46,
+          44,
+          44
+        ],
+        "sequence_nodes": [
+          181,
+          181,
+          181
+        ],
+        "matrix_ms": [
+          104,
+          102,
+          102
+        ],
+        "matrix_cells": [
+          3600,
+          3600,
+          3600
+        ],
+        "matrix_select_ms": [
+          103,
+          101,
+          99
+        ]
+      },
+      "median": {
+        "history_first_ms": 352,
+        "history_other_ms": 330,
+        "history_repeat_ms": 326,
+        "neighbors_ms": 513,
+        "component_ms": 115,
+        "component_nodes": 500,
+        "concept_ms": 168,
+        "concept_nodes": 1200,
+        "tree_ms": 149,
+        "tree_nodes": 1200,
+        "all_ms": 252,
+        "all_nodes": 1200,
+        "sequence_ms": 44,
+        "sequence_nodes": 181,
+        "matrix_ms": 102,
+        "matrix_cells": 3600,
+        "matrix_select_ms": 101
+      },
+      "peak_group_memory": "710.7M"
+    },
+    "after-scoped": {
+      "objects": 1200,
+      "revisions": 32,
+      "edges": 2987,
+      "bytes": 18066849,
+      "samples": {
+        "history_first_ms": [
+          33,
+          44,
+          52
+        ],
+        "history_other_ms": [
+          26,
+          38,
+          30
+        ],
+        "history_repeat_ms": [
+          25,
+          32,
+          27
+        ],
+        "neighbors_ms": [
+          86,
+          89,
+          85
+        ],
+        "component_ms": [
+          54,
+          57,
+          56
+        ],
+        "component_nodes": [
+          48,
+          48,
+          48
+        ],
+        "concept_ms": [
+          50,
+          55,
+          55
+        ],
+        "concept_nodes": [
+          48,
+          48,
+          48
+        ],
+        "tree_ms": [
+          47,
+          54,
+          53
+        ],
+        "tree_nodes": [
+          48,
+          48,
+          48
+        ],
+        "all_ms": [
+          52,
+          59,
+          58
+        ],
+        "all_nodes": [
+          48,
+          48,
+          48
+        ],
+        "sequence_ms": [
+          27,
+          19,
+          20
+        ],
+        "sequence_nodes": [
+          41,
+          41,
+          41
+        ],
+        "matrix_ms": [
+          46,
+          52,
+          49
+        ],
+        "matrix_cells": [
+          1024,
+          1024,
+          1024
+        ],
+        "matrix_select_ms": [
+          43,
+          50,
+          49
+        ]
+      },
+      "median": {
+        "history_first_ms": 44,
+        "history_other_ms": 30,
+        "history_repeat_ms": 27,
+        "neighbors_ms": 86,
+        "component_ms": 56,
+        "component_nodes": 48,
+        "concept_ms": 55,
+        "concept_nodes": 48,
+        "tree_ms": 53,
+        "tree_nodes": 48,
+        "all_ms": 58,
+        "all_nodes": 48,
+        "sequence_ms": 20,
+        "sequence_nodes": 41,
+        "matrix_ms": 49,
+        "matrix_cells": 1024,
+        "matrix_select_ms": 49
+      },
+      "peak_group_memory": "567.4M"
+    },
+    "before-full": {
+      "objects": 1200,
+      "revisions": 32,
+      "edges": 2987,
+      "status": "oom-kill",
+      "last_operation": "matrix_ms",
+      "peak_group_memory": "768M"
+    },
+    "after-full": {
+      "objects": 1200,
+      "revisions": 32,
+      "edges": 2987,
+      "bytes": 18066849,
+      "samples": {
+        "history_first_ms": [
+          41,
+          35,
+          39
+        ],
+        "history_other_ms": [
+          32,
+          32,
+          30
+        ],
+        "history_repeat_ms": [
+          41,
+          28,
+          33
+        ],
+        "neighbors_ms": [
+          92,
+          82,
+          87
+        ],
+        "component_ms": [
+          59,
+          55,
+          69
+        ],
+        "component_nodes": [
+          48,
+          48,
+          48
+        ],
+        "concept_ms": [
+          54,
+          50,
+          51
+        ],
+        "concept_nodes": [
+          48,
+          48,
+          48
+        ],
+        "tree_ms": [
+          64,
+          49,
+          48
+        ],
+        "tree_nodes": [
+          48,
+          48,
+          48
+        ],
+        "all_ms": [
+          57,
+          51,
+          54
+        ],
+        "all_nodes": [
+          48,
+          48,
+          48
+        ],
+        "sequence_ms": [
+          22,
+          24,
+          27
+        ],
+        "sequence_nodes": [
+          41,
+          41,
+          41
+        ],
+        "matrix_ms": [
+          55,
+          48,
+          46
+        ],
+        "matrix_cells": [
+          1024,
+          1024,
+          1024
+        ],
+        "matrix_select_ms": [
+          47,
+          45,
+          44
+        ]
+      },
+      "median": {
+        "history_first_ms": 39,
+        "history_other_ms": 32,
+        "history_repeat_ms": 33,
+        "neighbors_ms": 87,
+        "component_ms": 59,
+        "component_nodes": 48,
+        "concept_ms": 51,
+        "concept_nodes": 48,
+        "tree_ms": 49,
+        "tree_nodes": 48,
+        "all_ms": 54,
+        "all_nodes": 48,
+        "sequence_ms": 24,
+        "sequence_nodes": 41,
+        "matrix_ms": 48,
+        "matrix_cells": 1024,
+        "matrix_select_ms": 45
+      },
+      "peak_group_memory": "568M"
+    },
+    "after-cold": {
+      "objects": 1200,
+      "revisions": 32,
+      "edges": 2987,
+      "bytes": 18066849,
+      "samples": {
+        "startup_ms": [
+          1161,
+          1125,
+          1121
+        ]
+      },
+      "median": {
+        "startup_ms": 1125
+      },
+      "peak_group_memory": "545.3M"
+    }
+  }
+}

@@ -26,6 +26,25 @@ dialog:has(.diff-table){width:min(900px,95vw)}#fields textarea{font-family:ui-mo
 label.btn:has(.file-picker){position:relative;cursor:pointer}
 label.btn:has(.file-picker:focus-visible){outline:2px solid var(--teal);outline-offset:2px}
 .file-picker{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+
+.studio-layout{display:grid;grid-template-columns:190px minmax(0,1fr);gap:22px;align-items:start}
+.workspace-main{min-width:0}
+.menu-panel{position:sticky;top:12px;background:#fff;border:1px solid var(--line);border-radius:9px;padding:14px}
+#projectMenu>summary{font-size:15px;color:var(--ink)}
+#nav{display:grid;gap:14px;border:0;overflow:visible;margin:14px 0 0}
+#nav h2{font:600 12px/1.4 Inter,Arial,sans-serif;color:var(--muted);margin:0 0 4px}
+#nav button{border:0;border-radius:5px;background:transparent;display:block;width:100%;text-align:left;white-space:normal;padding:6px 8px;font-size:13px}
+#nav button.on{background:#dff1e8;color:#174b38}
+#nav button:focus-visible,.pager button:focus-visible{outline:2px solid var(--teal)}
+.work-mode{margin-bottom:12px}.pager,.journey-filters{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.pager{font-size:13px;color:var(--muted)}.pager button{padding:4px 10px}
+.journey-steps{display:flex;flex-wrap:wrap;gap:5px;padding:0;list-style:none;margin:12px 0 20px}
+.journey-steps li{border-bottom:3px solid #d2dbd5;padding:5px 8px;font-size:13px}.journey-steps .passed{border-color:#257953;color:#18513a}
+.trace-line{padding:9px 0;border-top:1px solid var(--line)}.trace-line h4{margin:0 0 6px;color:var(--muted);font-size:13px}.trace-line button{margin:2px}
+.journey-filters{margin:12px 0}.journey-queue summary{font-size:16px}
+@media(max-width:1050px){.studio-layout{grid-template-columns:155px minmax(0,1fr);gap:12px}.menu-panel{padding:10px}.board{grid-template-columns:minmax(0,1fr) 235px}}
+@media(max-width:800px){.studio-layout{display:block}.menu-panel{position:static;margin-bottom:10px}#nav{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.board{grid-template-columns:minmax(0,1fr)}.workspace-main .tools{justify-content:flex-start}.workspace-main input{max-width:100%}}
+
+.journey-steps button{border:0;background:transparent;color:inherit;padding:0;font:inherit}.journey-steps button:hover{text-decoration:underline}.trace-line h4:focus{outline:2px solid var(--teal);outline-offset:2px}
 </style><script type="text/plain" id="licenses">Mazzy Attribution License 1.0
 
 Copyright © 2026 mazzy (mazurovn)
@@ -1082,12 +1101,13 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.**
 </script></head>
 <body><header class="top"><a class="brand" href="#matrix"><span class="mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>mazzy<span class="slash">/</span><strong>Мастерская DSM</strong></a><span class="top-right"><span class="lamp"></span><span id="mode">Локальный проект</span></span></header>
-<main><div class="project"><div><div class="eyebrow">АРХИТЕКТУРНЫЙ ПРОЕКТ</div><h1 id="title"></h1><p id="summary"></p></div><div class="actions"><button id="newProject">Новый проект</button><button class="primary" id="save">↓ Сохранить JSON</button></div></div>
-<div id="workMode" class="work-mode" aria-label="Режим работы"></div>
-<nav id="nav" aria-label="Разделы редактора"></nav>
+<main><div class="project"><div><div class="eyebrow">АРХИТЕКТУРНЫЙ ПРОЕКТ</div><h1 id="title"></h1><p id="summary"></p></div><div class="actions"><button type="button" data-action="beginDelivery">Начать изменение</button><button id="newProject">Новый проект</button><button class="primary" id="save">↓ Сохранить JSON</button></div></div>
+<div class="studio-layout"><div class="menu-panel"><details id="projectMenu" open><summary>Меню проекта</summary><nav id="nav" aria-label="Меню проекта"></nav></details></div>
+<div class="workspace-main"><div id="workMode" class="work-mode" aria-label="Режим работы"></div>
 <section id="content"></section>
 <section id="notebookHost" hidden aria-label="Редактор Jupyter Notebook"></section>
 <details id="demoGuide" hidden><summary>Первое знакомство с Terminal Kit</summary><p>Все данные синтетические. Terminal Kit — вымышленный терминальный помощник в духе Qwen Code. В исходном примере перенос F03 из R1 в R2 меняет загрузку с 13/12 до 8/12 и с 5/10 до 10/10. После переноса проверьте, какая версия плана требует подтверждения.</p><button type="button" data-action="demoPlan">Выбрать F03 в плане</button> <button type="button" data-action="demoCell">Проверить F02 × F03</button></details>
+</div></div>
 <footer><span>© 2026 mazzy · mazurovn</span><span id="revision"></span></footer></main>
 <div id="toast" role="status" aria-live="polite"></div>
 <dialog id="dialog"><form id="form"><div class="dlghead"><h2 id="dlgTitle"></h2><button id="close" type="button" aria-label="Закрыть">×</button></div><div id="fields"></div><p id="formError" role="alert"></p><div class="actions"><button type="button" id="cancel">Отмена</button><button id="accept" class="primary" type="submit">Сохранить версию</button></div></form></dialog>
@@ -3055,8 +3075,8 @@ const DSM = (() => {
   function document(doc) {
     if(doc?.schema!=='dsm-project/1'||!idOK(doc.project)||!Array.isArray(doc.history)||!doc.history.length)fail('Неверный формат проекта DSM');
     let parent=null;const seen=new Set();
-    for(const h of doc.history){if(!idOK(h.rev)||seen.has(h.rev)||h.parent!==parent||typeof h.note!=='string'||typeof h.actor!=='string'||!Number.isFinite(Date.parse(h.at)))fail('Повреждена цепочка версий');seen.add(h.rev);validate(h.data);parent=h.rev;}
-    return {...doc,history:doc.history.map(h=>({...h,data:validate(h.data)}))};
+    const history=doc.history.map(h=>{if(!idOK(h.rev)||seen.has(h.rev)||h.parent!==parent||typeof h.note!=='string'||typeof h.actor!=='string'||!Number.isFinite(Date.parse(h.at)))fail('Повреждена цепочка версий');seen.add(h.rev);parent=h.rev;return {...h,data:validate(h.data)};});
+    return {...doc,history};
   }
   function revision(data,note,actor,parent=null){
     if(typeof note!=='string'||!note.trim()||typeof actor!=='string'||!actor.trim())fail('Укажите автора и описание изменения');
@@ -3121,13 +3141,60 @@ const Analysis=(()=>{
   function* permutations(a){if(!a.length){yield [];return;}
     for(let i=0;i<a.length;i++)for(const rest of permutations(a.filter((_,j)=>i!==j)))yield [a[i],...rest];
   }
+  // Surviving groups keep their creation order, including the original tie break.
+  function sparseGroups(count,pairs,degree,total){
+    const neighbors=Array.from({length:count},()=>new Map());
+    const members=Array.from({length:count},(_,i)=>[i]),mass=[...degree],heap=[];
+    const before=(a,b)=>a.gain>b.gain||a.gain===b.gain&&(a.i<b.i||a.i===b.i&&a.j<b.j);
+    function offer(i,j,w){
+      const item={i:Math.min(i,j),j:Math.max(i,j),gain:2*total*w-mass[i]*mass[j]};
+      if(item.gain<=2*total*total*1e-12)return;
+      let k=heap.length;heap.push(item);
+      while(k){const parent=(k-1)>>1;if(!before(item,heap[parent]))break;heap[k]=heap[parent];k=parent;}
+      heap[k]=item;
+    }
+    function take(){
+      const first=heap[0],last=heap.pop();
+      if(heap.length){
+        let k=0;
+        while(k*2+1<heap.length){
+          let child=k*2+1;
+          if(child+1<heap.length&&before(heap[child+1],heap[child]))child++;
+          if(!before(heap[child],last))break;
+          heap[k]=heap[child];k=child;
+        }
+        heap[k]=last;
+      }
+      return first;
+    }
+    for(const [a,b,w] of pairs){
+      const weight=(neighbors[a].get(b)||0)+w;
+      neighbors[a].set(b,weight);neighbors[b].set(a,weight);
+    }
+    neighbors.forEach((links,i)=>{for(const [j,w] of links)if(i<j)offer(i,j,w);});
+    while(heap.length){
+      const {i,j}=take();
+      if(!members[i]||!members[j])continue;
+      const merged=members.length,links=new Map();
+      members.push(members[i].concat(members[j]));mass.push(mass[i]+mass[j]);
+      for(const old of [i,j])for(const [other,w] of neighbors[old]){
+        if(other===i||other===j)continue;
+        links.set(other,w+(links.get(other)||0));neighbors[other].delete(old);
+      }
+      members[i]=members[j]=null;neighbors[i]=neighbors[j]=null;neighbors.push(links);
+      for(const [other,w] of links){neighbors[other].set(merged,w);offer(merged,other,w);}
+    }
+    return members.filter(Boolean);
+  }
   function calculate(data,layer){
     const ids=data.nodes.map(n=>n.id),index=new Map(ids.map((v,i)=>[v,i])),edges=data.edges.filter(e=>e.layer===layer);
     const total=edges.reduce((s,e)=>s+e.weight,0), degree=ids.map(()=>0);
     const pairs=edges.map(e=>[index.get(e.from),index.get(e.to),e.weight]);
     for(const [a,b,w] of pairs){degree[a]+=w;degree[b]+=w;}
     let groups=ids.map((_,i)=>[i]);
-    while(total){
+    const useSparse=ids.length>80&&total<=100000;
+    if(useSparse)groups=sparseGroups(ids.length,pairs,degree,total);
+    while(total&&!useSparse){
       const gOf=new Map(), mass=groups.map((g,i)=>{g.forEach(n=>gOf.set(n,i));return g.reduce((s,n)=>s+degree[n],0);});
       const between=new Map();
       for(const [a,b,w] of pairs){const i=gOf.get(a),j=gOf.get(b);if(i===j)continue;
@@ -3164,7 +3231,15 @@ const Analysis=(()=>{
     return {layer,groups:groups.map(g=>g.map(i=>ids[i])),order:best.map(i=>ids[i]),links:edges.length,weight:total,cost_before:cost(ids.map((_,i)=>i)),cost_after:bestCost,cross_links:cross.length,cross_weight:cross.reduce((s,e)=>s+e[2],0),modularity:q};
   }
   function impact(data,id){
-    const seen=new Set([id]),queue=[id];for(let i=0;i<queue.length;i++)for(const e of data.edges)if(e.layer==='flow'&&e.to===queue[i]&&!seen.has(e.from)){seen.add(e.from);queue.push(e.from);}
+    const incoming=new Map();
+    for(const e of data.edges)if(e.layer==='flow'){
+      if(!incoming.has(e.to))incoming.set(e.to,[]);
+      incoming.get(e.to).push(e.from);
+    }
+    const seen=new Set([id]),queue=[id];
+    for(let i=0;i<queue.length;i++)for(const from of incoming.get(queue[i])||[]){
+      if(!seen.has(from)){seen.add(from);queue.push(from);}
+    }
     return {dependents:queue.slice(1),checks:data.edges.filter(e=>e.layer==='risk'&&(e.from===id||e.to===id)).map(e=>e.from===id?e.to:e.from)};
   }
   return {matrix,calculate,impact};
@@ -3687,7 +3762,9 @@ const Specifications = ((M,Zip)=>{
         entry.ids.forEach((id,i)=>{const old=M.head(doc).data.nodes.find(n=>n.id===id);if(marks[i]!== (old.state==='done'))ops.push({op:'node',value:{id,state:marks[i]?'done':'planned'}});});
       }
     }
-    return {kind:'projection',project:m.project,base:m.base,data:ops.length?M.patch(M.head(doc).data,ops):M.head(doc).data};
+    const data=ops.length?M.patch(M.head(doc).data,ops):M.head(doc).data;
+    const workflow=typeof Delivery!=='undefined'?Delivery:require('./delivery.js');
+    return {kind:'projection',project:m.project,base:m.base,data:ops.length?workflow.checkTasks(data):data};
   }
   return {coverage,document,bundle,context,readiness,packageFiles,openPackage,importPackage};
 })(typeof DSM!=='undefined'?DSM:require('./model.js'),typeof JSZip!=='undefined'?JSZip:require('./vendor/jszip.js'));
@@ -3854,22 +3931,46 @@ const Registers=(()=>{
     if(filters.order!=='initial')items.sort((a,b)=>a[filters.order].localeCompare(b[filters.order],'ru',{numeric:true})||a.id.localeCompare(b.id));
     return items;
   }
+  const historyCache=new WeakMap();
+  function historyIndex(doc){
+    if(historyCache.has(doc))return historyCache.get(doc);
+    const actors=new Set(),ids=new Set();
+    for(const h of doc.history){actors.add(h.actor);for(const n of h.data.nodes)ids.add(n.id);}
+    const index={authors:[...actors].sort(),ids:[...ids].sort(),touches:new Map()};
+    historyCache.set(doc,index);
+    return index;
+  }
+  // Cache precisely the selected object's card and incident DSM edges. Other
+  // objects never need serialisation, even on the first filter after a reload.
+  function touched(doc,id){
+    const {touches}=historyIndex(doc);
+    if(touches.has(id))return touches.get(id);
+    const hits=new Set();
+    let previous=null,oldEdges=new Map();
+    for(const [i,h] of doc.history.entries()){
+      const n=h.data.nodes.find(n=>n.id===id)||null;
+      const edges=new Map();
+      for(const e of h.data.edges)if(e.from===id||e.to===id)edges.set(Model.ek(e),e);
+      const cardChanged=Model.nodeCols.concat(Model.optionalNodeCols).some(k=>JSON.stringify(previous?.[k])!==JSON.stringify(n?.[k]));
+      if(cardChanged||edges.size!==oldEdges.size||[...edges].some(([key,e])=>{
+        const old=oldEdges.get(key);return !old||Model.edgeCols.some(k=>old[k]!==e[k]);
+      }))hits.add(i);
+      previous=n;oldEdges=edges;
+    }
+    touches.set(id,hits);return hits;
+  }
   function revisions(doc,filters){
     const entries=[];
     for(const [i,h] of doc.history.entries()){
       const dt=new Date(h.at),pad=n=>String(n).padStart(2,'0'),day=dt.getFullYear()+'-'+pad(dt.getMonth()+1)+'-'+pad(dt.getDate());
       if(filters.actor&&h.actor!==filters.actor||filters.from&&day<filters.from||filters.until&&day>filters.until||!match(filters.text,h.rev,h.note,h.actor))continue;
-      if(filters.object){
-        const id=filters.object,prev=doc.history[i-1]?.data||{title:h.data.title,nodes:[],edges:[]};
-        const differs=Model.diff(prev,h.data).some(c=>c.type==='nodes'&&c.key===id||c.type==='edges'&&[c.before,c.after].some(e=>e&&(e.from===id||e.to===id)));
-        if(!differs)continue;
-      }
+      if(filters.object&&!touched(doc,filters.object).has(i))continue;
       entries.push({i,h});
     }
     return filters.oldest?entries:entries.reverse();
   }
   const Model=typeof DSM!=='undefined'?DSM:require('./model.js');
-  return {defaults,match,nodes,revisions};
+  return {defaults,match,nodes,revisions,historyIndex};
 })();
 if(typeof module!=='undefined')module.exports=Registers;
 
@@ -3992,7 +4093,7 @@ const Views = (() => {
     return '<g role="button" tabindex="0" aria-label="'+title+'" data-action="'+action+'" data-id="'+esc(e.from)+'" data-to="'+esc(e.to)+'" data-layer="'+e.layer+'"><title>'+title+'</title>'+
       '<path d="'+path+'" fill="none" stroke="transparent" stroke-width="14"/><path d="'+path+'" fill="none" stroke="'+(active?'#a55412':selectable?'#49937c':'#758894')+'" stroke-width="'+(active?3:2)+'" '+(e.layer==='risk'?'stroke-dasharray="5 3"':'marker-end="url(#arrow)"')+'/>'+label+'</g>';
   }
-  function sequence(model, steps, focus, pair) {
+  function sequence(model, steps, focus, pair, offset=0) {
     const by=new Map(model.nodes.map(n=>[n.id,n]));
     const edges=new Map(model.edges.filter(e=>e.layer==='flow').map(e=>[DSM.ek(e),e]));
     if(!steps.length)return '<p class="empty">Добавьте сценарий и укажите вызовы в порядке выполнения.</p>';
@@ -4001,7 +4102,7 @@ const Views = (() => {
     const lanes=ids.map(id=>'<path d="M'+pos.get(id)+' 62V'+(height-12)+'" stroke="#9fb6aa" stroke-dasharray="5 4"/>'+nodeBox(by.get(id),pos.get(id)-74,14,id===focus));
     const messages=steps.map(([from,to],i)=>{
       const e=edges.get(DSM.ek({layer:'flow',from,to})), x=pos.get(from), u=pos.get(to), y=101+66*i;
-      const label='<text x="'+((x+u)/2)+'" y="'+(y-9)+'" text-anchor="middle" font-size="12" fill="#193e31">'+esc((i+1)+'. '+clip(e.reason,Math.max(19,Math.floor(Math.abs(x-u)/8))))+'</text>';
+      const label='<text x="'+((x+u)/2)+'" y="'+(y-9)+'" text-anchor="middle" font-size="12" fill="#193e31">'+esc((offset+i+1)+'. '+clip(e.reason,Math.max(19,Math.floor(Math.abs(x-u)/8))))+'</text>';
       return link(e,'M'+x+' '+y+'H'+u,pair?.[0]===from&&pair?.[1]===to,label);
     });
     return svg(width,height,lanes.concat(messages).join(''));
@@ -4013,11 +4114,11 @@ const Views = (() => {
       ...(n.relations||[]).map(([kind,to])=>({layer:kind,from:n.id,to,reason:relations[kind]}))
     ]);
   }
-  function diagram(model, mode, layer, focus, pair, clusters, selectedStructure) {
-    const by=new Map(model.nodes.map(n=>[n.id,n]));
+  function diagram(model, mode, layer, focus, pair, clusters, selectedStructure, scope) {
+    const by=scope?.by||new Map(model.nodes.map(n=>[n.id,n]));
     let nodes=model.nodes, edges=model.edges.filter(e=>e.layer===layer), columns;
     if(mode==='tree'){
-      edges=nodes.filter(n=>n.parent).map(n=>({layer:'parent',from:n.parent,to:n.id,reason:'Входит в состав'}));
+      edges=scope?.edges||nodes.filter(n=>n.parent).map(n=>({layer:'parent',from:n.parent,to:n.id,reason:'Входит в состав'}));
       const depth=n=>{let d=0;while(n.parent){d++;n=by.get(n.parent);}return d;};
       columns=group(nodes,depth).sort((a,b)=>a.label-b.label).map(c=>({...c,label:'Уровень '+(c.label+1)}));
     }else if(mode==='component'){
@@ -4025,7 +4126,7 @@ const Views = (() => {
       const ids=new Set(nodes.map(n=>n.id));edges=edges.filter(e=>ids.has(e.from)&&ids.has(e.to));
       columns=group(nodes,n=>types[n.kind]);
     }else if(mode==='concept'){
-      edges=structures(model);
+      edges=scope?.edges||structures(model);
       columns=group(nodes,n=>n.segment||types[n.kind]);
     }else if(mode==='neighbors'){
       edges=edges.filter(e=>e.from===focus||e.to===focus);
@@ -4067,7 +4168,17 @@ const Views = (() => {
     const order=[...ids];if(!order.length)return '';
     return '<h3>Изменённые ячейки DSM</h3><div class="wrap"><table class="table"><thead><tr><th></th>'+order.map(id=>'<th>'+esc(id)+'</th>').join('')+'</tr></thead><tbody>'+order.map(from=>'<tr><th>'+esc(from)+'</th>'+order.map(to=>'<td>'+(cells.get(JSON.stringify([from,to]))||'·')+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>';
   }
-  function differences(changes) {
+  let activeChanges=[];
+  function differences(changes,number=0) {
+    activeChanges=changes;
+    if(changes.length<=32)return differenceRows(changes);
+    const page=Math.min(Math.max(0,number),Math.ceil(changes.length/32)-1),start=page*32;
+    const step=(label,n,disabled)=>'<button type="button" data-action="diffPage" data-page="'+n+'" '+(disabled?'disabled':'')+'>'+label+'</button>';
+    return '<div class="paged-diff"><div class="pager">Изменения '+(start+1)+'–'+Math.min(start+32,changes.length)+' / '+changes.length+
+      step('Назад',page-1,page===0)+step('Далее',page+1,start+32>=changes.length)+'</div>'+differenceRows(changes.slice(start,start+32))+'</div>';
+  }
+  const diffPage=number=>differences(activeChanges,number);
+  function differenceRows(changes) {
     if(!changes.length)return '<p>Модели совпадают.</p>';
     const rows=changes.flatMap(c=>{
       const item=c.after??c.before;
@@ -4079,8 +4190,338 @@ const Views = (() => {
     return '<div class="wrap diff-table"><table class="table"><thead><tr>'+['Объект','Действие','Поле','Было','Стало'].map(t=>'<th>'+t+'</th>').join('')+'</tr></thead><tbody>'+rows.map(r=>'<tr>'+r.map(v=>'<td>'+esc(v)+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>'+
       '<details class="delta"><summary>Схема изменений</summary>'+deltaMatrix(changes)+rows.map(([id,,field,before,after])=>'<div class="delta-row"><b>'+esc(id)+' · '+esc(field)+'</b><span>'+esc(before)+'</span><i aria-label="переход">→</i><strong>'+esc(after)+'</strong></div>').join('')+'</details>';
   }
-  return {types,relations,modes,structures,diagram,sequence,differences};
+  return {types,relations,modes,structures,diagram,sequence,differences,diffPage};
 })();
+
+</script>
+<script>
+/* Bound the visible projection while keeping the original order and IDs. */
+const Scope = (() => {
+  function page(items, number, size) {
+    const pages=Math.max(1,Math.ceil(items.length/size));
+    const current=Math.max(0,Math.min(number,pages-1));
+    const start=current*size;
+    return {items:items.slice(start,start+size),current,pages,start,total:items.length};
+  }
+  function graph(model, mode, layer, focus, pair, groups, number, structure) {
+    const by=new Map(model.nodes.map(n=>[n.id,n]));
+    let nodes=model.nodes;
+    let edges=model.edges.filter(e=>e.layer===layer);
+    if(mode==='component'){
+      nodes=nodes.filter(n=>['module','component','system','service','product'].includes(n.kind));
+      const eligible=new Set(nodes.map(n=>n.id));
+      edges=edges.filter(e=>eligible.has(e.from)&&eligible.has(e.to));
+    }else if(mode==='neighbors'){
+      edges=edges.filter(e=>e.from===focus||e.to===focus);
+      const adjacent=new Set([focus,...edges.flatMap(e=>[e.from,e.to])]);
+      nodes=nodes.filter(n=>adjacent.has(n.id));
+    }else if(mode==='all'){
+      nodes=groups.flat().map(id=>by.get(id));
+    }else if(mode==='tree'||mode==='concept'){
+      edges=Views.structures(model).filter(e=>mode==='concept'||e.layer==='parent');
+    }
+    const window=page(nodes,number,48);
+    const selected=new Set(window.items.map(n=>n.id));
+    const pins=pair|| (structure?[structure.from,structure.to]:[]);
+    for(const n of nodes)if(pins.includes(n.id)||mode==='neighbors'&&n.id===focus)selected.add(n.id);
+    const inside=edges.filter(e=>selected.has(e.from)&&selected.has(e.to));
+    const boundary=edges.filter(e=>selected.has(e.from)!==selected.has(e.to));
+    const slice={nodes:[...selected].map(id=>by.get(id)),edges:inside};
+    return {window,focusPage:Math.max(0,Math.floor(nodes.findIndex(n=>n.id===focus)/48)),model:slice,edges:inside,crossing:boundary.length,boundary,by,groups:groups.map(g=>g.filter(id=>selected.has(id))).filter(g=>g.length)};
+  }
+  return {page,graph};
+})();
+if(typeof module!=='undefined')module.exports=Scope;
+
+</script>
+<script>
+/* The guided workflow writes normal model cards and versioned relationships. */
+const Delivery = ((M,C) => {
+  const stages={
+    intake:'Требование',review:'Разбор запроса',deferred:'Отложено',declined:'Отклонено',
+    propose:'Подготовка предложения',decision:'Архитектурное решение',plan:'Планирование',
+    work:'Исполнение работ',apply:'Применение модели',verify:'Проверка внедрения',
+    deviation:'Устранение отклонения',done:'Внедрение подтверждено'
+  };
+  const cached=new WeakMap();
+  function index(model){
+    if(cached.has(model))return cached.get(model);
+    const by=new Map(),reverse=new Map(),children=new Map();
+    function add(map,id,n){if(!map.has(id))map.set(id,[]);map.get(id).push(n);}
+    for(const n of model.nodes){
+      by.set(n.id,n);
+      for(const ref of n.refs||[])add(reverse,ref,n);
+      if(n.parent)add(children,n.parent,n);
+    }
+    const value={by,reverse,children};
+    cached.set(model,value);return value;
+  }
+  function related(idx,n,kind){
+    if(!n)return [];
+    return [...new Set([...(n.refs||[]).map(id=>idx.by.get(id)),...(idx.reverse.get(n.id)||[])])].filter(x=>x?.kind===kind);
+  }
+  function chain(model,id,requestId,proposalId){
+    const idx=index(model),requirement=idx.by.get(id);
+    if(requirement?.kind!=='requirement')throw Error('Выберите требование');
+    const requests=related(idx,requirement,'request');
+    const failed=related(idx,requirement,'deviation').filter(n=>n.state!=='done');
+    const needsCheck=p=>p.state==='done'&&!related(idx,p,'installation').some(n=>n.refs?.includes(id)&&n.attrs?.verification==='passed');
+    const priority=p=>failed.some(d=>d.refs?.includes(p.id))||needsCheck(p);
+    const choose=(items,wanted,attention)=>items.find(n=>n.id===wanted)||items.find(n=>n.state!=='done')||items.find(attention)||items.at(-1);
+    const request=choose(requests,requestId,r=>related(idx,r,'proposal').some(priority));
+    const proposals=request?related(idx,request,'proposal'):related(idx,requirement,'proposal');
+    const proposal=choose(proposals,proposalId,priority);
+    const tasks=(idx.children.get(proposal?.id)||[]).filter(n=>n.kind==='changeTask');
+    const decisions=related(idx,proposal,'adr');
+    const observations=related(idx,proposal,'installation').filter(n=>n.refs?.includes(id)&&n.attrs?.verification);
+    const findings=related(idx,proposal,'deviation').filter(n=>n.refs?.includes(id));
+    const deviations=findings.filter(n=>n.state!=='done');
+    let stage='intake';
+    if(proposal){
+      if(proposal.state==='done')stage=deviations.length?'deviation':observations.some(n=>n.attrs.verification==='passed')?'done':'verify';
+      else if(!decisions.length)stage='decision';
+      else if(!tasks.length)stage='plan';
+      else stage=tasks.some(t=>t.state!=='done')?'work':'apply';
+    }else if(request){
+      stage=({accepted:'propose',deferred:'deferred',declined:'declined'})[request.attrs?.disposition]||'review';
+    }
+    return {requirement,requests,request,proposals,proposal,tasks,decisions,observations,deviations,findings,stage};
+  }
+  function value(s,label){if(typeof s!=='string'||!s.trim())throw Error('Заполните «'+label+'»');return s.trim();}
+  function fresh(model,id){if(index(model).by.has(id))throw Error('ID уже занят · '+id);return id;}
+  function nextId(model,prefix){
+    const by=index(model).by;let i=1;while(by.has(prefix+'-'+i))i++;return prefix+'-'+i;
+  }
+  function requirement(model,f){
+    return M.patch(model,[{op:'node',value:{id:fresh(model,f.id),kind:'requirement',state:'planned',name:value(f.name,'Название'),
+      note:value(f.need,'Потребность'),attrs:{when:value(f.when,'Условие'),then:value(f.then,'Результат'),owner:value(f.owner,'Ответственный'),due:f.due||''}}}]);
+  }
+  function decision(model,ch,f){
+    return M.patch(model,[{op:'node',value:{id:fresh(model,f.id),kind:'adr',state:'done',name:value(f.name,'Решение'),
+      note:'## Контекст\n\n'+ch.requirement.note+'\n\n## Решение\n\n'+value(f.choice,'Выбранный вариант')+'\n\n## Последствия\n\n'+value(f.effects,'Последствия'),
+      refs:[ch.proposal.id,ch.requirement.id],attrs:{owner:value(f.actor,'Автор')}}}]);
+  }
+  function task(model,ch,f){
+    if(!index(model).by.has(f.release)||index(model).by.get(f.release).kind!=='release')throw Error('Выберите релиз');
+    const effort=f.effort===''||f.effort==null?null:Number(f.effort);
+    const next=C.task(model,ch.proposal.id,f.id,f.name,value(f.owner,'Исполнитель'));
+    if(f.after&&!ch.tasks.some(t=>t.id===f.after))throw Error('Предшественник должен относиться к предложению');
+    return M.patch(next,[{op:'node',value:{id:f.id,release:f.release,effort,relations:f.after?[['dependsOn',f.after]]:[]}}]);
+  }
+  function checkTasks(model){
+    const {by}=index(model);
+    for(const n of model.nodes)if(n.kind==='changeTask'&&n.state==='done'){
+      for(const [kind,id] of n.relations||[])if(kind==='dependsOn'&&by.get(id)?.kind==='changeTask'&&by.get(id).state!=='done')
+        throw Error('Сначала завершите работу '+id+' для '+n.id);
+    }
+    return model;
+  }
+  function taskState(model,id){
+    const n=index(model).by.get(id);
+    if(n?.kind!=='changeTask'||index(model).by.get(n.parent)?.state==='done')throw Error('Требуется работа открытого предложения');
+    return checkTasks(M.patch(model,[{op:'node',value:{id,state:n.state==='done'?'active':'done'}}]));
+  }
+  function apply(model,ch,f){
+    if(ch.stage!=='apply')throw Error('Для применения нужны решение и завершённые работы');
+    const target=value(f.target,'ID объекта'),existing=index(model).by.get(target);
+    const field=value(f.attribute,'Атрибут');
+    if(['__proto__','constructor','prototype'].includes(field))throw Error('Выберите другое имя атрибута');
+    const raw=value(f.value,'Значение');
+    let result=raw;
+    if(f.type==='number'){result=Number(raw);if(!Number.isFinite(result))throw Error('Введите число');}
+    if(f.type==='boolean'){if(!['true','false'].includes(raw))throw Error('Введите true или false');result=raw==='true';}
+    if(existing&&['requirement','proposal','request','changeTask','adr'].includes(existing.kind))throw Error('Выберите объект архитектуры');
+    const card=existing?{id:target}:{id:target,name:value(f.targetName,'Название нового компонента'),kind:'component'};
+    const relations=(existing?.relations||[]).slice();
+    if(!relations.some(([k,id])=>k==='realizes'&&id===ch.requirement.id))relations.push(['realizes',ch.requirement.id]);
+    const patch=M.patch(model,[{op:'node',value:{...card,attrs:{...existing?.attrs,[field]:result},relations}},
+      {op:'node',value:{id:ch.proposal.id,attrs:{...ch.proposal.attrs,appliedObject:target}}}]);
+    return C.completeProposal(patch,ch.proposal.id);
+  }
+  function observe(model,ch,f){
+    if(ch.proposal?.state!=='done')throw Error('Сначала примените предложение');
+    const environment=value(f.environment,'Среда'),actor=value(f.actor,'Автор'),evidence=value(f.evidence,'Фактический результат');
+    if(!['passed','failed'].includes(f.outcome))throw Error('Выберите результат проверки');
+    const target=ch.proposal.attrs?.appliedObject||f.target;
+    if(!target||!index(model).by.has(target))throw Error('Укажите проверенный объект проекта');
+    const refs=[...new Set([ch.requirement.id,ch.proposal.id,target])];
+    const id=nextId(model,'OBS'),failed=f.outcome==='failed',attrs={environment,owner:actor,verification:f.outcome,observedAt:new Date().toISOString()};
+    const ops=[{op:'node',value:{id,kind:'installation',name:'Проверка · '+environment,state:'done',note:evidence,attrs,refs}}];
+    const same=ch.deviations.filter(d=>d.attrs?.environment===environment&&d.refs?.includes(target)&&d.attrs?.source==='delivery');
+    if(failed){
+      ops.push({op:'node',value:{id:nextId(model,'DEV'),kind:'deviation',name:'Расхождение · '+environment,state:'review',refs:[...refs,id],
+        note:evidence,attrs:{source:'delivery',environment,expected:ch.requirement.attrs?.then||ch.requirement.note,actual:evidence}}});
+    }else for(const d of same)ops.push({op:'node',value:{id:d.id,state:'done',refs:[...d.refs,id]}});
+    const idx=index(model);
+    const pending=related(idx,ch.requirement,'deviation').some(d=>d.state!=='done'&&!same.includes(d))||
+      ch.requests.some(r=>r.id!==ch.request?.id&&r.state!=='done')||
+      related(idx,ch.requirement,'proposal').some(p=>p.id!==ch.proposal.id&&(p.state!=='done'||
+        !related(idx,p,'installation').some(n=>n.refs?.includes(ch.requirement.id)&&n.attrs?.verification==='passed')));
+    ops.push({op:'node',value:{id:ch.requirement.id,state:failed||pending?'review':'done'}});
+    return M.patch(model,ops);
+  }
+  function portfolio(model,filters,today){
+    const rows=[];
+    for(const r of model.nodes.filter(n=>n.kind==='requirement')){
+      const ch=chain(model,r.id),owner=r.attrs?.owner||'',due=r.attrs?.due||'';
+      const overdue=!!due&&due<today&&ch.stage!=='done'&&ch.stage!=='declined';
+      if(filters.stage&&filters.stage!==ch.stage||filters.owner&&filters.owner!==owner||filters.overdue&&!overdue)continue;
+      rows.push({id:r.id,name:r.name,stage:ch.stage,owner,due,overdue});
+    }
+    return rows;
+  }
+  function trace(ch){
+    const nodes=[ch.requirement,ch.request,ch.proposal,...ch.decisions,...ch.tasks,...ch.observations,...ch.findings].filter(Boolean);
+    return '# '+ch.requirement.name+'\n\nЭтап · '+stages[ch.stage]+'\n\n'+nodes.map(n=>'## '+n.id+' · '+n.name+'\n\n'+n.note+'\n\n'+
+      Object.entries(n.attrs||{}).map(([k,v])=>'- '+k+' · '+v).join('\n')+(n.release?'\n- Релиз · '+n.release:'')+'\n').join('\n');
+  }
+  return {stages,index,chain,requirement,decision,task,taskState,checkTasks,apply,observe,portfolio,trace,nextId,fresh};
+})(typeof DSM!=='undefined'?DSM:require('./model.js'),typeof Changes!=='undefined'?Changes:require('./changes.js'));
+if(typeof module!=='undefined')module.exports=Delivery;
+
+</script>
+<script>
+function deliveryPanel({model,doc,esc,button,field,sel,table,modal,push,download,render,navigate,inspect,toast}){
+  let selected='',requestId='',proposalId='',filters={stage:'',owner:'',overdue:false};
+  const action=(name,label,id='',extra='')=>button('journey'+name,label,'data-id="'+esc(id)+'" '+extra);
+  const text=(name,label,initial='')=>'<label class="field">'+label+'<textarea name="'+name+'" required>'+esc(initial)+'</textarea></label>';
+  const select=(id,label,choices,current)=>'<label class="filter-control">'+label+'<select id="'+id+'">'+choices.map(([k,v])=>'<option value="'+esc(k)+'" '+(k===current?'selected':'')+'>'+esc(v)+'</option>').join('')+'</select></label>';
+  const choose=ns=>ns.map(n=>[n.id,n.id+' · '+n.name]);
+  const area=(html)=>'<div class="row">'+html+'</div>';
+  const today=()=>{const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');};
+  function set(id){selected=id||'';requestId='';proposalId='';}
+  function selectRoute(id){
+    set(id);navigate('journey',false);
+    const hash='#journey?requirement='+encodeURIComponent(id)+'&project='+encodeURIComponent(doc().project);
+    if(location.hash!==hash)window.history.pushState(null,'',hash);
+  }
+  function current(){return Delivery.chain(model(),selected,requestId,proposalId);}
+  const buttons={intake:['Request','Создать запрос'],review:['Review','Разобрать запрос'],deferred:['Review','Повторить разбор'],declined:['Review','Пересмотреть запрос'],
+    propose:['Proposal','Подготовить предложение'],decision:['Decision','Записать решение ADR'],plan:['Task','Запланировать работу'],
+    work:['Works','К работам релиза'],apply:['Apply','Применить изменение'],verify:['Observe','Подтвердить внедрение'],
+    deviation:['Observe','Повторная проверка'],done:['Observe','Проверить в другой среде']};
+  function view(){
+    const m=model(),requirements=m.nodes.filter(n=>n.kind==='requirement');
+    if(!selected&&requirements.length===1)selected=requirements[0].id;
+    const rows=Delivery.portfolio(m,filters,today());
+    const owners=[...new Set(requirements.map(n=>n.attrs?.owner).filter(Boolean))].sort();
+    const head='<div class="cardhead"><div><h2>Маршрут изменения</h2><p class="hint">От потребности до проверки в рабочей среде</p></div>'+action('Requirement','Новое требование','','class="primary"')+'</div>';
+    const filtersBar='<div class="journey-filters">'+select('journeyStage','Этап',[['','Все этапы'],...Object.entries(Delivery.stages)],filters.stage)+
+      select('journeyOwner','Ответственный',[['','Все ответственные'],...owners.map(o=>[o,o])],filters.owner)+
+      '<label><input id="journeyLate" type="checkbox" '+(filters.overdue?'checked':'')+'> Просроченные</label>'+action('Csv','CSV очереди')+'</div>';
+    const queue='<details class="card journey-queue" '+(!selected?'open':'')+'><summary>Очередь требований · '+rows.length+' / '+requirements.length+'</summary>'+filtersBar+
+      (rows.length?table(['Требование','Следующий этап','Ответственный','Срок'],rows.map(r=>[action('Select',esc(r.id)+' · '+esc(r.name),r.id),esc(Delivery.stages[r.stage]),esc(r.owner||'—'),esc(r.due||'—')+(r.overdue?' · просрочено':'')])):'<p>Подходящих требований нет.</p>')+'</details>';
+    const req=Delivery.index(m).by.get(selected);
+    if(req?.kind!=='requirement')return '<div class="stack"><section class="card">'+head+'<p>Создайте требование или выберите его в очереди.</p></section>'+queue+'</div>';
+    const ch=current(),r=ch.requirement,p=ch.proposal;
+    const objectButton=n=>action('Card',esc(n.id)+' · '+esc(n.name),n.id);
+    const stages=['Требование','Запрос','Предложение','Решение','Работы','Применение','Внедрение'];
+    const evidence=[r,ch.request,p,ch.decisions[0],ch.tasks.length&&ch.tasks.every(t=>t.state==='done'),p?.state==='done',ch.stage==='done'];
+    const destinations=['Требование','Запрос','Предложение','Архитектурные решения','Работы релиза','Изменённый объект','Проверки внедрения'];
+    const progress='<ol class="journey-steps">'+stages.map((s,i)=>'<li class="'+(evidence[i]?'passed':'')+'">'+(evidence[i]?action('Step','✓ '+s,destinations[i]):esc(s))+'</li>').join('')+'</ol>';
+    const stage=ch.stage==='plan'&&!m.nodes.some(n=>n.kind==='release')?['Release','Создать первый релиз']:buttons[ch.stage];
+    const actions=area(action(stage[0],stage[1],'','class="primary"')+(p&&p.state!=='done'&&ch.stage!=='plan'&&ch.stage!=='decision'?action('Task','Добавить работу'):'')+
+      ((ch.stage==='plan'||ch.stage==='work')&&stage[0]!=='Release'?action('Release','Новый релиз'):'')+ (ch.stage==='deviation'?action('Correction','Корректирующий запрос'):'')+action('Trace','Отчёт .md')+action('Link','Ссылка на требование'));
+    const pick=(arr,chosen,id,title)=>arr.length>1?select(id,title,choose(arr),chosen?.id):'';
+    const line=(label,body)=>body?'<div class="trace-line" data-trace="'+label+'"><h4 tabindex="-1">'+label+'</h4>'+body+'</div>':'';
+    const items=(arr)=>arr.map(objectButton).join(' ');
+    const tasks=ch.tasks.map(t=>'<div class="file-item"><div>'+objectButton(t)+'<small>'+esc([t.attrs?.owner,t.effort==null?'без оценки':t.effort+' ед.',...(t.relations||[]).filter(x=>x[0]==='dependsOn').map(x=>'после '+x[1])].filter(Boolean).join(' · '))+'</small>'+(t.release?objectButton(Delivery.index(m).by.get(t.release)):'')+'</div>'+
+      (p?.state==='done'?'<span>Готово</span>':action('TaskState',t.state==='done'?'Вернуть в работу':'Завершить работу',t.id))+'</div>').join('');
+    const observation=ch.observations.map(n=>'<div class="file-item"><div>'+objectButton(n)+'<small>'+esc(n.attrs.environment)+' · '+esc(n.attrs.owner)+' · '+esc(n.attrs.observedAt?.slice(0,10)||'')+'</small><p>'+esc(n.note)+'</p></div>'+esc(n.attrs.verification==='passed'?'Подтверждено':'Расхождение')+'</div>').join('');
+    return '<div class="stack"><section class="card">'+head+progress+'<div class="cardhead"><div><small>'+esc(r.id)+' · '+esc(r.attrs?.owner||'Ответственный не указан')+'</small><h3>'+esc(r.name)+'</h3></div><strong>'+esc(Delivery.stages[ch.stage])+'</strong></div><p>'+esc(r.note)+'</p><p><b>Условие приёмки</b> · '+esc(r.attrs?.when||'—')+' → '+esc(r.attrs?.then||'—')+'</p>'+actions+'</section>'+
+      '<section class="card"><h3>Связанные работы и артефакты</h3>'+line('Требование',objectButton(r))+line('Запрос',pick(ch.requests,ch.request,'journeyRequest','Запрос')+(ch.request?objectButton(ch.request):''))+
+      line('Предложение',pick(ch.proposals,p,'journeyProposal','Предложение')+(p?objectButton(p):''))+line('Архитектурные решения',items(ch.decisions))+line('Работы релиза',tasks)+
+      line('Изменённый объект',p?.attrs?.appliedObject&&Delivery.index(m).by.has(p.attrs.appliedObject)?objectButton(Delivery.index(m).by.get(p.attrs.appliedObject)):'')+
+      line('Проверки внедрения',observation)+line('Открытые отклонения',items(ch.deviations))+'</section>'+queue+'</div>';
+  }
+  function bind(){
+    const on=(id,fn)=>{const el=document.getElementById(id);if(el)el.onchange=()=>{fn(el);render();document.querySelector('.journey-queue').open=true;};};
+    on('journeyStage',el=>filters.stage=el.value);on('journeyOwner',el=>filters.owner=el.value);on('journeyLate',el=>filters.overdue=el.checked);
+    on('journeyRequest',el=>{requestId=el.value;proposalId='';});on('journeyProposal',el=>proposalId=el.value);
+  }
+  async function transfer(id){
+    const m=model(),n=Delivery.index(m).by.get(id),releases=DSM.plan(m);
+    if(n?.kind!=='changeTask')throw Error('Выберите работу релиза');
+    if(Delivery.index(m).by.get(n.parent)?.state==='done')throw Error('Предложение уже применено');
+    modal('Перенести работу '+id,sel('release','Назначить релиз',releases.map(r=>[r.id,r.name]),n.release)+field('actor','Автор',n.attrs?.owner,'required'),f=>{
+      if(f.release===n.release)throw Error('Выберите другой релиз');
+      const version=DSM.head(doc()).rev,after=DSM.patch(model(),[{op:'node',value:{id,release:f.release}}]);
+      const future=new Map(DSM.plan(after).map(r=>[r.id,r]));
+      const rows=releases.filter(r=>[n.release,f.release].includes(r.id)).map(r=>[esc(r.id),r.knownEffort,future.get(r.id).knownEffort,r.capacity??'—']);
+      modal('Изменение загрузки релизов',table(['Релиз','Было','Станет','Ёмкость'],rows),()=>push(after,'Перенос работы '+id+' в '+f.release,f.actor,version),'Подтвердить перенос');
+      return false;
+    },'Предпросмотр');
+  }
+  async function handle(name,id){
+    const m=model(),next=prefix=>Delivery.nextId(m,prefix);
+    if(name==='Step'){[...document.querySelectorAll('[data-trace]')].find(el=>el.dataset.trace===id)?.querySelector('h4')?.focus();return;}
+    if(name==='Transfer'){await transfer(id);return;}
+    if(name==='Select'){selectRoute(id);return;}
+    if(name==='Card'){inspect(id);return;}
+    if(name==='Csv'){
+      const list=Delivery.portfolio(m,filters,today()).map(r=>[r.id,r.name,Delivery.stages[r.stage],r.owner,r.due,r.overdue?'Да':'']);
+      download('requirements.csv',Formats.csv([['ID','Требование','Этап','Ответственный','Срок','Просрочено'],...list]),'text/csv');return;
+    }
+    if(name==='Requirement'){
+      modal('Новое требование',field('id','ID',next('REQ'),'required')+field('name','Название','','required')+text('need','Потребность')+
+        text('when','При каком условии')+text('then','Проверяемый результат')+field('owner','Ответственный','','required')+field('due','Срок','','type="date"'),async f=>{
+        await push(Delivery.requirement(model(),f),'Регистрация требования · '+f.id,f.owner);selectRoute(f.id);
+      });return;
+    }
+    const ch=current(),r=ch.requirement,p=ch.proposal,owner=r.attrs?.owner||'';
+    if(name==='Request'||name==='Correction')modal('Запрос по требованию '+r.id,field('id','ID',next('CR'),'required')+field('name','Название',r.name,'required')+
+      field('requester','Инициатор',owner,'required')+text('problem','Проблема',r.note)+text('outcome','Ожидаемый результат',r.attrs?.then)+text('acceptance','Как проверить',[r.attrs?.when,r.attrs?.then].filter(Boolean).join(' → '))+
+      sel('priority','Приоритет',[['normal','Обычный'],['high','Высокий'],['critical','Критический'],['low','Низкий']],'normal'),async f=>{
+      await push(Changes.request(model(),{...f,owner,refs:[r.id,...(name==='Correction'?ch.deviations.map(n=>n.id):[])]}),'Запрос · '+f.id,f.requester);requestId=f.id;render();
+    });
+    if(name==='Review')modal('Разбор '+ch.request.id,sel('outcome','Решение',[['accepted','Принять'],['deferred','Отложить'],['declined','Отклонить']],'accepted')+
+      field('actor','Рецензент',owner,'required')+text('reason','Обоснование'),f=>push(Changes.review(model(),ch.request.id,f.outcome,f.actor,f.reason),'Разбор · '+f.reason,f.actor));
+    if(name==='Proposal')modal('Предложение OpenSpec',field('id','ID предложения',next('change'),'required')+field('actor','Автор',owner,'required'),
+      f=>push(Changes.promote(model(),ch.request.id,f.id),'OpenSpec propose · '+f.id,f.actor));
+    if(name==='Decision')modal('Архитектурное решение',field('id','ID',next('ADR'),'required')+field('name','Название решения',r.name,'required')+
+      text('choice','Выбранный вариант')+text('effects','Последствия')+field('actor','Автор',owner,'required'),f=>push(Delivery.decision(model(),ch,f),'ADR · '+f.id,f.actor));
+    if(name==='Release')modal('Новый релиз',field('id','ID',next('REL'),'required')+field('name','Название','','required')+field('capacity','Ёмкость','','type="number" min="0" step="any" required')+
+      field('actor','Ответственный',owner,'required'),f=>push(DSM.patch(model(),[{op:'node',value:{id:Delivery.fresh(model(),f.id),name:f.name,kind:'release',capacity:Number(f.capacity)}}]),'План релиза · '+f.id,f.actor));
+    if(name==='Task'){
+      const releases=DSM.plan(m);
+      if(!releases.length){await handle('Release');return;}
+      modal('Работа релиза',field('id','ID',next('WORK'),'required')+field('name','Работа','','required')+field('owner','Исполнитель',owner,'required')+
+        sel('release','Релиз',releases.map(n=>[n.id,n.id+' · '+n.name]),releases[0].id)+field('effort','Оценка','','type="number" step="any" min="0"')+
+        '<p id="journeyCapacity" aria-live="polite"></p>'+sel('after','После работы',[['','Без предшественника'],...choose(ch.tasks)],''),f=>push(Delivery.task(model(),ch,f),'План работ · '+f.id,f.owner));
+      const form=document.getElementById('form'),show=()=>{
+        const rel=releases.find(x=>x.id===form.elements.release.value),raw=form.elements.effort.value;
+        document.getElementById('journeyCapacity').textContent='Загрузка '+rel.knownEffort+' → '+(rel.knownEffort+Number(raw))+' / '+(rel.capacity??'ёмкость неизвестна')+' · без оценки '+(rel.unknown+(raw===''?1:0))+(rel.capacity!==null&&rel.knownEffort+Number(raw)>rel.capacity?' · перегрузка на '+(rel.knownEffort+Number(raw)-rel.capacity):'');
+      };form.elements.release.onchange=show;form.elements.effort.oninput=show;show();
+    }
+    if(name==='Works'){document.querySelector('[data-action=journeyTaskState]')?.focus();return;}
+    if(name==='TaskState'){
+      const task=Delivery.index(model()).by.get(id);
+      modal('Состояние работы '+id,field('actor','Кто меняет статус',task.attrs?.owner||owner,'required')+text('reason','Основание',task.state==='done'?'Требуется доработка':'Работа выполнена'),
+        f=>push(Delivery.taskState(model(),id),'Работа '+id+' · '+f.reason,f.actor));
+    }
+    if(name==='Apply'){
+      const targets=m.nodes.filter(n=>!['requirement','proposal','request','changeTask','adr'].includes(n.kind));
+      modal('Применение изменения',field('target','ID существующего или нового объекта','','required list="deliveryTargets"')+
+        '<datalist id="deliveryTargets">'+targets.map(n=>'<option value="'+esc(n.id)+'">'+esc(n.name)+'</option>').join('')+'</datalist>'+
+        field('targetName','Название при создании компонента')+field('attribute','Имя атрибута','','required')+
+        sel('type','Тип значения',[['text','Текст'],['number','Число'],['boolean','Логическое']],'text')+field('value','Новое значение','','required')+
+        field('actor','Кто применяет',owner,'required')+text('note','Причина изменения',r.name),f=>{
+          const before=DSM.head(doc()).rev,after=Delivery.apply(model(),ch,f);
+          modal('Проверить применение',Views.differences(DSM.diff(model(),after)),()=>push(after,f.note,f.actor,before),'Применить и сохранить');return false;
+        },'Предпросмотр');
+    }
+    if(name==='Observe')modal('Проверка внедрения',field('environment','Среда или площадка',ch.observations.at(-1)?.attrs.environment||'','required')+
+      (!p.attrs?.appliedObject?field('target','ID проверяемого объекта','','required'):'')+sel('outcome','Итог',[['passed','Подтверждено'],['failed','Обнаружено расхождение']],'passed')+
+      text('evidence','Фактический результат и основание')+field('actor','Проверил',owner,'required'),f=>push(Delivery.observe(model(),ch,f),'Проверка внедрения · '+r.id+' · '+f.environment,f.actor));
+    if(name==='Trace')download(r.id+'-trace.md',Delivery.trace(ch),'text/markdown');
+    if(name==='Link'){
+      const url=new URL(location.href);url.hash='journey?requirement='+encodeURIComponent(r.id)+'&project='+encodeURIComponent(doc().project);
+      modal('Ссылка на требование',field('link','Открыть в этой копии проекта',url.href,'readonly'),()=>{},'Закрыть');
+      document.querySelector('#fields input').select();
+    }
+  }
+  return {view,bind,handle,set,selectRoute};
+}
 
 </script>
 <script>
@@ -4147,7 +4588,7 @@ function reviewPanel({doc,esc,button:b,option,field,sel,table,tools,modal,push,d
       case 'Review':modal('Разбор запроса '+id,sel('outcome','Решение',[['accepted','Принять'],['deferred','Отложить'],['declined','Отклонить']],'accepted')+field('reviewer','Рецензент','','required')+textarea('reason','Обоснование'),f=>push(Changes.review(model(),id,f.outcome,f.reviewer,f.reason),'Разбор · '+id+' · '+f.reason,f.reviewer));break;
       case 'Promote':modal('Предложение по запросу '+id,field('newId','ID предложения','','required'),f=>push(Changes.promote(model(),id,f.newId),'OpenSpec propose · '+f.newId+' · '+id));break;
       case 'Task':modal('Задача предложения '+id,field('id','ID задачи','','required')+field('name','Задача','','required')+field('owner','Исполнитель'),f=>push(Changes.task(model(),id,f.id,f.name,f.owner),'Добавление задачи · '+f.id));break;
-      case 'TaskState':{const n=m.nodes.find(n=>n.id===id&&n.kind==='changeTask');await push(DSM.patch(m,[{op:'node',value:{id,state:n.state==='done'?'active':'done'}}]),'Состояние задачи · '+id);break;}
+      case 'TaskState':{const n=m.nodes.find(n=>n.id===id&&n.kind==='changeTask');await push(Delivery.taskState(m,id),'Состояние задачи · '+id);break;}
       case 'Brief':download(id+'.md',Changes.brief(m,id),'text/markdown');break;
       case 'Timeline':modal('История запроса '+id,table(['Ревизия','Автор','Описание','Поля'],Changes.timeline(doc(),id).map(h=>[esc(h.rev.slice(0,8)),esc(h.actor),esc(h.note),esc(h.fields.join(', '))])),()=>{},'Закрыть');break;
       case 'Package':opened=Specifications.packageFiles(doc(),id).files;source=id;packageViewer();break;
@@ -4295,13 +4736,15 @@ function notebookPanel({doc,online,visible,render,proposed,modal,download,button
 const $=id=>document.getElementById(id), esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
 const embedded=DSM.document(JSON.parse($('project-data').textContent));
 const original='<!doctype html>\n'+document.documentElement.outerHTML;
-const tabs={matrix:'Матрица',graph:'Граф и схема',catalog:'Каталог',plan:'Релизы и фичи',history:'Версии',io:'Обмен',notebook:'Jupyter Notebook',artifacts:'Артефакты',requirements:'Требования',requests:'Запросы',reports:'Анализ'};
+const tabs={journey:'Маршрут изменения',matrix:'Матрица',graph:'Граф и схема',catalog:'Каталог',plan:'Релизы и фичи',history:'Версии',io:'Обмен',notebook:'Jupyter Notebook',artifacts:'Артефакты',requirements:'Требования',requests:'Запросы',reports:'Анализ'};
 const kinds=Views.types;
-const sections={architecture:['matrix','graph','plan','requirements','requests','artifacts','reports'],data:['catalog','notebook']};
+const sections={architecture:['journey','matrix','graph','plan','requirements','requests','artifacts','reports'],data:['catalog','notebook']};
 const lastTab={architecture:'matrix',data:'catalog'};
-let structure=null,workMode='architecture',registry='nodes',scenarioId='';
-function navigate(id){
+let boundaryOpen=false,structure=null,workMode='architecture',registry='nodes',scenarioId='';
+function navigate(id,record=true){
+  if(record&&location.hash!=='#'+id)window.history.pushState(null,'','#'+id);
   for(const [mode,items] of Object.entries(sections))if(items.includes(id)){workMode=mode;lastTab[mode]=id;}
+  if(id==='catalog')locateCatalog();
   tab=id;render();if(id==='notebook')books.refresh();
 }
 function showPair(from,to,target){
@@ -4309,10 +4752,12 @@ function showPair(from,to,target){
   if(target==='catalog'){registry='edges';filter='';}
   if(target==='matrix'&&segment&&[from,to].some(id=>nodeBy(id)?.segment!==segment))segment='';
   if(target==='graph')graphMode='neighbors';
+  if(target==='matrix')locatePair(from,to);
+  if(target==='graph')pages.drawing=0;
   navigate(target);
 }
 const states={idea:'Идея',planned:'Запланировано',active:'В работе',review:'Проверка',blocked:'Заблокировано',done:'Готово',unspecified:'Не задано'};
-let doc=embedded,server=false,cacheKey='mazzy.dsm.1/'+embedded.project+'/'+DSM.head(embedded).rev,cacheOK=true;
+let doc=embedded,server=false,cacheKey='mazzy.dsm.1/'+embedded.project+'/'+DSM.head(embedded).rev,cacheOK=true,memoryBase=null;
 const entryKey=cacheKey+'/opened';
 let tab='matrix',layer='flow',ordered=false,focus='',pair=null,selected=new Set(),segment='',graphMode='neighbors',filter='',counter=0,submit=null,dialogBase=null,analysisCache=new Map();
 const data=()=>DSM.head(doc).data, base=()=>DSM.head(doc).rev,short=s=>s.slice(0,8);
@@ -4324,15 +4769,36 @@ const hint=t=>'<p class="hint">'+t+'</p>';
 const table=(head,rows)=>'<div class="wrap"><table class="table"><thead><tr>'+head.map(v=>'<th>'+v+'</th>').join('')+'</tr></thead><tbody>'+rows.map(r=>'<tr>'+r.map(c=>'<td>'+c+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>';
 const toolbar=(items)=>'<div class="row">'+items.join('')+'</div>';
 const idButton=id=>b('focus',esc(id),'class="tiny mono" data-id="'+esc(id)+'"');
-const nodeBy=id=>data().nodes.find(n=>n.id===id);
+let indexedModel=null,nodeIndex=new Map(),matrixLinks=new Map();
+function indexModel(){
+  if(indexedModel===data())return;
+  indexedModel=data();nodeIndex=new Map(data().nodes.map(n=>[n.id,n]));
+  matrixLinks=new Map(data().edges.map(e=>[DSM.ek(e),e]));
+}
+function nodeBy(id){indexModel();return nodeIndex.get(id);}
+const pages={rows:0,cols:0,drawing:0,impact:0,groups:0,boundary:0,catalog:0};
+function pager(key,w,label){
+  if(w.pages===1)return '';
+  return '<div class="pager"><span>'+label+' '+(w.start+1)+'–'+(w.start+w.items.length)+' / '+w.total+'</span>'+
+    b('page','‹','aria-label="Назад · '+label+'" data-id="'+key+'" data-page="'+(w.current-1)+'" '+(w.current?'':'disabled'))+
+    b('page','›','aria-label="Далее · '+label+'" data-id="'+key+'" data-page="'+(w.current+1)+'" '+(w.current+1<w.pages?'':'disabled'))+'</div>';
+}
+function matrixOrder(){
+  return (ordered?getAnalysis().order:data().nodes.map(n=>n.id)).filter(id=>!segment||nodeBy(id).segment===segment);
+}
+function locatePair(from,to){
+  const order=matrixOrder();
+  pages.rows=Math.floor(order.indexOf(from)/32);pages.cols=Math.floor(order.indexOf(to)/32);
+}
+
 function toast(s){$('toast').textContent=s;const v=++counter;setTimeout(()=>{if(v===counter)$('toast').textContent='';},6000);}
 function download(name,content,type='application/octet-stream'){const url=URL.createObjectURL(new Blob([content],{type}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);}
 function dynamicHtml(value){return original.replace(/(<script type="application\/json" id="project-data">)[\s\S]*?(<\/script>)/,(_,a,z)=>a+JSON.stringify(value).replaceAll('<','\\u003c')+z);}
 function getAnalysis(){const key=base()+layer;if(!analysisCache.has(key)){analysisCache.clear();analysisCache.set(key,Analysis.calculate(data(),layer));}return analysisCache.get(key);}
-function resetView(resetBooks=true){if(resetBooks)books.reset();resetCatalog();historyFilters={actor:'',object:'',from:'',until:'',text:'',oldest:false};structure=null;pair=null;selected.clear();focus=(data().nodes.find(n=>n.kind==='feature')||data().nodes[0])?.id||'';segment='';filter='';}
-function cache(){
+function resetView(resetBooks=true){Object.keys(pages).forEach(k=>pages[k]=0);if(resetBooks)books.reset();resetCatalog();historyFilters={actor:'',object:'',from:'',until:'',text:'',oldest:false};structure=null;pair=null;selected.clear();focus=(data().nodes.find(n=>n.kind==='feature')||data().nodes[0])?.id||'';segment='';filter='';}
+function cache(previous=null){
   if(server)return;
-  try{localStorage.setItem(cacheKey,JSON.stringify(doc));cacheOK=true;}catch{cacheOK=false;toast('Кэш браузера недоступен. Сохраните проект в JSON.');}
+  try{localStorage.setItem(cacheKey,JSON.stringify(doc));cacheOK=true;memoryBase=null;}catch{if(cacheOK)memoryBase=previous;cacheOK=false;toast('Кэш браузера недоступен. Сохраните проект в JSON.');}
 }
 async function push(next,note,actor='Редактор',expected=dialogBase||base()){
   if(expected!==base())throw Error('Проект изменился с момента открытия формы. Скопируйте правку, закройте форму и сравните версии.');
@@ -4341,8 +4807,8 @@ async function push(next,note,actor='Редактор',expected=dialogBase||base
     const res=await r.json();if(!r.ok)throw Error(res.error);doc=DSM.document(res);
   }else{
     const saveLocal=()=>{let stored=null;try{stored=localStorage.getItem(cacheKey);}catch{}
-      if(stored&&DSM.head(JSON.parse(stored)).rev!==expected)throw Error('Другая вкладка уже сохранила изменения. Обновите страницу и сравните версии.');
-      doc=DSM.commit(doc,next,expected,note,actor);cache();};
+      if(stored&&DSM.head(JSON.parse(stored)).rev!==(cacheOK?expected:memoryBase||expected))throw Error('Другая вкладка уже сохранила изменения. Обновите страницу и сравните версии.');
+      doc=DSM.commit(doc,next,expected,note,actor);cache(expected);};
     if(navigator.locks)await navigator.locks.request(cacheKey,saveLocal);else saveLocal();
   }
   render();toast('Версия сохранена · '+short(base()));
@@ -4358,7 +4824,9 @@ function shell(content){
   $('workMode').innerHTML=Object.entries({architecture:'Архитектура',data:'Данные и расчёты'}).map(([k,v])=>b('workMode',v,'aria-pressed="'+(k===workMode)+'" data-id="'+k+'"')).join('');
   $('notebookHost').hidden=tab!=='notebook'||!books.active();
   $('demoGuide').hidden=doc.project!==embedded.project||!data().nodes.some(n=>n.id==='TK'&&n.note.includes('Qwen Code'))||!nodeBy('F02')||!nodeBy('F03');
-  $('nav').innerHTML=[...sections[workMode],'history','io'].map(k=>b('tab',tabs[k],'class="'+(k===tab?'on':'')+'" data-id="'+k+'"')).join('');
+  const menu={'Изменения':['journey','requirements','requests','artifacts','plan'],'Архитектура':['catalog','matrix','graph','reports'],'Данные':['notebook','history','io']};
+  $('nav').innerHTML=Object.entries(menu).map(([title,items])=>'<section><h2>'+title+'</h2>'+items.map(k=>
+    b('tab',tabs[k],'class="'+(k===tab?'on':'')+'" '+(k===tab?'aria-current="page" ':'')+'data-id="'+k+'"')).join('')+'</section>').join('');
   $('content').innerHTML=content;
 }
 function layerControl(){return '<div class="toggle">'+[['flow','Вызовы'],['risk','Совместные проверки']].map(([k,v])=>b('layer',v,'data-id="'+k+'" class="'+(k===layer?'on':'')+'"')).join('')+'</div>';}
@@ -4366,6 +4834,7 @@ function inspector(){
   const n=nodeBy(focus);if(!n)return '<aside class="card"><h3>Первый объект</h3>'+b('node','Добавить объект')+'</aside>';
   const e=pair&&data().edges.find(x=>DSM.ek(x)===DSM.ek({layer,from:pair[0],to:pair[1]}));
   const impact=Analysis.impact(data(),n.id),a=getAnalysis();
+  const affected=Scope.page(impact.dependents,pages.impact,32),clusters=Scope.page(a.groups,pages.groups,12);
   let box='<div class="eyebrow">ИНСПЕКТОР</div><h2>'+esc(n.name)+'</h2><p><span class="tag">'+esc(n.id)+'</span> '+esc(kinds[n.kind])+'</p>';
   if(pair){box+='<div class="callout"><b>'+esc(pair.join(layer==='flow'?' → ':' ↔ '))+'</b><br>'+(e?'Вес '+e.weight+' · '+esc(e.reason):'В этой ячейке связь ещё не описана.')+'</div>'+b('edge',e?'Изменить связь':'Создать связь');}
   else {box+=hint(esc(n.note)||'Выберите ячейку матрицы, чтобы увидеть основание связи.')+b('edit','Изменить объект','data-id="'+esc(n.id)+'"');}
@@ -4375,21 +4844,30 @@ function inspector(){
   const relations=data().nodes.flatMap(other=>(other.relations||[]).filter(([,to])=>other.id===n.id||to===n.id).map(([k,to])=>[idButton(other.id),esc(Views.relations[k]),idButton(to)]));
   if(relations.length)box+=table(['Объект','Связь','Цель'],relations);
   if(n.kind==='proposal')box+=toolbar([b('document','Оформить ADR','data-id="adr"'),b('specZip','Пакет OpenSpec','data-id="'+esc(n.id)+'"'),b('applySpec','Apply · применить патч','data-id="'+esc(n.id)+'" '+(n.state==='done'?'disabled':''))]);
+  if(n.kind==='requirement')box+=b('journeySelect','К маршруту изменения','data-id="'+esc(n.id)+'"');
+  if(n.kind!=='requirement'){
+    const by=Delivery.index(data()).by;
+    const direct=[...(n.refs||[]),...(nodeBy(n.parent)?.refs||[]),...(n.relations||[]).filter(([kind])=>kind==='realizes').map(([,id])=>id)];
+    const routes=[...new Set(direct)].filter(id=>by.get(id)?.kind==='requirement');
+    if(routes.length)box+=toolbar(routes.map(id=>b('journeySelect','Маршрут '+esc(id),'data-id="'+esc(id)+'"')));
+  }
   if(n.kind==='scenario')box+=b('scenarioView','Показать последовательность','data-id="'+esc(n.id)+'"');
   if(refs.length)box+='<h3>Связанные артефакты и объекты</h3>'+toolbar(refs.map(idButton));
   if(pair)box+='<div class="tools">'+[['matrix','В матрицу'],['graph','На граф'],['catalog','В реестр связей']].filter(([k])=>k!==tab).map(([k,label])=>b('pairView',label,'data-id="'+k+'"')).join('')+'</div>';
   else if(tab!=='catalog')box+=b('objectRow','В таблицу объектов','data-id="'+esc(n.id)+'"');
-  return '<aside><div class="card">'+box+'</div><div class="card"><h3>Влияние изменения</h3>'+hint('Транзитивные потребители контракта '+esc(n.id))+toolbar(impact.dependents.map(idButton))+(impact.dependents.length?'':hint('Потребителей нет.'))+'<div class="pair"><span>Прямые совместные проверки</span><b>'+impact.checks.length+'</b></div></div><div class="card"><h3>Разбиение по связям</h3>'+hint('Группы с положительным приростом модулярности Q.')+a.groups.map((g,i)=>'<div class="cluster"><b>Группа '+(i+1)+'</b> · '+esc(g.join(' · '))+'</div>').join('')+'</div></aside>';
+  return '<aside><div class="card">'+box+'</div><div class="card"><h3>Влияние изменения</h3>'+hint('Транзитивные потребители контракта '+esc(n.id))+toolbar(affected.items.map(idButton))+pager('impact',affected,'Потребители')+(impact.dependents.length?'':hint('Потребителей нет.'))+'<div class="pair"><span>Прямые совместные проверки</span><b>'+impact.checks.length+'</b></div></div><div class="card"><h3>Разбиение по связям</h3>'+hint('Группы с положительным приростом модулярности Q.')+clusters.items.map((g,i)=>'<div class="cluster"><b>Группа '+(clusters.start+i+1)+'</b> · '+esc(g.join(' · '))+'</div>').join('')+pager('groups',clusters,'Группы')+'</div></aside>';
 }
 function matrix(){
-  const d=data(),a=getAnalysis(),order=(ordered?a.order:d.nodes.map(n=>n.id)).filter(id=>!segment||nodeBy(id).segment===segment);
-  const values=Analysis.matrix(d,layer,order),segments=[...new Set(d.nodes.map(n=>n.segment).filter(Boolean))];
-  const head='<thead><tr><th></th>'+order.map(id=>'<th scope="col" '+(pair?.[1]===id?'class="axis-selected" ':'')+'title="'+esc(nodeBy(id).name)+'">'+esc(id)+'</th>').join('')+'</tr></thead>';
-  const body=order.map((from,i)=>'<tr><th scope="row" class="label '+(pair?.[0]===from?'axis-selected':'')+'">'+b('focus',esc(from),'title="'+esc(nodeBy(from).name)+'" data-id="'+esc(from)+'"')+'</th>'+order.map((to,j)=>{
-    const w=values[i][j],active=pair&&pair[0]===from&&pair[1]===to;
-    return '<td>'+b(i===j?'focus':'cell',i===j?'·':w||'','aria-label="'+esc(from+' / '+to+' / '+w)+'" title="'+esc(from+' / '+to+' · '+w)+'" data-id="'+esc(from)+'" data-to="'+esc(to)+'" class="cell '+(i===j?'diag':'w'+Math.min(3,w))+(active?' active':'')+'"')+'</td>';
+  const d=data(),a=getAnalysis(),order=matrixOrder();
+  const rows=Scope.page(order,pages.rows,32),cols=Scope.page(order,pages.cols,32);
+  const segments=[...new Set(d.nodes.map(n=>n.segment).filter(Boolean))];
+  const head='<thead><tr><th></th>'+cols.items.map(id=>'<th scope="col" '+(pair?.[1]===id?'class="axis-selected" ':'')+'title="'+esc(nodeBy(id).name)+'">'+esc(id)+'</th>').join('')+'</tr></thead>';
+  const body=rows.items.map(from=>'<tr><th scope="row" class="label '+(pair?.[0]===from?'axis-selected':'')+'">'+b('focus',esc(from),'data-id="'+esc(from)+'"')+'</th>'+cols.items.map(to=>{
+    const w=matrixLinks.get(DSM.ek({from,to,layer}))?.weight||0,active=pair?.[0]===from&&pair?.[1]===to;
+    return '<td>'+b(from===to?'focus':'cell',from===to?'·':w||'','aria-label="'+esc(from+' / '+to+' / '+w)+'" title="'+esc(from+' / '+to+' · '+w)+'" data-id="'+esc(from)+'" data-to="'+esc(to)+'" class="cell '+(from===to?'diag':'w'+Math.min(3,w))+(active?' active':'')+'"')+'</td>';
   }).join('')+'</tr>').join('');
-  return '<div class="board"><article class="card"><div class="cardhead"><div><h2>Матрица зависимостей</h2>'+hint(layer==='flow'?'Строка вызывает столбец. Нажмите ячейку для правки.':'Вес совместной проверки показан по обе стороны диагонали.')+'</div></div>'+layerControl()+'<div class="tools"><select id="order" aria-label="Порядок матрицы">'+option('initial','Исходный порядок',ordered?'':'initial')+option('group','По кластерам',ordered?'group':'')+'</select><select id="segment" aria-label="Сегмент">'+option('','Все сегменты',segment)+segments.map(s=>option(s,s,segment)).join('')+'</select></div><div class="wrap"><table class="matrix">'+head+'<tbody>'+body+'</tbody></table></div><div class="legend">'+[['#edf2ef','Нет связи'],['#a9ddbd','Вес 1'],['#58ac87','Вес 2'],['#106849','Вес 3+']].map(([c,t])=>'<span><i style="background:'+c+'"></i>'+t+'</span>').join('')+'</div><div class="metricline"><span>Длина L <b>'+a.cost_before+' → '+a.cost_after+'</b></span><span>Межгрупповые связи <b>'+a.cross_links+'</b></span><span>Q <b>'+a.modularity.toFixed(3)+'</b></span></div>'+hint('Показатели рассчитаны для полного слоя. Фильтр сегмента меняет область просмотра.')+'</article>'+inspector()+'</div>';
+  const jump=d.nodes.length>32?'<div class="tools"><label>Строка <input id="rowJump" list="matrixIds" value="'+esc(pair?.[0]||'')+'"></label><label>Столбец <input id="colJump" list="matrixIds" value="'+esc(pair?.[1]||'')+'"></label>'+b('jumpPair','Найти ячейку')+'<datalist id="matrixIds">'+d.nodes.map(n=>'<option value="'+esc(n.id)+'">'+esc(n.name)+'</option>').join('')+'</datalist></div>':'';
+  return '<div class="board"><article class="card"><div class="cardhead"><div><h2>Матрица зависимостей</h2>'+hint(layer==='flow'?'Строка вызывает столбец. Нажмите ячейку для правки.':'Вес совместной проверки показан по обе стороны диагонали.')+'</div></div>'+layerControl()+'<div class="tools"><select id="order" aria-label="Порядок матрицы">'+option('initial','Исходный порядок',ordered?'':'initial')+option('group','По кластерам',ordered?'group':'')+'</select><select id="segment" aria-label="Сегмент">'+option('','Все сегменты',segment)+segments.map(s=>option(s,s,segment)).join('')+'</select></div>'+jump+'<div class="tools">'+pager('rows',rows,'Строки')+pager('cols',cols,'Столбцы')+'</div><div class="wrap"><table class="matrix">'+head+'<tbody>'+body+'</tbody></table></div><div class="legend">'+[['#edf2ef','Нет связи'],['#a9ddbd','Вес 1'],['#58ac87','Вес 2'],['#106849','Вес 3+']].map(([c,t])=>'<span><i style="background:'+c+'"></i>'+t+'</span>').join('')+'</div><div class="metricline"><span>Длина L <b>'+a.cost_before+' → '+a.cost_after+'</b></span><span>Межгрупповые связи <b>'+a.cross_links+'</b></span><span>Q <b>'+a.modularity.toFixed(3)+'</b></span></div>'+hint('Показатели рассчитаны для полного слоя. Фильтр сегмента меняет область просмотра.')+'</article>'+inspector()+'</div>';
 }
 function demoSteps(){
   const sample=[['F02','RUN'],['F03','RUN'],['RUN','LOG']];
@@ -4406,12 +4884,36 @@ function graph(){
   const selector=sequence?(scenarios.length?'<select id="scenarioSelect" aria-label="Сценарий">'+scenarios.map(n=>option(n.id,n.name,scenario.id)).join('')+'</select>':hint(steps.length?'Пример сценария Terminal Kit · подтверждение и выполнение плана':''))+
     b('makeScenario','+ Сценарий')+(scenario?b('edit','Изменить шаги','data-id="'+esc(scenario.id)+'"'):''):
     '<select id="focusSelect" aria-label="Фокус графа">'+m.nodes.map(n=>option(n.id,n.id+' · '+n.name,focus)).join('')+'</select>';
-  const drawing=sequence?Views.sequence(m,steps,focus,pair):Views.diagram(m,graphMode,layer,focus,pair,getAnalysis().groups,structure);
-  return '<div class="board"><article class="card"><div class="cardhead"><h2>'+title+'</h2>'+b('svg','Скачать SVG','class="tiny" '+(drawing.includes('<svg')?'':'disabled'))+'</div>'+hint(description[graphMode]||'Выберите линию для просмотра основания и перехода к ячейке DSM.')+controls+'<div class="tools">'+selector+'</div>'+drawing+'</article>'+inspector()+'</div>';
+  const groups=graphMode==='all'?getAnalysis().groups:[];
+  const scope=sequence?null:Scope.graph(m,graphMode,layer,focus,pair,groups,pages.drawing,structure);
+  const window=sequence?Scope.page(steps,pages.drawing,40):scope.window;
+  const drawing=sequence?Views.sequence(m,window.items,focus,pair,window.start):Views.diagram(scope.model,graphMode,layer,focus,pair,scope.groups,structure,scope);
+  let boundary='';
+  if(scope&&window.pages>1){
+    boundary=hint('Во фрагменте '+scope.model.nodes.length+' объектов и '+scope.edges.length+' связей. Через границу проходят '+scope.crossing+'.');
+    if(scope.crossing){
+      boundary+=b('graphBoundary',boundaryOpen?'Скрыть граничные связи':'Граничные связи');
+      if(boundaryOpen){
+        const part=Scope.page(scope.boundary,pages.boundary,30);
+        boundary+=pager('boundary',part,'Граничные связи')+table(['Связь','Основание'],part.items.map(e=>[
+          b(['flow','risk'].includes(e.layer)?'cell':'structure',esc(e.from+(e.layer==='risk'?' ↔ ':' → ')+e.to),
+            'data-id="'+esc(e.from)+'" data-to="'+esc(e.to)+'" data-layer="'+esc(e.layer)+'"'),esc(e.reason)]));
+      }
+    }
+  }
+  return '<div class="board"><article class="card"><div class="cardhead"><h2>'+title+'</h2>'+b('svg','Скачать SVG','class="tiny" '+(drawing.includes('<svg')?'':'disabled'))+'</div>'+hint(description[graphMode]||'Выберите линию для просмотра основания и перехода к ячейке DSM.')+controls+'<div class="tools">'+selector+'</div>'+pager('drawing',window,sequence?'Сообщения':'Объекты')+boundary+drawing+'</article>'+inspector()+'</div>';
 }
 let catalogFilters=Registers.defaults();
 let historyFilters={actor:'',object:'',from:'',until:'',text:'',oldest:false};
-function resetCatalog(){catalogFilters=Registers.defaults();filter='';}
+function resetCatalog(){catalogFilters=Registers.defaults();filter='';pages.catalog=0;}
+function locateCatalog(){
+  const pos=visibleCatalog().findIndex(row=>{
+    if(registry==='nodes')return row.id===focus;
+    if(registry==='structure')return structure&&row.from===structure.from&&row.to===structure.to&&row.layer===structure.layer;
+    return pair&&DSM.ek(row)===DSM.ek({from:pair[0],to:pair[1],layer});
+  });
+  if(pos>=0)pages.catalog=Math.floor(pos/75);
+}
 function filterSelect(id,title,choices,current){
   return '<label class="filter-control">'+title+'<select id="'+id+'">'+choices.map(([k,v])=>option(k,v,current)).join('')+'</select></label>';
 }
@@ -4429,13 +4931,13 @@ function visibleCatalog(){
   return entries.filter(e=>Registers.match(filter,e.from,e.to,e.layer,e.reason,e.weight));
 }
 function catalog(){
-  const entries=visibleCatalog();
+  const window=Scope.page(visibleCatalog(),pages.catalog,75),entries=window.items;
   const rows=registry==='nodes'?entries.map(n=>[idButton(n.id),esc(n.name),kinds[n.kind],states[n.state],esc(n.parent||'—'),esc(n.release||'—'),esc(n.segment||'—'),b('edit','Изменить','class="tiny" data-id="'+esc(n.id)+'"')]):
     registry==='structure'?entries.map(e=>[b('structure',esc(e.from+' → '+e.to),'data-id="'+esc(e.from)+'" data-to="'+esc(e.to)+'" data-layer="'+esc(e.layer)+'"'),esc(e.reason)]):
     entries.map(e=>[b('cell',esc(e.from+(layer==='flow'?' → ':' ↔ ')+e.to),'data-id="'+esc(e.from)+'" data-to="'+esc(e.to)+'"'),e.weight,esc(e.reason)]);
   const headers=registry==='nodes'?['ID','Объект','Тип','Статус','Родитель','Релиз','Сегмент','']:registry==='structure'?['Связь','Тип']:['Связь','Вес','Основание'];
   return '<div class="board"><article class="card"><div class="cardhead"><h2>Архитектурный реестр</h2>'+toolbar([b('node','+ Объект'),b('newEdge','+ Связь'),b('grid','Ввод строк',registry==='structure'?'disabled':'')])+'</div><div class="toggle">'+[['nodes','Объекты'],['edges','Связи DSM'],['structure','Архитектурные связи']].map(([k,v])=>b('registry',v,'data-id="'+k+'" class="'+(registry===k?'on':'')+'"')).join('')+'</div>'+
-    '<div class="tools"><input id="query" placeholder="Поиск по реестру" aria-label="Поиск" value="'+esc(filter)+'">'+(registry==='edges'?layerControl():'')+'</div>'+(registry==='nodes'?catalogControls():'')+'<div class="tools"><span>Найдено · '+entries.length+'</span>'+b('catalogCsv','CSV выборки')+'</div>'+table(headers,rows)+(rows.length?'':hint('По этому запросу записей нет.'))+'</article>'+inspector()+'</div>';
+    '<div class="tools"><input id="query" placeholder="Поиск по реестру" aria-label="Поиск" value="'+esc(filter)+'">'+(registry==='edges'?layerControl():'')+'</div>'+(registry==='nodes'?catalogControls():'')+'<div class="tools"><span>Найдено · '+window.total+'</span>'+b('catalogCsv','CSV выборки')+'</div>'+pager('catalog',window,'Записи')+table(headers,rows)+(rows.length?'':hint('По этому запросу записей нет.'))+'</article>'+inspector()+'</div>';
 }
 function gridInput(){
   const edges=registry==='edges',cols=edges?['from','to','weight','reason']:['id','name'];
@@ -4483,15 +4985,21 @@ function artifacts(){
 const books=notebookPanel({doc:()=>doc,online:()=>server,visible:()=>tab==='notebook',render,proposed,modal,download,button:b,option,esc,toast});
 const desk=reviewPanel({doc:()=>doc,esc,button:b,option,field,sel,table,tools:toolbar,modal,push,download,proposed,render,toast,
   inspect:id=>{registry='nodes';filter='';focus=id;pair=null;structure=null;resetCatalog();navigate('catalog');}});
+const journey=deliveryPanel({model:data,doc:()=>doc,esc,button:b,field,sel,table,modal,push,download,render,navigate,toast,
+  inspect:id=>{resetCatalog();registry='nodes';focus=id;pair=null;structure=null;navigate('catalog');}});
 function plan(){
   const releases=DSM.plan(data()),features=data().nodes.filter(n=>n.kind==='feature');
   const cards=releases.map(r=>'<div class="card"><span class="tag">'+esc(r.id)+'</span><h3>'+esc(r.name)+'</h3><div class="big">'+r.knownEffort+' / '+(r.capacity??'—')+'</div><div class="progress '+(r.capacity!==null&&r.knownEffort>r.capacity?'over':'')+'"><i style="width:'+Math.min(100,r.capacity?r.knownEffort/r.capacity*100:r.knownEffort?100:0)+'%"></i></div><div class="pair"><span>Без оценки</span><b>'+r.unknown+'</b></div><div class="pair"><span>Внешние вызовы / проверки</span><b>'+r.outgoing+' / '+r.crossChecks+'</b></div>'+ (r.capacity!==null&&r.knownEffort>r.capacity?'<span class="warn">Перегрузка на '+(r.knownEffort-r.capacity)+'</span>':'')+'</div>').join('');
-  return '<div class="cols">'+cards+'</div><div class="card" style="margin-top:15px"><div class="cardhead"><div><h2>Планирование фич</h2>'+hint('Отметьте фичи для общего пакета, сегмента, релиза или перехода состояния. Оценки заданы в условных единицах.')+'</div>'+b('bulk','Изменить выбранные ('+selected.size+')',selected.size?'class="primary"':'disabled')+'</div>'+table(['Выбор','ID','Фича','Статус','Оценка','Релиз','Пакет'],features.map(n=>['<input type="checkbox" aria-label="Выбрать '+esc(n.id)+'" data-check="'+esc(n.id)+'" '+(selected.has(n.id)?'checked':'')+'>',esc(n.id),esc(n.name),states[n.state],n.effort??'—',esc(n.release||'Бэклог'),esc(n.bundle||'—')]))+b('node','+ Объект')+'</div>';
+  const works=data().nodes.filter(n=>n.kind==='changeTask');
+  const workTable=works.length?'<section class="card" style="margin-top:15px"><h2>Работы по изменениям</h2>'+table(['Работа','Предложение','Релиз','Исполнитель','Оценка','Состояние',''],works.map(w=>[
+    b('objectRow',esc(w.id),'data-id="'+esc(w.id)+'"')+' '+esc(w.name),b('objectRow',esc(w.parent),'data-id="'+esc(w.parent)+'"'),w.release?b('objectRow',esc(w.release),'data-id="'+esc(w.release)+'"'):'Бэклог',esc(w.attrs?.owner||'—'),w.effort??'—',states[w.state],
+    nodeBy(w.parent)?.state!=='done'?b('journeyTransfer','Перенести работу','data-id="'+esc(w.id)+'"'):''
+  ]))+'</section>':'';
+  return '<div class="cols">'+cards+'</div><div class="card" style="margin-top:15px"><div class="cardhead"><div><h2>Планирование фич</h2>'+hint('Отметьте фичи для общего пакета, сегмента, релиза или перехода состояния. Оценки заданы в условных единицах.')+'</div>'+b('bulk','Изменить выбранные ('+selected.size+')',selected.size?'class="primary"':'disabled')+'</div>'+table(['Выбор','ID','Фича','Статус','Оценка','Релиз','Пакет'],features.map(n=>['<input type="checkbox" aria-label="Выбрать '+esc(n.id)+'" data-check="'+esc(n.id)+'" '+(selected.has(n.id)?'checked':'')+'>',esc(n.id),esc(n.name),states[n.state],n.effort??'—',esc(n.release||'Бэклог'),esc(n.bundle||'—')]))+b('node','+ Объект')+'</div>'+workTable;
 }
 function history(){
   const f=historyFilters,entries=Registers.revisions(doc,f);
-  const ids=[...new Set(doc.history.flatMap(h=>h.data.nodes.map(n=>n.id)))].sort();
-  const authors=[...new Set(doc.history.map(h=>h.actor))].sort();
+  const {ids,authors}=Registers.historyIndex(doc);
   return '<div class="card"><div class="cardhead"><h2>Версии проекта</h2>'+toolbar([b('changeLog','Журнал .md'),b('snapshot','+ Именованный снимок')])+'</div>'+
     '<details '+(Object.values(f).some(Boolean)?'open':'')+'><summary>Фильтры истории</summary><div class="tools"><input id="history-text" type="search" placeholder="Автор, описание, ревизия" aria-label="Поиск по истории" value="'+esc(f.text)+'">'+
     filterSelect('history-actor','Автор',[['','Все авторы'],...authors.map(x=>[x,x])],f.actor)+filterSelect('history-object','Изменения объекта',[['','Все объекты'],...ids.map(x=>[x,x])],f.object)+
@@ -4503,7 +5011,8 @@ function io(){return '<div class="cols"><div class="card"><h2>Загрузить
 function render(){
   if(!nodeBy(focus))focus=data().nodes[0]?.id||'';
   if(pair&&pair.some(id=>!nodeBy(id)))pair=null;
-  shell(({matrix,graph,catalog,plan,history,io,artifacts,requirements,requests:desk.view,reports:desk.reports,notebook:books.view})[tab]());
+  shell(({journey:journey.view,matrix,graph,catalog,plan,history,io,artifacts,requirements,requests:desk.view,reports:desk.reports,notebook:books.view})[tab]());
+  if(tab==='journey')journey.bind();
   if(tab==='notebook')books.bind();
   if(tab==='requests'||tab==='reports')desk.bind();
   if(tab==='catalog'){
@@ -4590,11 +5099,20 @@ $('file').onchange=async()=>{try{const f=$('file').files[0];if(!f)return;const k
 $('newProject').onclick=()=>modal('Новый проект',field('title','Название','','required')+sel('template','Шаблон',[['empty','Пустой проект'],['enterprise','Архитектура предприятия · закупки и установка']],'empty')+hint(server?'Будет создан отдельный автономный HTML.':'Откроется пустой проект. Сохраните текущий JSON, чтобы вернуться к его истории.'),async f=>{
   const next=DSM.create(f.template==='enterprise'?Enterprise.model(f.title):{title:f.title,nodes:[],edges:[]});
   if(server){download('new-project.html',dynamicHtml(next),'text/html');return;}
-  download('previous-project.json',JSON.stringify(doc,null,2),'application/json');doc=next;cacheKey='mazzy.dsm.1/'+doc.project+'/'+base();try{localStorage.setItem(entryKey,cacheKey);}catch{}cache();resetView();navigate('catalog');
+  download('previous-project.json',JSON.stringify(doc,null,2),'application/json');doc=next;cacheKey='mazzy.dsm.1/'+doc.project+'/'+base();try{localStorage.setItem(entryKey,cacheKey);}catch{}cache();resetView();journey.set('');navigate('journey');
 },'Создать');
 $('save').onclick=()=>exportAs('json');
 document.addEventListener('click',async e=>{const t=e.target.closest('[data-action]');if(!t)return;const action=t.dataset.action,id=t.dataset.id;
   try{
+    if(action==='graphBoundary'){boundaryOpen=!boundaryOpen;pages.boundary=0;render();return;}
+    if(action==='beginDelivery'){navigate('journey');await journey.handle('Requirement');return;}
+    if(action==='diffPage'){t.closest('.paged-diff').outerHTML=Views.diffPage(Number(t.dataset.page));return;}
+    if(action==='page'){if(Object.hasOwn(pages,id))pages[id]=Number(t.dataset.page);render();return;}
+    if(action==='jumpPair'){
+      const from=$('rowJump').value.trim(),to=$('colJump').value.trim();
+      if(!nodeBy(from)||!nodeBy(to))throw Error('Выберите два ID из каталога');
+      if(from===to){focus=from;pair=null;segment='';locatePair(from,to);render();}else showPair(from,to,'matrix');return;
+    }
     if(action==='clearCatalog'){resetCatalog();render();}
     if(action==='catalogCsv'){
       const entries=visibleCatalog(),cols=registry==='nodes'?[...DSM.nodeCols,...DSM.optionalNodeCols]:registry==='structure'?['from','to','layer','reason']:DSM.edgeCols;
@@ -4607,7 +5125,7 @@ document.addEventListener('click',async e=>{const t=e.target.closest('[data-acti
     if(action==='tab')navigate(id);
     if(action==='workMode')navigate(lastTab[id]);
     if(action==='grid')gridInput();
-    if(action==='registry'){registry=id;filter='';render();}
+    if(action==='registry'){registry=id;filter='';pages.catalog=0;render();}
     if(action==='objectRow'){registry='nodes';resetCatalog();focus=id;pair=null;navigate('catalog');}
     if(action==='pairView'&&pair)showPair(...pair,id);
     if(action==='demoCell'){layer='risk';showPair('F02','F03','matrix');}
@@ -4620,6 +5138,7 @@ document.addEventListener('click',async e=>{const t=e.target.closest('[data-acti
     if(action==='applySpec')applySpec(id);
     if(action==='specZip')download(id+'.zip',await Specifications.bundle(doc,id),'application/zip');
     if(action==='svg'){const drawing=$('content').querySelector('svg');if(drawing)download('dsm-'+graphMode+'-'+short(base())+'.svg',new XMLSerializer().serializeToString(drawing),'image/svg+xml');}
+    if(action.startsWith('journey'))await journey.handle(action.slice(7),id);
     if(action.startsWith('desk'))await desk.handle(action.slice(4),id);
     if(action.startsWith('book'))await books.handle(action.slice(4),id);
     if(action==='layer'){structure=null;layer=id;pair=null;render();}
@@ -4649,31 +5168,48 @@ document.addEventListener('click',async e=>{const t=e.target.closest('[data-acti
 });
 document.addEventListener('keydown',e=>{
   if(!e.target.matches('.matrix .cell'))return;
-  const td=e.target.closest('td'),row=td.parentElement,body=row.parentElement;
-  let y=row.sectionRowIndex,x=td.cellIndex;
+  const order=matrixOrder();
+  let y=order.indexOf(e.target.dataset.id),x=order.indexOf(e.target.dataset.to);
   switch(e.key){
     case 'ArrowUp': y--;break;
     case 'ArrowDown': y++;break;
     case 'ArrowLeft': x--;break;
     case 'ArrowRight': x++;break;
-    case 'Home': x=1;break;
-    case 'End': x=row.cells.length-1;break;
+    case 'Home': x=0;break;
+    case 'End': x=order.length-1;break;
     default:return;
   }
   e.preventDefault();
-  body.rows[Math.max(0,Math.min(y,body.rows.length-1))].cells[Math.max(1,Math.min(x,row.cells.length-1))].querySelector('.cell').focus();
+  y=Math.max(0,Math.min(y,order.length-1));x=Math.max(0,Math.min(x,order.length-1));
+  const rowPage=Math.floor(y/32),colPage=Math.floor(x/32);
+  if(rowPage!==pages.rows||colPage!==pages.cols){pages.rows=rowPage;pages.cols=colPage;render();}
+  const row=$('content').querySelector('.matrix tbody').rows[y%32];
+  row.cells[1+x%32].querySelector('.cell').focus();
 });
 document.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.matches('g[role=button]')){e.preventDefault();e.target.dispatchEvent(new MouseEvent('click',{bubbles:true}));}});
-document.addEventListener('change',e=>{const t=e.target;if(t.id.startsWith('catalog-'))catalogFilters[t.id.slice(8)]=t.value;else if(t.id.startsWith('history-'))historyFilters[t.id.slice(8)]=t.type==='checkbox'?t.checked:t.value;else if(t.id==='order')ordered=t.value==='group';else if(t.id==='segment')segment=t.value;else if(t.id==='focusSelect'){focus=t.value;pair=null;}else if(t.id==='graphMode'){graphMode=t.value;if(graphMode==='sequence'){layer='flow';pair=null;}}else if(t.id==='scenarioSelect'){scenarioId=t.value;pair=null;}else if(t.dataset.check){if(t.checked)selected.add(t.dataset.check);else selected.delete(t.dataset.check);}else return;render();});
-document.addEventListener('input',e=>{if(e.target.id==='query'){filter=e.target.value;render();$('query').focus();$('query').setSelectionRange(filter.length,filter.length);}});
+document.addEventListener('change',e=>{const t=e.target;if(t.id.startsWith('catalog-')){catalogFilters[t.id.slice(8)]=t.value;pages.catalog=0;}else if(t.id.startsWith('history-'))historyFilters[t.id.slice(8)]=t.type==='checkbox'?t.checked:t.value;else if(t.id==='order')ordered=t.value==='group';else if(t.id==='segment'){segment=t.value;pages.rows=pages.cols=0;}else if(t.id==='focusSelect'){focus=t.value;pair=null;pages.drawing=0;if(!['neighbors','sequence'].includes(graphMode)){const scoped=Scope.graph(data(),graphMode,layer,focus,null,graphMode==='all'?getAnalysis().groups:[],0,null);pages.drawing=scoped.focusPage;}}else if(t.id==='graphMode'){graphMode=t.value;pages.drawing=0;if(graphMode==='sequence'){layer='flow';pair=null;}}else if(t.id==='scenarioSelect'){scenarioId=t.value;pages.drawing=0;pair=null;}else if(t.dataset.check){if(t.checked)selected.add(t.dataset.check);else selected.delete(t.dataset.check);}else return;render();});
+document.addEventListener('input',e=>{if(e.target.id==='history-text'){historyFilters.text=e.target.value;render();$('history-text').focus();}if(e.target.id==='query'){pages.catalog=0;filter=e.target.value;render();$('query').focus();$('query').setSelectionRange(filter.length,filter.length);}});
 async function sync(){const prior=base();if(!server||$('dialog').open||tab==='io'||document.activeElement?.id==='query')return;
-  try{const r=await fetch('/api/head',{cache:'no-store'});if(!r.ok)return;const info=await r.json();if(info.rev!==base()){const full=await fetch('/api/project',{cache:'no-store'});const update=DSM.document(await full.json());if($('dialog').open||base()!==prior)return;doc=update;if(!nodeBy(focus))resetView(false);render();toast('Получена версия агента · '+short(base()));}}catch{}}
+  try{const r=await fetch('/api/head',{cache:'no-store'});if(!r.ok)return;const info=await r.json();if(info.rev!==base()||info.project&&info.project!==doc.project){const full=await fetch('/api/project',{cache:'no-store'});const update=DSM.document(await full.json());if($('dialog').open||base()!==prior)return;doc=update;if(!nodeBy(focus))resetView(false);render();toast('Получена версия агента · '+short(base()));}}catch{}}
+function readLocation(){
+  const [view,query]=location.hash.slice(1).split('?');
+  if(!Object.hasOwn(tabs,view))return false;
+  if(view==='journey'){
+    const params=new URLSearchParams(query);
+    const id=params.get('requirement');
+    const same=!params.get('project')||params.get('project')===doc.project;
+    journey.set(same?id:'');
+    if(id&&(!same||nodeBy(id)?.kind!=='requirement'))toast('Требование отсутствует в открытом проекте');
+  }
+  navigate(view,false);return true;
+}
 async function start(){
   if(location.protocol==='http:'&&location.hostname==='127.0.0.1'&&location.pathname==='/'){
-    try{const r=await fetch('/api/project',{cache:'no-store'});if(r.ok){doc=DSM.document(await r.json());server=true;}}catch{}}
+    try{const r=await fetch('/api/head',{cache:'no-store'});if(r.ok){const h=await r.json();if(h.rev!==base()||h.project&&h.project!==doc.project){const update=await fetch('/api/project',{cache:'no-store'});doc=DSM.document(await update.json());}server=true;}}catch{}}
   if(!server){try{const active=localStorage.getItem(entryKey);if(active?.startsWith('mazzy.dsm.1/'))cacheKey=active;const c=localStorage.getItem(cacheKey);if(c){const saved=DSM.document(JSON.parse(c));if(active||saved.project===embedded.project&&saved.history.some(h=>h.rev===DSM.head(embedded).rev))doc=saved;}}catch{cacheOK=false;}}
-  resetView();render();if(server)setInterval(sync,1800);
-  window.addEventListener('storage',e=>{if(!server&&e.key===cacheKey&&e.newValue){if($('dialog').open){toast('Есть новая версия в другой вкладке');return;}try{const incoming=DSM.document(JSON.parse(e.newValue));const switched=incoming.project!==doc.project;doc=incoming;if(switched||!nodeBy(focus))resetView(switched);render();toast('Получена версия из другой вкладки');}catch{}}});
+  resetView();if(!readLocation()){if(tab==='matrix'&&(!data().nodes.length||data().nodes.some(n=>n.kind==='requirement')))tab='journey';render();}if(server)setInterval(sync,1800);
+  window.addEventListener('hashchange',readLocation);
+  window.addEventListener('storage',e=>{if(!server&&e.key===cacheKey&&e.newValue){if($('dialog').open||!cacheOK){toast('Есть новая версия в другой вкладке. Сохраните свою копию в JSON.');return;}try{const incoming=DSM.document(JSON.parse(e.newValue));const switched=incoming.project!==doc.project;doc=incoming;if(switched||!nodeBy(focus))resetView(switched);render();toast('Получена версия из другой вкладки');}catch{}}});
 }
 start();
 })();

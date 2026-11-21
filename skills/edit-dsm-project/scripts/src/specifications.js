@@ -106,7 +106,9 @@ const Specifications = ((M,Zip)=>{
         entry.ids.forEach((id,i)=>{const old=M.head(doc).data.nodes.find(n=>n.id===id);if(marks[i]!== (old.state==='done'))ops.push({op:'node',value:{id,state:marks[i]?'done':'planned'}});});
       }
     }
-    return {kind:'projection',project:m.project,base:m.base,data:ops.length?M.patch(M.head(doc).data,ops):M.head(doc).data};
+    const data=ops.length?M.patch(M.head(doc).data,ops):M.head(doc).data;
+    const workflow=typeof Delivery!=='undefined'?Delivery:require('./delivery.js');
+    return {kind:'projection',project:m.project,base:m.base,data:ops.length?workflow.checkTasks(data):data};
   }
   return {coverage,document,bundle,context,readiness,packageFiles,openPackage,importPackage};
 })(typeof DSM!=='undefined'?DSM:require('./model.js'),typeof JSZip!=='undefined'?JSZip:require('./vendor/jszip.js'));

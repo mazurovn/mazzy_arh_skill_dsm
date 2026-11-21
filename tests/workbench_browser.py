@@ -9,6 +9,7 @@ import time
 import zipfile
 from contextlib import contextmanager
 from urllib.request import Request, urlopen
+from urllib.parse import urlsplit
 from urllib.error import HTTPError
 from pathlib import Path
 
@@ -104,6 +105,7 @@ def execute_profiles(folder):
 
 
 def notebook_flow(page,folder):
+    page.get_by_role("button",name="Матрица",exact=True).click()
     start_cell=page.locator(".matrix tbody tr").first.locator(".cell").first
     start_cell.focus()
     page.keyboard.press("ArrowRight");page.keyboard.press("ArrowDown")
@@ -154,7 +156,8 @@ def notebook_flow(page,folder):
     page.keyboard.press("Control+Enter")
     expect(custom.locator(".jp-OutputArea")).to_contain_text("CUSTOM-CELL",timeout=45000)
     page.keyboard.press("Control+s")
-    origin = page.url.rstrip("/")
+    address = urlsplit(page.url)
+    origin = address.scheme + "://" + address.netloc
     session = next(item for item in saved_book(origin,"list") if item["active"])
     # Jupyter acknowledges Ctrl+S before the server finishes writing the notebook.
     deadline = time.monotonic()+20

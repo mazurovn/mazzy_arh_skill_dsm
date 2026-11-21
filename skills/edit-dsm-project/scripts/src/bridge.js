@@ -3,7 +3,7 @@ const str={type:'string'},ops={type:'array',minItems:1,items:{type:'object',prop
 const shape=(properties,required=Object.keys(properties))=>({type:'object',properties,required,additionalProperties:false});
 const defs=[
   ['dsm_read','Прочитать текущую модель, ID проекта и исходную ревизию',shape({})],
-  ['dsm_analyze','Вычислить кластеры, границы зависимостей и загрузку релизов',shape({})],
+  ['dsm_analyze','Вычислить кластеры и загрузку или показать маршрут указанного требования',shape({requirement:str},[])],
   ['dsm_history','Прочитать журнал снимков без дублирования полных моделей',shape({})],
   ['dsm_diff','Сравнить две ревизии',shape({from:str,to:str})],
   ['dsm_preview','Показать изменения и загрузку релизов до записи',shape({project:str,base:str,ops})],
@@ -16,7 +16,7 @@ function invoke(file,name,args={}){
   const match=()=>{if(doc.project!==args.project||h.rev!==args.base)throw Error('Конфликт версии');};
   switch(name){
     case 'dsm_read':return R.current(doc);
-    case 'dsm_analyze':return R.analyze(doc);
+    case 'dsm_analyze':return args.requirement?require('./delivery.js').chain(h.data,args.requirement):R.analyze(doc);
     case 'dsm_history':return doc.history.map(({data,...meta})=>meta);
     case 'dsm_diff':return M.diff(revision(args.from).data,revision(args.to).data);
     case 'dsm_preview':match();return R.preview(doc,{kind:'patch',...args});
@@ -32,7 +32,7 @@ function mcp(file){
     let q;try{q=JSON.parse(line);}catch{reply(null,{error:{code:-32700,message:'Parse error'}});return;}
     if(q.jsonrpc!=='2.0'||typeof q.method!=='string'){reply(q.id??null,{error:{code:-32600,message:'Invalid Request'}});return;}
     if(q.id===undefined)return;
-    if(q.method==='initialize'){reply(q.id,{result:{protocolVersion:'2025-06-18',capabilities:{tools:{}},serverInfo:{name:'mazzy-dsm',version:'1.1.0'}}});return;}
+    if(q.method==='initialize'){reply(q.id,{result:{protocolVersion:'2025-06-18',capabilities:{tools:{}},serverInfo:{name:'mazzy-dsm',version:'1.2.0'}}});return;}
     if(q.method==='ping'){reply(q.id,{result:{}});return;}
     if(q.method==='tools/list'){reply(q.id,{result:{tools:defs.map(([name,description,inputSchema])=>({name,description,inputSchema}))}});return;}
     if(q.method!=='tools/call'){reply(q.id,{error:{code:-32601,message:'Method not found'}});return;}
@@ -54,16 +54,23 @@ async function jsonBody(req){
 function serve(file,port){
   const http=require('node:http');
   const notebooks=require('./jupyter.js')(file);
+  let stamp='',snapshot;
+  function read(){
+    const stat=require('node:fs').statSync(file,{bigint:true});
+    const version=[stat.dev,stat.ino,stat.size,stat.mtimeNs,stat.ctimeNs].join('/');
+    if(version!==stamp){snapshot=R.readProject(file);stamp=version;}
+    return snapshot;
+  }
   const srv=http.createServer(async(req,res)=>{
     const send=(status,data,type='application/json')=>{res.writeHead(status,{'Content-Type':type+'; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Content-Security-Policy':"frame-ancestors 'none'"});res.end(type==='application/json'?JSON.stringify(data):data);};
     try{
       const host='127.0.0.1:'+srv.address().port;
       if(req.headers.host!==host||req.headers.origin&&req.headers.origin!=='http://'+host){send(403,{error:'Несовпадение локального адреса'});return;}
       if(req.method==='GET'){
-        const doc=R.readProject(file);
+        const doc=read();
         if(req.url==='/'){send(200,R.html(doc),'text/html');return;}
         if(req.url==='/api/project'){send(200,doc);return;}
-        if(req.url==='/api/head'){send(200,{rev:M.head(doc).rev});return;}
+        if(req.url==='/api/head'){send(200,{project:doc.project,rev:M.head(doc).rev});return;}
       }
       if(req.method==='POST'&&req.url.startsWith('/api/notebooks/')){
         const origin='http://'+host;

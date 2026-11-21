@@ -75,8 +75,8 @@ const DSM = (() => {
   function document(doc) {
     if(doc?.schema!=='dsm-project/1'||!idOK(doc.project)||!Array.isArray(doc.history)||!doc.history.length)fail('Неверный формат проекта DSM');
     let parent=null;const seen=new Set();
-    for(const h of doc.history){if(!idOK(h.rev)||seen.has(h.rev)||h.parent!==parent||typeof h.note!=='string'||typeof h.actor!=='string'||!Number.isFinite(Date.parse(h.at)))fail('Повреждена цепочка версий');seen.add(h.rev);validate(h.data);parent=h.rev;}
-    return {...doc,history:doc.history.map(h=>({...h,data:validate(h.data)}))};
+    const history=doc.history.map(h=>{if(!idOK(h.rev)||seen.has(h.rev)||h.parent!==parent||typeof h.note!=='string'||typeof h.actor!=='string'||!Number.isFinite(Date.parse(h.at)))fail('Повреждена цепочка версий');seen.add(h.rev);parent=h.rev;return {...h,data:validate(h.data)};});
+    return {...doc,history};
   }
   function revision(data,note,actor,parent=null){
     if(typeof note!=='string'||!note.trim()||typeof actor!=='string'||!actor.trim())fail('Укажите автора и описание изменения');

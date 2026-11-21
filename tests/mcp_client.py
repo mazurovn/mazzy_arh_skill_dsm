@@ -35,6 +35,11 @@ async def check(file):
         assert len(await call("dsm_history", {})) == 2
         await call("dsm_restore", {"project":saved["project"],"base":saved["base"],"revision":current["base"],"actor":"SDK","note":"Возврат"})
         assert [r["knownEffort"] for r in (await call("dsm_analyze", {}))["releases"]] == [13, 5]
+        restored = await call("dsm_read", {})
+        await call("dsm_apply", {"project":restored["project"],"base":restored["base"],"actor":"SDK","note":"Новый маршрут",
+            "ops":[{"op":"node","value":{"id":"REQ","kind":"requirement","name":"Резерв памяти"}}]})
+        route = await call("dsm_analyze", {"requirement":"REQ"})
+        assert route["stage"] == "intake" and route["requirement"]["name"] == "Резерв памяти"
 
 if __name__ == "__main__":
     with tempfile.TemporaryDirectory() as folder:
