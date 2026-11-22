@@ -69,6 +69,9 @@ label.btn:has(.file-picker:focus-visible){outline:2px solid var(--teal);outline-
 .machine-plot{max-width:740px;background:#f5f8f6;padding:.5rem}.machine-plot svg{width:100%;max-height:300px}
 .machine-matrix .table{width:auto}.machine-matrix .table th,.machine-matrix .table td{font-size:.72rem;text-align:center;padding:.25rem}.machine-matrix .table td:first-child,.machine-matrix .table th:first-child{position:sticky;left:0;background:white}
 #machineProgram{font-family:ui-monospace,monospace;max-width:100%}
+
+.axis-layout{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:.7rem;margin:1rem 0}.axis-layout>div{display:grid;align-content:start;justify-items:start;gap:.4rem;border-left:3px solid #487d70;background:#f1f6f3;padding:.75rem}.axis-layout small{color:#415951}.axis-status{font-weight:650;color:#184f45}.axis-hash{overflow-wrap:anywhere}.axis-layout strong{font-size:.92rem}#axisAdr{margin-top:.8rem}#axisAdr summary{cursor:pointer;font-weight:650}
+.axis-diagram{width:100%;max-height:180px;margin:1rem 0}.axis-diagram path{stroke:#406c60;fill:none;stroke-width:1.8}.axis-diagram rect{stroke:#598576;fill:#e8f3ed}.axis-diagram text{text-anchor:middle;font:600 15px system-ui;fill:#173a32}
 </style><script type="text/plain" id="licenses">Mazzy Attribution License 1.0
 
 Copyright © 2026 mazzy (mazurovn)
@@ -3392,6 +3395,7 @@ const Formats = ((M,A)=>{
     if(!nodes.size&&!edges.length)throw Error('Пустой текст');return {kind:'merge',nodes:[...nodes.values()],edges};
   }
   function preview(doc,input){
+    if(input.kind==='axis-report')return (typeof AxisBench!=='undefined'?AxisBench:require('./axis-bench.js')).record(doc,input);
     if(input.kind==='machine-receipt')return (typeof Machine!=='undefined'?Machine:require('./machine.js')).receipt(doc,input);
     if(input.kind==='fleet-result')return (typeof FleetChange!=='undefined'?FleetChange:require('./fleet-change.js')).fromBook(doc,input);
     if(input.kind==='installation-receipt')return (typeof Installations!=='undefined'?Installations:require('./installations.js')).receipt(doc,input);
@@ -3744,6 +3748,88 @@ if(typeof module!=='undefined')module.exports=InstallationNotebook;
 
 </script>
 <script>
+const AxisBook=(()=>{
+  function write(doc,id,code,md){
+    const h=doc.history.at(-1),node=id?h.data.nodes.find(n=>n.id===id):h.data.nodes.filter(n=>n.attrs?.machineRole==='axisRun').at(-1);
+    if(node?.attrs?.machineRole!=='axisRun')throw Error('Сначала выполните прогон или выберите его протокол');
+    return [md('axis-intro','## Верификация обратной связи осей\nПлан — команда контроллера, факт — показание программного энкодера в миллиметрах. После ALARM координаты команды удерживаются.'),
+      code('axis-source',`import json, hashlib
+from html import escape
+from IPython.display import HTML, SVG, display
+by_id = {n["id"]: n for n in model["nodes"]}
+run_id = ${JSON.stringify(node.id)}
+entry = by_id[run_id]
+packet = json.loads(entry["attrs"]["packet"])
+c, fault, r = packet["config"], packet["fault"], packet["run"]
+s, rows = c["settings"], r["rows"]
+digest = hashlib.sha256(c["program"].encode("utf-8")).hexdigest()
+assert digest == r["sha256"] == entry["attrs"]["sha256"]
+assert all(k in entry["refs"] and k in by_id for k in [c["req"], c["adr"], c["job"], c["plan"]])
+print(run_id, r["engine"], c["job"], digest)
+print("Требование", c["req"], c["criterion"])
+print("ADR", c["adr"], c["decision"])
+print("Альтернатива:", c["alternative"], "\\nОбоснование:", c["rationale"])
+def table(columns, values):
+    def row(record, tag):
+        return "<tr>"+"".join(f"<{tag}>{escape(str(v))}</{tag}>" for v in record)+"</tr>"
+    display(HTML("<table>"+row(columns,"th")+"".join(row(v,"td") for v in values)+"</table>"))`),
+      code('axis-series',`assert rows and all(b[0]-a[0] == s["periodMs"] for a,b in zip(rows,rows[1:]))
+planned = [[v[i+2] for v in rows] for i in range(3)]
+measured = [[v[i+5]/s["countsPerMm"] for v in rows] for i in range(3)]
+peaks = [round(max(abs(a-b) for a,b in zip(p,m)),6) for p,m in zip(planned,measured)]
+alarm_index = next((j for j,row in enumerate(rows) if row[8]=="ALARM"),None)
+alarm = None if alarm_index is None else rows[alarm_index][0]
+assert alarm == r["alarm"]
+delay = None if alarm is None or r["injected"] is None else alarm-r["injected"]
+holds = [row for row in rows if row[8]=="HOLD"]
+steady = alarm_index is not None and all(row[2:5] == rows[alarm_index][2:5] for row in holds)
+fault_index = "XYZ".find(fault["axis"])
+first = next((i for i,row in enumerate(rows) if row[0]==r["injected"]), None)
+excited = first is not None and first>0 and any(row[2+fault_index]!=rows[first-1][2+fault_index] for row in rows[first:])
+if fault["axis"]=="none":
+    passed = alarm is None and max(max(abs(a-b) for a,b in zip(p,m)) for p,m in zip(planned,measured)) <= s["toleranceMm"]+1e-9
+    verdict = "passed" if passed else "failed"
+elif not excited:
+    verdict = "inconclusive"
+else:
+    axis = "XYZ".index(fault["axis"])
+    streak, detected = 0, None
+    for j,(p,m) in enumerate(zip(planned[axis],measured[axis])):
+        streak = streak+1 if abs(p-m)>s["toleranceMm"]+1e-9 else 0
+        if streak >= s["tripSamples"]:
+            detected = rows[j][0]
+            break
+    passed = alarm is not None and detected==alarm and r["axis"]==fault["axis"] and 0 <= delay <= s["maxResponseMs"] and steady and len(holds)>=2
+    verdict = "passed" if passed else "failed"
+table(["Ось","План в конце, мм","Обратная связь, мм","Макс. ошибка, мм"],[[axis,p[-1],m[-1],peak] for axis,p,m,peak in zip("XYZ",planned,measured,peaks)])
+print("Внесение, мс:",r["injected"],"Срабатывание, мс:",alarm,"Реакция, мс:",delay,"Такты удержания:",len(holds),"Итог:",verdict)
+indices = sorted(set([0,len(rows)-1]+list(range(max(0,(alarm_index or 0)-3),min(len(rows),(alarm_index or 0)+4)))))
+table(["мс","Строка NC","План XYZ, мм","Факт XYZ, мм","Режим"],[[rows[i][0],rows[i][1],rows[i][2:5],[m[i] for m in measured],rows[i][8]] for i in indices])`),
+      code('axis-plots',`def charts():
+    items = ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 730 390"><title>План и показания энкодеров XYZ</title><text x="15" y="18">План — синий · энкодер — оранжевый пунктир · ALARM — красная линия</text>']
+    x = lambda ms: 65+635*ms/max(1,rows[-1][0])
+    for i,axis in enumerate("XYZ"):
+        top=40+i*115
+        lo,hi=min(planned[i]+measured[i]),max(planned[i]+measured[i])
+        y=lambda v: top+75-70*(v-lo)/max(hi-lo,0.001)
+        items.append(f'<text x="3" y="{top+18}">{axis}, мм</text><text x="3" y="{top+36}">{hi:.2f}</text><text x="3" y="{top+77}">{lo:.2f}</text>')
+        items.append(f'<path d="M65 {top} v80 h635" fill="none" stroke="#96aaa4"/>')
+        for series,color,dash in [(planned[i],"#245e96",""),(measured[i],"#ba521b","5 3")]:
+            points=" ".join(f"{x(row[0]):.2f},{y(v):.2f}" for row,v in zip(rows,series))
+            items.append(f'<polyline fill="none" stroke="{color}" stroke-width="2" stroke-dasharray="{dash}" points="{points}"/>')
+        if alarm is not None:items.append(f'<path d="M{x(alarm):.2f} {top} v80" stroke="#b9222b"/>')
+    items.append(f'<text x="65" y="380">0 мс</text><text x="615" y="380">{rows[-1][0]} мс</text></svg>')
+    display(SVG("".join(items)))
+charts()`),
+      md('axis-return','## Заключение\nПри возврате DSM сверяет вывод с сохранённым протоколом. Приёмка на физическом станке оформляется отдельно.'),
+      code('result',`display({"application/vnd.mazzy.axis+json":{"project":${JSON.stringify(doc.project)},"base":${JSON.stringify(h.rev)},"runId":run_id,"sha256":digest,"values":[peaks,delay,len(holds),verdict]},"text/plain":"Заключение по осям готово"},raw=True)`,['dsm-result'])];
+  }
+  return {write};
+})();
+if(typeof module!=='undefined')module.exports=AxisBook;
+
+</script>
+<script>
 const MachineBook=(()=>{
   function cells(doc,root,code,md,context){
     const h=doc.history.at(-1);root=root||h.data.nodes.find(n=>n.kind==='product'&&n.attrs?.workbench==='cnc')?.id;
@@ -3892,7 +3978,7 @@ const Notebook=((M,A,F,Files,Profiles)=>{
   const md=(id,source)=>({id,cell_type:'markdown',metadata:{},source});
   const pre='null = None\ntrue = True\nfalse = False\nmodel = ';
   function write(doc,profile='full',installation,context){
-    if(profile!=='full'&&profile!=='machine'&&profile!=='installation'&&profile!=='fleet'&&!Object.hasOwn(Profiles,profile))throw Error('Неизвестный профиль блокнота');
+    if(profile!=='full'&&profile!=='axes'&&profile!=='machine'&&profile!=='installation'&&profile!=='fleet'&&!Object.hasOwn(Profiles,profile))throw Error('Неизвестный профиль блокнота');
     const h=M.head(doc),meta=F.meta(doc);
     const initial=profile==='full'?Object.fromEntries(['flow','risk'].map(l=>[l,A.calculate(h.data,l)])):{};
     const cells=[
@@ -3919,7 +4005,10 @@ const Notebook=((M,A,F,Files,Profiles)=>{
       code('release','rows=[]\nfor r in model["nodes"]:\n    if r["kind"] != "release": continue\n    assigned = [n for n in model["nodes"] if n.get("release")==r["id"]]\n    members={n["id"] for n in assigned}\n    known=sum(n["effort"] for n in assigned if n.get("effort") is not None)\n    unknown=sum(n.get("effort") is None for n in assigned)\n    outside=sum(e["layer"]=="flow" and e["from"] in members and e["to"] not in members for e in model["edges"])\n    rows.append([r["id"],len(assigned),known,unknown,r.get("capacity"),outside])\ntable(["Релиз","Работы","Оценено","Без оценки","Ёмкость","Внешние вызовы"],rows)'),
       md('handoff','## Возврат в редактор\nСохраните блокнот и выберите его в разделе «Обмен». Просмотрите разницу и сохраните новую версию. Если после экспорта агент уже изменил проект, откройте актуальный JSON и перенесите нужные изменения через патч.')
     ];
-    if(profile==='machine'){
+    if(profile==='axes'){
+      const lab=typeof AxisBook!=='undefined'?AxisBook:require('./axis-book.js');
+      cells.splice(2,cells.length-2,...lab.write(doc,installation,code,md));meta.profile=profile;
+    }else if(profile==='machine'){
       const lab=typeof MachineBook!=='undefined'?MachineBook:require('./machine-notebook.js');
       cells.splice(2,cells.length-2,...lab.cells(doc,installation,code,md,context));meta.profile=profile;
     }else if(profile==='fleet'){
@@ -3933,7 +4022,7 @@ const Notebook=((M,A,F,Files,Profiles)=>{
       cells.splice(2,cells.length-3,md('report-title','## '+spec.name+'\n'+spec.caption),code('report',spec.python));
       meta.profile=profile;
     }
-    if(profile!=='machine'&&profile!=='installation'&&profile!=='fleet')cells.push(md('result-help','## Передать результат вычислений в DSM\nВыполните эту ячейку после своих изменений model и сохраните блокнот. В редакторе выберите «Проверить результат Python».'),
+    if(profile!=='axes'&&profile!=='machine'&&profile!=='installation'&&profile!=='fleet')cells.push(md('result-help','## Передать результат вычислений в DSM\nВыполните эту ячейку после своих изменений model и сохраните блокнот. В редакторе выберите «Проверить результат Python».'),
       code('result',"from IPython.display import display\n"+'display({"application/vnd.mazzy.dsm+json": {"project": '+JSON.stringify(doc.project)+', "base": '+JSON.stringify(h.rev)+', "data": model}, "text/plain": "Модель подготовлена для DSM"}, raw=True)',['dsm-result']));
     return {nbformat:4,nbformat_minor:5,metadata:{kernelspec:{display_name:'Python 3',language:'python',name:'python3'},language_info:{name:'python'},dsm:meta},cells};
   }
@@ -3949,6 +4038,11 @@ const Notebook=((M,A,F,Files,Profiles)=>{
   function result(book){
     Files.validate(book);
     const cells=book.cells.filter(c=>c.cell_type==='code'&&c.metadata.tags?.includes('dsm-result'));
+    if(book.metadata?.dsm?.profile==='axes'){
+      const payload=cells.flatMap(c=>c.outputs.map(o=>o.data?.['application/vnd.mazzy.axis+json']).filter(Boolean));
+      if(cells.length!==1||payload.length!==1||payload[0].base!==book.metadata.dsm.base||payload[0].project!==book.metadata.dsm.project)throw Error('Выполните все ячейки стендового блокнота');
+      return {...payload[0],kind:'axis-report'};
+    }
     if(book.metadata?.dsm?.profile==='machine'){
       const payloads=cells.flatMap(c=>c.outputs.map(o=>o.data?.['application/vnd.mazzy.machine+json']).filter(Boolean));
       const v=payloads[0],meta=book.metadata.dsm;
@@ -4045,7 +4139,8 @@ const Specifications = ((M,Zip)=>{
   }
   function document(n){
     const refs=(n.refs||[]).join(', ');
-    return '# '+n.name+'\n\n'+n.note+(refs?'\n\nСвязанные ID · '+refs:'')+(n.steps?'\n\n'+n.steps.map((s,i)=>(i+1)+'. '+s.join(' → ')).join('\n'):'')+'\n';
+    const decision=n.attrs?.machineRole==='axisDecision'?'\n\n## Альтернатива\n\n'+n.attrs.alternative+'\n\n## Основание\n\n'+n.attrs.rationale+'\n\n## Последствия\n\n'+n.attrs.consequences:'';
+    return '# '+n.name+'\n\n'+n.note+decision+(refs?'\n\nСвязанные ID · '+refs:'')+(n.steps?'\n\n'+n.steps.map((s,i)=>(i+1)+'. '+s.join(' → ')).join('\n'):'')+'\n';
   }
   function slug(id){
     if(!id.startsWith('dsm-u-')&&/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(id))return id;
@@ -4123,7 +4218,14 @@ const Specifications = ((M,Zip)=>{
       if(files[key]===expected[key])continue;
       const entry=edit[key];if(!entry)throw Error('Верните исходный служебный файл: '+key);
       const contents=files[key],node=M.head(doc).data.nodes.find(n=>n.id===entry.id);
-      if(entry.type==='document'){
+      if(entry.type==='document'&&node.attrs?.machineRole==='axisDecision'){
+        const suffix='\n\nСвязанные ID · '+node.refs.join(', ')+'\n';
+        if(!contents.endsWith(suffix))throw Error('Сохраните исходные ссылки ADR');
+        const sections=contents.slice(0,-suffix.length).match(/^# ([^\n]+)\n\n([\s\S]+?)\n\n## Альтернатива\n\n([\s\S]+?)\n\n## Основание\n\n([\s\S]+?)\n\n## Последствия\n\n([\s\S]+)$/);
+        if(!sections||sections.slice(1).some(v=>!v.trim()))throw Error('Заполните решение, альтернативу, основание и последствия ADR');
+        const [,name,note,alternative,rationale,consequences]=sections;
+        ops.push({op:'node',value:{id:node.id,name,note,attrs:{...node.attrs,alternative,rationale,consequences}}});
+      }else if(entry.type==='document'){
         const suffix=document(node).slice(('# '+node.name+'\n\n'+node.note).length);
         const head=contents.match(/^# ([^\n]+)\n\n/);
         if(!head||!contents.endsWith(suffix))throw Error('Проверьте заголовок и ссылки: '+key);
@@ -5493,6 +5595,305 @@ if(typeof module!=='undefined')module.exports=Machine;
 
 </script>
 <script>
+/* Pure sampled SIL controller. Both the portable worker and the Node process execute it. */
+const AxisController=(()=>{
+  function execute(packet,parse){
+    const {program,limits,settings:s,fault}=packet;
+    const {moves}=parse(program,limits);
+    const ix=['X','Y','Z'].indexOf(fault.axis);
+    if(fault.axis!=='none'&&ix<0)throw Error('Выберите ось X, Y, Z или штатный режим');
+    if(fault.atMs!==null&&(!Number.isSafeInteger(fault.atMs)||fault.atMs<0))throw Error('Время отказа должно быть целым числом миллисекунд ≥ 0');
+    const rows=[[0,moves[0].line,0,0,0,0,0,0,'RUN']];
+    let ticks=0,injected=null,alarm=null,axis=null,alarmLine=null,frozen=0;
+    const streak=[0,0,0];
+    for(const move of moves){
+      if(!move.distance)continue;
+      const speed=move.rapid?s.rapidMmMin:move.feed;
+      const steps=Math.max(1,Math.ceil(move.distance/speed*60000/s.periodMs));
+      if(!Number.isSafeInteger(steps)||steps+ticks>8000)throw Error('Программа превышает 8000 тактов стенда. Сократите задание или увеличьте период.');
+      for(let j=1;j<=steps;j++){
+        const ms=++ticks*s.periodMs;
+        const plan=move.from.map((v,i)=>Number((v+(move.to[i]-v)*j/steps).toFixed(6)));
+        const counts=plan.map(v=>Math.round(v*s.countsPerMm));
+        if(ix>=0&&injected===null&&(fault.atMs===null?move.from[ix]!==move.to[ix]:ms>=fault.atMs)){
+          injected=ms;frozen=rows.at(-1)[5+ix];
+        }
+        if(injected!==null)counts[ix]=frozen;
+        for(let a=0;a<3;a++)streak[a]=Math.abs(plan[a]-counts[a]/s.countsPerMm)>s.toleranceMm+1e-9?streak[a]+1:0;
+        const tripped=streak.findIndex(n=>n>=s.tripSamples);
+        rows.push([ms,move.line,...plan,...counts,tripped>=0?'ALARM':'RUN']);
+        if(tripped>=0){
+          alarm=ms;axis='XYZ'[tripped];alarmLine=move.line;
+          for(let k=1;k<=2;k++)rows.push([ms+k*s.periodMs,move.line,...plan,...counts,'HOLD']);
+          break;
+        }
+      }
+      if(alarm!==null)break;
+    }
+    return {protocol:'axis-sil/1',rows,injected,alarm,axis,alarmLine};
+  }
+  return {execute};
+})();
+if(typeof module!=='undefined')module.exports=AxisController;
+
+</script>
+<script>
+const AxisBench=((M,machine)=>{
+  const roles={job:'job',req:'axisAcceptance',adr:'axisDecision',plan:'axisPlan'};
+  function config(model,root){
+    const parts=machine.parts(model,root);
+    const find=(role,kind)=>{const list=parts.filter(n=>n.attrs?.machineRole===role&&n.kind===kind);
+      if(list.length!==1)throw Error('Для стенда нужна одна карточка роли '+role);return list[0];};
+    const job=find(roles.job,'artifact'),req=find(roles.req,'requirement'),adr=find(roles.adr,'adr'),plan=find(roles.plan,'artifact');
+    if(!adr.refs?.includes(req.id)||![job.id,req.id,adr.id].every(id=>plan.refs?.includes(id)))throw Error('Проверьте ссылки плана испытаний на задание, требование и ADR');
+    const number=(key,min,max,whole=false)=>{const v=req.attrs[key];if(!Number.isFinite(v)||v<min||v>max||(whole&&!Number.isInteger(v)))throw Error('Проверьте параметр '+key);return v;};
+    const settings={periodMs:number('periodMs',1,1000,true),countsPerMm:number('countsPerMm',1,100000,true),rapidMmMin:number('rapidMmMin',1,100000),
+      toleranceMm:number('toleranceMm',0.000001,1000),tripSamples:number('tripSamples',1,100,true),maxResponseMs:number('maxResponseMs',1,60000,true)};
+    const allocated=plan.refs.map(id=>model.nodes.find(n=>n.id===id)).filter(n=>['system','component','module'].includes(n.kind)).map(n=>({id:n.id,name:n.name,parent:n.parent,role:n.note}));
+    const {client,planner,controller,drive,iface}=plan.attrs;
+    if(![client,planner,controller,drive,iface].every(id=>plan.refs.includes(id)))throw Error('Распределите участников и интерфейс в плане испытаний');
+    const contract=parts.find(n=>n.id===iface);
+    if(!contract||![client,planner,controller,drive].every(id=>contract.refs?.includes(id)))throw Error('Уточните участников контракта обратной связи');
+    const paths=[[client,planner,'Программа NC'],[planner,controller,'Уставки XYZ, мм'],[controller,drive,'Команда положения'],[drive,controller,'Отсчёты энкодеров'],[controller,client,'SHA-256, телеметрия и ALARM']];
+    const risk=model.edges.find(e=>M.ek(e)===M.ek({from:controller,to:drive,layer:'risk'}));
+    return {root,proposal:plan.attrs.proposal,check:risk?{from:risk.from,to:risk.to,reason:risk.reason,weight:risk.weight}:null,iface,contract:contract.note,paths,job:job.id,program:job.note,limits:machine.envelope(model,root),req:req.id,criterion:req.note,adr:adr.id,decision:adr.note,
+      rationale:adr.attrs.rationale,alternative:adr.attrs.alternative,consequences:adr.attrs.consequences,plan:plan.id,method:plan.note,allocated,settings};
+  }
+  function setup(model,root,{job,client,planner,drive,controller}){
+    const parts=machine.parts(model,root),role=k=>parts.some(n=>n.attrs?.machineRole===k);
+    if([roles.req,roles.adr,roles.plan].some(role))throw Error('Конфигурация испытания уже существует. Откройте её карточки.');
+    const get=(id,kind)=>parts.find(n=>n.id===id&&n.kind===kind);
+    if(!get(job,'artifact')||get(job,'artifact').attrs?.machineRole!=='job'||!get(client,'module')||client===planner||!get(planner,'module')||!get(drive,'component')||!get(controller,'component')||drive===controller)throw Error('Выберите задание, клиентский модуль, планировщик, привод и отдельный контроллер этого изделия');
+    const fresh=stem=>{if(!model.nodes.some(n=>n.id===stem))return stem;let i=2;while(model.nodes.some(n=>n.id===stem+'-'+i))i++;return stem+'-'+i;};
+    const req=fresh('REQ-AXIS'),adr=fresh('ADR-HOLD'),plan=fresh('TEST-AXIS'),iface=fresh('IF-AXIS'),proposal=fresh('axis-feedback-pilot'),request=fresh('CR-AXIS'),release=fresh('REL-AXIS');
+    const cards=[
+      {id:req,kind:'requirement',name:'Контроль обратной связи осей',note:'В штатном режиме измеренное положение каждой оси должно находиться в допуске. При замере энкодера движущейся оси контроллер должен зафиксировать превышение и удержать все три команды в пределах заданного времени реакции.',attrs:{machineRole:roles.req,when:'При штатном ходе и замере показания движущейся оси',then:'Телеметрия подтверждает допуск в штатном режиме и удержание трёх команд в пределах лимита реакции при внесённом отказе.',periodMs:20,countsPerMm:100,rapidMmMin:1200,toleranceMm:0.2,tripSamples:2,maxResponseMs:80},refs:[planner,drive,controller]},
+      {id:adr,kind:'adr',name:'Где обнаруживать потерю обратной связи',state:'done',refs:[req,proposal,planner,drive,controller],note:'Контроллер сравнивает команду с показаниями энкодера каждый такт. При устойчивом превышении допуска он фиксирует ALARM и удерживает все три команды.',
+        attrs:{machineRole:roles.adr,alternative:'Обнаруживать расхождение в клиентском ПО и отправлять команду останова.',rationale:'Контроллер располагает командой и обратной связью в одном такте. Реакция не зависит от доступности клиентского ПК.',consequences:'Нужны калибровка энкодера и подбор допуска. Малый допуск повышает риск ложного останова. Физический тормозной путь измеряется на оборудовании.'}},
+      {id:iface,kind:'artifact',name:'Команда осей и обратная связь',refs:[client,planner,controller,drive,req,adr],attrs:{machineRole:'interface',boundary:'internal'},note:'Клиент передаёт задание UTF-8. Контроллер подтверждает SHA-256, записывает уставки XYZ в мм, показания энкодеров в отсчётах и событие ALARM с номером строки NC.'},
+      {id:request,kind:'request',name:'Обнаруживать замер энкодера на станке',state:'done',refs:[req],attrs:{disposition:'accepted',requester:'Технолог',owner:'Системный инженер'}},
+      {id:proposal,kind:'proposal',name:'Верификация останова по обратной связи',state:'active',refs:[req,request,iface],note:'## Why\n\nТехнологу требуется распознавать потерю обратной связи.\n\n## What Changes\n\nПроверять замер энкодера в контроллере. Версионировать протокол, требование и ADR.\n\n## Capabilities\n\n- axis-feedback\n\n## Impact\n\nКлиент, контроллер, привод и процедура приёмки.'},
+      {id:release,kind:'release',name:'Пилот контроля обратной связи',capacity:4},
+      {id:fresh('TASK-SIL'),kind:'changeTask',parent:proposal,release,effort:2,state:'planned',name:'Рассмотреть протоколы SIL и заключение Jupyter',refs:[plan,req,adr],attrs:{owner:'Инженер испытаний'}},
+      {id:fresh('TASK-ACCEPT'),kind:'changeTask',parent:proposal,release,effort:2,state:'planned',name:'Подтвердить приёмку изделия технологом',refs:[req,adr],attrs:{owner:'Технолог'}},
+      {id:plan,kind:'artifact',name:'План верификации обратной связи',refs:[req,adr,job,client,planner,controller,drive,iface,proposal],attrs:{proposal,machineRole:roles.plan,client,planner,controller,drive,iface},note:'Один исходный файл. Штатный прогон проверяет точность по XYZ и завершение программы. Во втором прогоне фиксируется отсчёт выбранного энкодера. Проверить время реакции, номер оси и удержание команды. Валидация технологом изделия остаётся отдельной работой.'}
+    ].map(n=>({op:'node',value:{parent:root,...n}}));
+    const related=get(controller,'component');
+    cards.push({op:'node',value:{id:controller,relations:[...(related.relations||[]),['realizes',req]]}});
+    const contracts=[[client,planner,'flow','Загрузка исходной программы'],[planner,controller,'flow','Передача уставок XYZ'],[controller,drive,'flow','Задание положения и чтение энкодера'],[client,controller,'flow','Квитанция и протокол испытания'],[controller,drive,'risk','Совместная проверка замера энкодера и удержания команд']];
+    for(const [from,to,layer,reason] of contracts){
+      const value={from,to,layer,reason,weight:layer==='risk'?3:2};
+      if(!model.edges.some(e=>M.ek(e)===M.ek(value)))cards.push({op:'edge',value});
+    }
+    return M.patch(model,cards);
+  }
+  function metrics(run,settings,fault){
+    const {rows,alarm,injected}=run;
+    if(!rows.length||rows.length>8003||rows.some((r,i)=>!Array.isArray(r)||r.length!==9||r[0]!==i*settings.periodMs||!Number.isInteger(r[1])||r.slice(2,8).some(v=>!Number.isFinite(v))||r.slice(5,8).some(v=>!Number.isInteger(v))||!['RUN','ALARM','HOLD'].includes(r[8])))throw Error('Неверные строки телеметрии SIL');
+    const faultIndex=['X','Y','Z'].indexOf(fault.axis);
+    const first=rows.findIndex(r=>r[0]===injected);
+    const excited=first>0&&rows.slice(first).some(r=>r[2+faultIndex]!==rows[first-1][2+faultIndex]);
+    const peaks=[0,0,0],streak=[0,0,0];let hold=0,steady=true,expectedAlarm=null,expectedAxis=null;
+    const trigger=rows.find(r=>r[8]==='ALARM');
+    for(const r of rows){
+      for(let i=0;i<3;i++){
+        const err=Math.abs(r[2+i]-r[5+i]/settings.countsPerMm);
+        peaks[i]=Math.max(peaks[i],err);streak[i]=err>settings.toleranceMm+1e-9?streak[i]+1:0;
+        if(expectedAlarm===null&&streak[i]>=settings.tripSamples){expectedAlarm=r[0];expectedAxis='XYZ'[i];}
+      }
+      if(r[8]==='HOLD'){hold++;if(!trigger||r.slice(2,5).some((v,i)=>v!==trigger[i+2]))steady=false;}
+    }
+    if(alarm!==(trigger?.[0]??null)||alarm!==expectedAlarm||run.axis!==expectedAxis||rows.some(r=>r[8]!==((alarm===null||r[0]<alarm)?'RUN':r[0]===alarm?'ALARM':'HOLD')))throw Error('События контроллера расходятся с телеметрией');
+    if(first>0&&faultIndex>=0&&rows.slice(first).some(r=>r[faultIndex+5]!==rows[first-1][faultIndex+5]))throw Error('Обратная связь выбранной оси не зафиксирована');
+    const delay=alarm!==null&&injected!==null?alarm-injected:null;
+    let verdict;
+    if(fault.axis==='none')verdict=alarm===null&&peaks.every(v=>v<=settings.toleranceMm+1e-9)?'passed':'failed';
+    else if(injected===null||!excited)verdict='inconclusive';
+    else verdict=alarm!==null&&run.axis===fault.axis&&delay>=0&&delay<=settings.maxResponseMs&&steady&&hold>=2?'passed':'failed';
+    return {peaks:peaks.map(v=>Math.round(v*1e6)/1e6),delay,hold,verdict};
+  }
+  function add(doc,root,base,fault,run){
+    const h=M.head(doc);if(h.rev!==base)throw Error('Конфликт версии стенда');
+    const c=config(h.data,root),summary=metrics(run,c.settings,fault);
+    let i=1;while(h.data.nodes.some(n=>n.id==='AXRUN-'+i))i++;
+    const id='AXRUN-'+i,refs=[c.job,c.req,c.adr,c.plan,c.iface,...c.allocated.map(n=>n.id)];
+    return M.patch(h.data,[{op:'node',value:{id,parent:root,kind:'artifact',name:fault.axis==='none'?'Штатный прогон XYZ':'Замер энкодера '+fault.axis,state:'done',
+      attrs:{machineRole:'axisRun',base,sha256:run.sha256,verdict:summary.verdict,packet:JSON.stringify({config:c,fault,run})},refs,relations:[[summary.verdict==='passed'?'verifies':'uses',c.req]],
+      note:'Программный стенд SIL · '+run.engine+' · '+run.rows.length+' отсчётов.'}}]);
+  }
+  function read(node){if(node?.attrs?.machineRole!=='axisRun')throw Error('Выберите протокол стенда');return JSON.parse(node.attrs.packet);}
+  function current(model,root,node){try{return JSON.stringify(config(model,root))===JSON.stringify(read(node).config);}catch{return false;}}
+  function record(doc,input){
+    const h=M.head(doc);if(doc.project!==input.project||h.rev!==input.base)throw Error('Конфликт версии расчёта осей');
+    const node=h.data.nodes.find(n=>n.id===input.runId),e=read(node),m=metrics(e.run,e.config.settings,e.fault);
+    if(input.sha256!==e.run.sha256||JSON.stringify([m.peaks,m.delay,m.hold,m.verdict])!==JSON.stringify(input.values))throw Error('Результат Python расходится с протоколом');
+    if(h.data.nodes.some(n=>n.attrs?.machineRole==='axisAnalysis'&&n.refs?.includes(node.id)))throw Error('Для этого прогона заключение уже зарегистрировано');
+    let i=1;while(h.data.nodes.some(n=>n.id==='AXREPORT-'+i))i++;
+    return M.patch(h.data,[{op:'node',value:{id:'AXREPORT-'+i,parent:node.parent,kind:'artifact',name:'Заключение Jupyter · '+node.id,state:'done',refs:[node.id,e.config.req,e.config.adr,e.config.plan],
+      attrs:{machineRole:'axisAnalysis',sha256:input.sha256,base:input.base,verdict:m.verdict},note:'Пиковые ошибки X/Y/Z, мм: '+m.peaks.join(' / ')+'. Тактов удержания: '+m.hold+'.'}}]);
+  }
+  function review(model,root,owner,conclusion){
+    if(!owner?.trim()||!conclusion?.trim())throw Error('Укажите ответственного и вывод обзора');
+    const c=config(model,root),all=machine.parts(model,root);
+    const runs=all.filter(n=>n.attrs?.machineRole==='axisRun'&&current(model,root,n));
+    const chosen=['none','X','Y','Z'].map(axis=>runs.filter(n=>read(n).fault.axis===axis).at(-1));
+    if(chosen.some(n=>n?.attrs.verdict!=='passed'))throw Error('Для обзора нужны четыре успешных прогона текущей конфигурации');
+    const ids=chosen.map(n=>n.id),report=all.filter(n=>n.attrs?.machineRole==='axisAnalysis'&&ids.some(id=>n.refs?.includes(id))).at(-1);
+    if(!report)throw Error('Верните заключение Jupyter по одному из выбранных прогонов');
+    if(all.some(n=>n.attrs?.machineRole==='axisReview'&&[...ids,report.id].every(id=>n.refs.includes(id))))throw Error('Этот набор свидетельств уже рассмотрен');
+    const task=all.find(n=>n.parent===c.proposal&&n.kind==='changeTask'&&n.refs?.includes(c.plan));
+    let i=1;while(model.nodes.some(n=>n.id==='AXREVIEW-'+i))i++;
+    const refs=[c.req,c.adr,c.plan,c.proposal,...ids,report.id,...(task?[task.id]:[])];
+    const review={id:'AXREVIEW-'+i,parent:root,kind:'artifact',name:'Обзор результатов SIL',note:conclusion.trim(),state:'done',refs,attrs:{machineRole:'axisReview',owner:owner.trim()}};
+    const ops=[{op:'node',value:review}];if(task)ops.push({op:'node',value:{id:task.id,state:'done'}});
+    return M.patch(model,ops);
+  }
+  return {config,setup,metrics,add,read,current,record,review};
+})(typeof DSM!=='undefined'?DSM:require('./model.js'),typeof Machine!=='undefined'?Machine:require('./machine.js'));
+if(typeof module!=='undefined')module.exports=AxisBench;
+
+</script>
+<script>
+function axisPanel({doc,online,esc,b,option,table,field,modal,push,render,download,openBook,openPair,card,section,tools,act}){
+  let selected='',axis='none',at='',busy=false;
+  const labels={passed:'Критерий выполнен',failed:'Критерий нарушен',inconclusive:'Недостаточно данных для проверки отказа'};
+  const model=()=>doc().history.at(-1).data;
+  const fmt=v=>v==null?'—':Number(v).toLocaleString('ru-RU',{maximumFractionDigits:6});
+  const value=(id,text)=>'<label>'+esc(text)+' <select id="'+id+'">';
+  const runs=(root)=>model().nodes.filter(n=>n.parent===root&&n.attrs?.machineRole==='axisRun');
+  const resultTable=(e)=>{const last=e.run.rows.at(-1),v=AxisBench.metrics(e.run,e.config.settings,e.fault);
+    return table(['Ось','Команда в конце, мм','Энкодер, мм','Пиковая ошибка, мм'],[0,1,2].map(i=>['XYZ'[i],fmt(last[2+i]),fmt(last[5+i]/e.config.settings.countsPerMm),fmt(v.peaks[i])]));};
+  function drawing(c){
+    const ids=c.allocated.map(n=>n.id),pos=new Map(ids.map((id,i)=>[id,90+i*175]));
+    const nodes=c.allocated.map(n=>'<g><rect x="'+(pos.get(n.id)-68)+'" y="49" width="136" height="45" rx="6"/><text x="'+pos.get(n.id)+'" y="77">'+esc(n.id)+'</text></g>').join('');
+    const lines=c.paths.map(([a,b,label],i)=>{
+      const forward=i<3,y=forward?49:94,h=forward?20:116+(i-3)*24,x1=pos.get(a),x2=pos.get(b),off=forward?24:-20;
+      return '<path d="M'+(x1+off)+' '+y+' V'+h+' H'+(x2-off)+' V'+y+'" marker-end="url(#axisArrow)"><title>'+esc(label)+'</title></path>';
+    }).join('');
+    return '<svg class="axis-diagram" viewBox="0 0 720 155" role="img" aria-label="Схема команд и обратной связи"><defs><marker id="axisArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><polygon points="0,0 10,5 0,10" fill="#406c60"/></marker></defs>'+lines+nodes+'</svg>';
+  }
+  function reviews(entries){
+    const ids=new Set(entries.map(n=>n.id));
+    return model().nodes.filter(n=>n.attrs?.machineRole==='axisReview'&&n.refs?.some(id=>ids.has(id))&&n.refs.filter(id=>model().nodes.some(x=>x.id===id&&x.attrs?.machineRole==='axisRun')).every(id=>ids.has(id)));
+  }
+  function dossier(c,entries,base){
+    const lines=['# '+c.adr+' · Архитектурная проработка контроля осей','','## Граница и распределение ответственности','',
+      'Ревизия конфигурации '+base+' · проект '+doc().project+'.','',...c.allocated.map(n=>'- '+n.id+' · '+n.name+' ('+n.parent+'). '+n.role),'','### Контракт '+c.iface,'',c.contract,'','| Откуда | Куда | Содержимое |','| --- | --- | --- |',...c.paths.map(p=>'| '+p.join(' | ')+' |'),'','## Требование '+c.req,'',c.criterion,'',
+      'Допуск '+c.settings.toleranceMm+' мм. Период '+c.settings.periodMs+' мс. Срабатывание после '+c.settings.tripSamples+' тактов сверх допуска. Максимальное время реакции '+c.settings.maxResponseMs+' мс.',
+      '','## ADR '+c.adr,'','Выбранное решение. '+c.decision,'','Альтернатива. '+c.alternative,'','Основание. '+c.rationale,'','Последствия. '+c.consequences,'',
+      '## План испытаний '+c.plan,'',c.method,'','## Свидетельства SIL','','| Прогон | Режим | Критерий | Реакция, мс | Макс. ошибка XYZ, мм |','| --- | --- | --- | ---: | --- |'];
+    const evidence=[];
+    for(const n of entries){const e=AxisBench.read(n),v=AxisBench.metrics(e.run,e.config.settings,e.fault);
+      lines.push('| '+[n.id,e.fault.axis==='none'?'Штатный':e.fault.axis,labels[v.verdict],v.delay??'—',v.peaks.join(' / ')].join(' | ')+' |');
+      evidence.push('- '+n.id+' · '+e.run.engine+' · '+n.attrs.base+' · SHA-256 '+e.run.sha256+' · '+e.run.rows.length+' отсчётов · строка ALARM '+(e.run.alarmLine??'—')+'.');
+    }
+    return [...lines,'',...evidence,'','## Обзор результатов','',...reviews(entries).map(n=>n.id+' · '+n.attrs.owner+' · '+n.note+' · '+n.refs.join(', ')),'','## Границы приёмки','','Факт — показания программной модели энкодера. Валидация изделия технологом, тормозной путь и динамика привода требуют испытаний на оборудовании.','','## Исходное задание '+c.job,'','~~~~gcode',c.program,'~~~~',''].join('\n');
+  }
+  function view(root,parts){
+    if(!parts.some(n=>n.attrs?.machineRole==='axisPlan'))return section('Настройка испытания','<p>Свяжите задание, планировщик, контроллер и привод. В каталоге появятся требование, ADR и план верификации.</p>'+act('AxisSetup','Подготовить архитектурную проработку'));
+    const c=AxisBench.config(model(),root),all=runs(root),sel=all.find(n=>n.id===selected)||all.at(-1);
+    const current=all.filter(n=>AxisBench.current(model(),root,n));
+    const coverage=['none','X','Y','Z'].map(mode=>{
+      const n=current.filter(n=>AxisBench.read(n).fault.axis===mode).at(-1);
+      return [mode==='none'?'Штатный':'Энкодер '+mode,n?labels[n.attrs.verdict]:'Ожидает испытания',n?act('AxisSelect',esc(n.id),n.id):'—'];});
+    let receipt='';
+    if(sel){const e=AxisBench.read(sel),r=e.run,m=AxisBench.metrics(r,e.config.settings,e.fault);
+      receipt=section('Протокол испытания',value('axisReceipt','Прогон')+all.toReversed().map(n=>option(n.id,n.id+' · '+n.name,sel.id)).join('')+'</select></label>'+
+        '<p class="axis-status">'+esc(labels[m.verdict])+' · '+(AxisBench.current(model(),root,sel)?'Текущая конфигурация':'Архивная конфигурация — повторите испытание')+'</p>'+
+        table(['Событие','Время, мс','Что произошло'],[['Приём задания',0,'Контроллер подтвердил SHA-256'],...(r.injected===null?[]:[['Внесение отказа',r.injected,'Зафиксирован отсчёт энкодера '+esc(e.fault.axis)]]),...(r.alarm===null?[]:[['ALARM',r.alarm,'Ось '+esc(r.axis)+' · строка '+r.alarmLine],['HOLD',r.rows.at(-1)[0],'Команды удерживаются по трём осям']]),['Завершение наблюдения',r.rows.at(-1)[0],r.rows.length+' отсчётов']])+
+        '<p>Реакция '+fmt(m.delay)+' мс · допустимо '+fmt(e.config.settings.maxResponseMs)+' мс</p>'+resultTable(e)+
+        tools([act('AxisNotebook','План и факт в Jupyter',sel.id),act('AxisExportRun','Документ этого прогона',sel.id)])+
+        '<details><summary>Происхождение данных и ссылки</summary><p>'+esc(r.engine)+' · '+esc(sel.attrs.base)+'</p><code class="axis-hash">'+esc(r.sha256)+'</code><p>'+sel.refs.map(card).join(' ')+'</p></details>');
+    }
+    return section('Архитектурная проработка',tools([card(c.req),card(c.adr),card(c.plan),card(c.iface),b('specZip','Пакет OpenSpec','data-id="'+esc(c.proposal)+'"'),act('AxisExport','Скачать досье .md'),act('AxisPrint','Отчёт для печати')])+
+      drawing(c)+'<details><summary>Содержание интерфейсов</summary>'+table(['Источник','Получатель','Передаётся'],c.paths.map(([a,z,t])=>[card(a),card(z),esc(t)]))+'</details><div class="axis-layout">'+c.allocated.map(n=>'<div>'+card(n.id)+'<strong>'+esc(n.name)+'</strong><small>'+esc(n.parent)+'</small></div>').join('')+'</div>'+
+      '<p>'+esc(c.criterion)+'</p>'+tools([act('AxisCriterion','Изменить критерий'),b('journeySelect','Маршрут требования','data-id="'+esc(c.req)+'"'),...(c.check?[act('AxisDSM','Открыть проверку в DSM')]:[])])+
+      '<details id="axisAdr"><summary>ADR · варианты, выбор и последствия</summary>'+
+      table(['Часть решения','Содержание'],[['Выбрано',esc(c.decision)],['Альтернатива',esc(c.alternative)],['Основание',esc(c.rationale)],['Последствия',esc(c.consequences)]])+act('AxisEdit','Редактировать ADR')+'</details>')+
+      section('Испытание обратной связи','<p>'+esc(c.job)+' · '+esc(parts.find(n=>n.id===c.job).name)+' · '+(online()?'Программный контроллер · отдельный локальный процесс':'Автономный программный контроллер в Web Worker')+'</p>'+
+      tools([act('Stage','Открыть задание .nc','job'),value('axisFault','Режим')+[['none','Штатный ход'],['X','Замер энкодера X'],['Y','Замер энкодера Y'],['Z','Замер энкодера Z']].map(([v,l])=>option(v,l,axis)).join('')+'</select></label>',
+      ...(axis==='none'?[]:['<label>Внести на такте с момента, мс <input id="axisAt" type="number" min="0" step="1" placeholder="Начало движения оси" value="'+esc(at)+'"></label>']),
+      b('machineAxisRun',busy?'Идёт испытание…':'Передать в контроллер и испытать','class="primary" '+(busy?'disabled':''))])+
+      '<p>Допуск '+fmt(c.settings.toleranceMm)+' мм · '+c.settings.tripSamples+' такта подряд · реакция до '+c.settings.maxResponseMs+' мс.</p>')+receipt+
+      section('Покрытие испытаниями',table(['Проверка','Последнее свидетельство этой конфигурации','Протокол'],coverage)+tools([act('AxisReview','Оформить обзор SIL'),...reviews(current).map(n=>card(n.id))])+'<p>Валидация технологом на оборудовании · ожидает приёмки</p>');
+  }
+  function bind(){
+    const el=id=>document.getElementById(id);
+    el('axisFault')?.addEventListener('change',e=>{axis=e.target.value;render();});
+    el('axisAt')?.addEventListener('input',e=>{at=e.target.value;});
+    el('axisReceipt')?.addEventListener('change',e=>{selected=e.target.value;render();});
+  }
+  async function runOffline(packet){
+    const src='const parse='+Machine.simulate.toString()+'; const execute='+AxisController.execute.toString()+'; onmessage=async e=>{try{const p=e.data;const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(p.program));const sha256=Array.from(new Uint8Array(digest),v=>v.toString(16).padStart(2,"0")).join("");postMessage({...execute(p,parse),sha256,engine:"worker-sil"});}catch(e){postMessage({error:e.message});}}';
+    const url=URL.createObjectURL(new Blob([src],{type:'text/javascript'})),worker=new Worker(url);
+    let timer;try{return await new Promise((resolve,reject)=>{timer=setTimeout(()=>reject(Error('Истекло время ответа стенда')),10000);worker.onmessage=e=>e.data.error?reject(Error(e.data.error)):resolve(e.data);worker.onerror=()=>reject(Error('Контроллер не запустился'));worker.postMessage(packet);});}
+    finally{clearTimeout(timer);worker.terminate();URL.revokeObjectURL(url);}
+  }
+  async function handle(k,id,root,parts){
+    const d=doc(),h=d.history.at(-1),m=h.data;
+    if(k==='AxisSetup'){
+      const choose=(key,title,kind)=>'<label>'+title+' <select name="'+key+'">'+parts.filter(n=>n.kind===kind&&(key!=='job'||n.attrs?.machineRole==='job')).map(n=>option(n.id,n.id+' · '+n.name,'')).join('')+'</select></label>';
+      modal('Настройка архитектурной проработки',choose('job','Задание','artifact')+choose('client','Клиентское ПО','module')+choose('planner','Планировщик','module')+choose('controller','Контроллер','component')+choose('drive','Привод','component'),
+        f=>push(AxisBench.setup(m,root,f),'Создание требования, ADR и плана испытаний','Системный инженер',h.rev));return;
+    }
+    if(k==='AxisSelect'){selected=id;render();return;}
+    const c=AxisBench.config(m,root);
+    if(k==='AxisReview'){
+      modal('Обзор результатов испытаний',field('owner','Ответственный за обзор','Системный инженер','required')+'<label class="field">Вывод и оставшиеся вопросы<textarea name="conclusion" rows="4" required></textarea></label>',f=>push(AxisBench.review(m,root,f.owner,f.conclusion),'Обзор свидетельств SIL',f.owner,h.rev));return;
+    }
+    if(k==='AxisDSM'){if(c.check)openPair('risk',c.check.from,c.check.to);return;}
+    if(k==='AxisEdit'||k==='AxisCriterion'){
+      const adr=k==='AxisEdit',n=parts.find(n=>n.id===(adr?c.adr:c.req));
+      const fields=adr?[['note','Выбранное решение'],['alternative','Альтернатива'],['rationale','Почему выбран этот вариант'],['consequences','Последствия']]:[['note','Требование'],['toleranceMm','Допуск, мм'],['tripSamples','Тактов сверх допуска'],['maxResponseMs','Предельная реакция, мс']];
+      modal(adr?'Редакция ADR':'Редакция критерия',fields.map(([key,title])=>'<label class="field">'+title+(adr||key==='note'?'<textarea name="'+key+'" rows="3" required>'+esc(key==='note'?n.note:n.attrs[key])+'</textarea>':'<input type="number" min="0.000001" step="any" name="'+key+'" value="'+n.attrs[key]+'" required>')+'</label>').join(''),f=>{
+        const attrs={...n.attrs};for(const [key] of fields.slice(1))attrs[key]=adr?f[key].trim():Number(f[key]);
+        const next=DSM.patch(m,[{op:'node',value:{id:n.id,note:f.note.trim(),attrs}}]);AxisBench.config(next,root);
+        return push(next,'Редакция '+n.id,'Системный инженер',h.rev);
+      });return;
+    }
+    if(k==='AxisNotebook'){openBook(root,{axisRun:id});return;}
+    if(k==='AxisPrint'){
+      const evidence=runs(root).filter(n=>AxisBench.current(m,root,n));
+      const p=t=>'<p>'+esc(t)+'</p>';
+      const results=table(['Прогон','Режим','Результат','Реакция, мс','Пики XYZ, мм'],evidence.map(n=>{const e=AxisBench.read(n),x=AxisBench.metrics(e.run,e.config.settings,e.fault);return [esc(n.id),e.fault.axis==='none'?'Штатный':esc(e.fault.axis),labels[x.verdict],fmt(x.delay),x.peaks.map(fmt).join(' / ')];}));
+      const layout='<h1>Контроль обратной связи осей</h1>'+p(m.title)+'<h2>Граница и распределение ответственности</h2>'+drawing(c)+table(['Компонент','Назначение'],c.allocated.map(n=>[esc(n.id)+' · '+esc(n.name),esc(n.role)]))+'<h2>Интерфейс '+esc(c.iface)+'</h2>'+p(c.contract)+table(['Источник','Получатель','Содержание'],c.paths.map(row=>row.map(esc)));
+      const decision='<h2>Требование '+esc(c.req)+'</h2>'+p(c.criterion)+table(['Допуск, мм','Период, мс','Тактов на обнаружение','Предел реакции, мс'],[[c.settings.toleranceMm,c.settings.periodMs,c.settings.tripSamples,c.settings.maxResponseMs]])+'<h2>Архитектурное решение '+esc(c.adr)+'</h2>'+table(['Часть ADR','Содержание'],[['Выбор',esc(c.decision)],['Альтернатива',esc(c.alternative)],['Основание',esc(c.rationale)],['Последствия',esc(c.consequences)]])+'<h2>План испытаний '+esc(c.plan)+'</h2>'+p(c.method)+'<h3>Исходное задание '+esc(c.job)+'</h3><pre>'+esc(c.program)+'</pre>';
+      const proof='<h2>Свидетельства SIL</h2>'+results+
+        evidence.map(n=>{const e=AxisBench.read(n);return '<h3>'+esc(n.id)+' · '+esc(n.name)+'</h3>'+p(e.run.engine+' · '+e.run.rows.length+' отсчётов · исходная версия '+n.attrs.base)+'<small>SHA-256 '+esc(e.run.sha256)+'</small>';}).join('')+
+        '<h2>Обзор результатов</h2>'+(reviews(evidence).map(n=>p(n.id+' · '+n.attrs.owner+' · '+n.note)).join('')||p('Ожидает документированного обзора инженером.'))+'<h2>Граница приёмки</h2>'+p('Факт — координаты модели энкодера. Для приёмки требуются испытания технологом, проверка динамики привода и измерение физического тормозного пути.');
+      const css='@page{size:A4;margin:16mm}*{box-sizing:border-box}body{font:15px/1.45 system-ui;max-width:850px;margin:2rem auto;padding:0 1rem;color:#153b33}h1{font-size:32px}h2{font-size:22px;margin:1.3rem 0 .55rem}h3{font-size:16px;margin:.95rem 0 .25rem}p{margin:.4rem 0}small,pre{overflow-wrap:anywhere}pre{white-space:pre-wrap;padding:.6rem;background:#f0f5f1}th,td{padding:.45rem;text-align:left;border-bottom:1px solid #c2d3cb;vertical-align:top}th{background:#eaf2ed}table{border-collapse:collapse;width:100%}.axis-diagram{width:100%}.axis-diagram path{fill:none;stroke:#406c60;stroke-width:2}.axis-diagram rect{fill:#e6f2ed;stroke:#406c60}.axis-diagram text{text-anchor:middle;fill:#174d3c}footer{margin-top:1.2rem;font:11px monospace;overflow-wrap:anywhere;color:#465c55}@media print{body{margin:0;max-width:none;padding:0;font-size:11pt}button{display:none}article+article{break-before:page}h2,h3{break-after:avoid}tr,svg{break-inside:avoid}}';
+      const stamp='<footer>'+esc(d.project)+' · '+esc(h.rev)+'</footer>';
+      const html='<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>Архитектурная проработка '+esc(c.adr)+'</title><style>'+css+'</style></head><body><button onclick="window.print()">Печать / PDF</button>'+[layout,decision,proof].map(s=>'<article>'+s+stamp+'</article>').join('')+'</body></html>';
+      download(root+'-architecture.html',html,'text/html');return;
+    }
+    if(k==='AxisExport'||k==='AxisExportRun'){
+      const all=runs(root),n=all.find(n=>n.id===id),single=k==='AxisExportRun';
+      download((single?id:root+'-architecture')+'.md',dossier(single?AxisBench.read(n).config:c,single?[n]:all.filter(n=>AxisBench.current(m,root,n)),single?n.attrs.base:h.rev),'text/markdown');return;
+    }
+    if(k==='AxisRun'){
+      if(busy)return;
+      const fault={axis,atMs:axis==='none'||at===''?null:Number(at)};
+      busy=true;render();
+      try{
+        const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(c.program));
+        const sha256=Array.from(new Uint8Array(digest),v=>v.toString(16).padStart(2,'0')).join('');
+        let run;
+        if(online()){
+          const res=await fetch('/api/axis-bench',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({project:d.project,base:h.rev,root,fault,sha256})});
+          run=await res.json();if(!res.ok)throw Error(run.error||'Стенд недоступен');
+        }else run=await runOffline({program:c.program,limits:c.limits,settings:c.settings,fault});
+        if(run.sha256!==sha256)throw Error('Получено подтверждение другого задания');
+        const next=AxisBench.add(d,root,h.rev,fault,run);
+        await push(next,'Стенд SIL · '+c.job+' · '+(axis==='none'?'штатный ход':fault.axis),'Инженер испытаний',h.rev);
+        selected=next.nodes.at(-1).id;
+      }finally{busy=false;render();}
+    }
+  }
+  return {view,bind,handle,reset(){selected='';axis='none';at='';}};
+}
+
+</script>
+<script>
 /* VIB1 uses little-endian fields and IEEE CRC-32 over the first 28 header bytes and payload. */
 const Vibration=(()=>{
   const header=32,limit=32*1024*1024;
@@ -5566,16 +5967,17 @@ if(typeof module!=='undefined')module.exports=Vibration;
 
 </script>
 <script>
-function machinePanel({doc,esc,b,option,table,field,modal,push,render,toast,download,openBook,openPair,openGraph}){
+function machinePanel({doc,online,esc,b,option,table,field,modal,push,render,toast,download,openBook,openPair,openGraph}){
   const model=()=>DSM.head(doc()).data;
-  const stages={design:'Изделие',interfaces:'Интерфейсы и матрицы',job:'Задание ЧПУ',capture:'Диагностика'};
+  const stages={design:'Изделие',interfaces:'Интерфейсы и матрицы',job:'Задание ЧПУ',bench:'Испытания и ADR',capture:'Диагностика'};
   let project='',root='',stage='design',layer='flow',ordered=false,draft=null,jobResult=null,trace=null;
   const card=(id)=>b('objectRow',esc(id),'class="tiny" data-id="'+esc(id)+'"');
   const act=(k,label,id='')=>b('machine'+k,label,'data-id="'+esc(id)+'"');
   const section=(title,body)=>'<section class="card"><h2>'+title+'</h2>'+body+'</section>';
   const tools=items=>'<div class="tools">'+items.join('')+'</div>';
   const fmt=n=>n.toLocaleString('ru-RU');
-  function reset(){draft=null;jobResult=null;trace=null;}
+  const bench=axisPanel({doc,online,esc,b,option,table,field,modal,push,render,download,openBook,openPair,card,section,tools,act});
+  function reset(){bench.reset();draft=null;jobResult=null;trace=null;}
   function current(){
     const all=Machine.products(model());
     if(project!==doc().project||!all.some(n=>n.id===root)){project=doc().project;root=all[0]?.id||'';stage='design';reset();}
@@ -5583,7 +5985,7 @@ function machinePanel({doc,esc,b,option,table,field,modal,push,render,toast,down
   }
   function design(parts){
     const groups=parts.filter(n=>n.kind==='system'),decisions=parts.filter(n=>n.kind==='adr');
-    return section('Состав изделия',tools([act('Graph','Компонентная схема','component'),act('Graph','Программная архитектура','software')])+table(['Подсистема','Компоненты и модули','Назначение'],groups.map(g=>[card(g.id)+' '+esc(g.name),parts.filter(n=>n.parent===g.id).map(n=>card(n.id)+' '+esc(n.name)).join('<br>'),esc(g.note)])))+
+    return section('Работа над изделием',tools([act('Stage','1. Проверить задание','job'),act('Stage','2. Решение и испытание','bench'),act('Stage','3. Проверить диагностику','capture')]))+section('Состав изделия',tools([act('Graph','Компонентная схема','component'),act('Graph','Программная архитектура','software')])+table(['Подсистема','Компоненты и модули','Назначение'],groups.map(g=>[card(g.id)+' '+esc(g.name),parts.filter(n=>n.parent===g.id).map(n=>card(n.id)+' '+esc(n.name)).join('<br>'),esc(g.note)])))+
       section('Требования и решения',table(['Карточка','Назначение','Связи'],[...parts.filter(n=>n.kind==='requirement'),...decisions].map(n=>[card(n.id)+' '+esc(n.name),esc(n.note),(n.refs||[]).map(card).join(' ')])))+
       section('Пилотный релиз',table(['Работа','Исполнитель','Релиз','Этап'],parts.filter(n=>n.kind==='changeTask').map(n=>[card(n.id)+' '+esc(n.name),esc(n.attrs?.owner),card(n.release),esc(({done:'Готово',planned:'Запланировано',active:'В работе'})[n.state]||n.state)]))+tools([b('tab','Маршрут изменения','data-id="journey"'),b('tab','План релизов','data-id="plan"')]))+
       section('Клиентское задание и запись испытания',tools([act('Stage','Проверить программу','job'),act('Stage','Подобрать память и проверить файл','capture')]));
@@ -5613,7 +6015,7 @@ function machinePanel({doc,esc,b,option,table,field,modal,push,render,toast,down
     const result=jobResult?.base===DSM.head(doc()).rev?jobResult:null;
     return section('Программа технолога','<p>Рабочая зона '+limits.join(' × ')+' мм. Начало симуляции — (0, 0, 0). Поддержаны G21, G90, G0 и G1. Для рабочего хода задайте F в мм/мин.</p>'+
       '<label class="field">Линейная программа<textarea id="machineProgram" spellcheck="false" rows="9">'+esc(draft??source?.note??'')+'</textarea></label>'+
-      tools(['<label>Открыть .nc <input id="machineJobFile" type="file" accept=".nc,.txt,.gcode"></label>',act('Run','Проверить траекторию'),act('SaveJob','Сохранить задание')]))+
+      tools(['<label>Открыть .nc <input id="machineJobFile" type="file" accept=".nc,.txt,.gcode"></label>',act('Run','Проверить траекторию'),act('SaveJob','Сохранить задание'),act('ToBench','К решению и испытанию')]))+
       (result?section('Результат симуляции','<p>'+result.moves.length+' перемещений · '+fmt(Math.round(result.length*100)/100)+' мм пути</p><div class="machine-plot">'+plot(result.moves,limits)+'</div>'+table(['Строка','Тип','Конец XYZ, мм','Подача, мм/мин'],result.moves.slice(0,200).map(r=>[r.line,r.rapid?'Быстрый ход':'Рабочий ход',r.to.join(' · '),r.feed??'—']))+(result.moves.length>200?'<p>Показаны первые 200 перемещений.</p>':'')):'');
   }
   function waveform(values){
@@ -5637,10 +6039,11 @@ function machinePanel({doc,esc,b,option,table,field,modal,push,render,toast,down
     const all=current();
     if(!all.length)return section('Разработка станка','<p>Откройте проект станка в разделе «Обмен». Для нового изделия задайте карточке продукта атрибут workbench=cnc.</p>'+b('tab','Открыть обмен','data-id="io"'));
     const parts=Machine.parts(model(),root);
-    let body;try{body=({design,interfaces:matrix,job,capture})[stage](parts);}catch(e){body=section('Исходные данные','<p>'+esc(e.message)+'</p>'+b('tab','Каталог','data-id="catalog"'));}
+    let body;try{body=({design,interfaces:matrix,job,bench:()=>bench.view(root,parts),capture})[stage](parts);}catch(e){body=section('Исходные данные','<p>'+esc(e.message)+'</p>'+b('tab','Каталог','data-id="catalog"'));}
     return '<div class="stack">'+section('Разработка станка',select('machineRoot','Изделие',all.map(n=>[n.id,n.name]),root)+'<nav class="fleet-steps" aria-label="Работа над станком">'+Object.entries(stages).map(([id,name])=>b('machineStage',name,'data-id="'+id+'" aria-pressed="'+(stage===id)+'"')).join('')+'</nav>')+body+'</div>';
   }
   function bind(){
+    bench.bind();
     const el=id=>document.getElementById(id);
     el('machineRoot')?.addEventListener('change',e=>{root=e.target.value;reset();render();});
     el('machineLayer')?.addEventListener('change',e=>{layer=e.target.value;render();});
@@ -5664,6 +6067,12 @@ function machinePanel({doc,esc,b,option,table,field,modal,push,render,toast,down
   }
   async function handle(k,id,t){
     if(k==='Stage'){stage=id;render();return;}
+    if(k==='ToBench'){
+      const n=Machine.parts(model(),root).find(n=>n.attrs?.machineRole==='job');
+      if(!n||document.getElementById('machineProgram').value!==n.note)throw Error('Сначала сохраните изменённое задание');
+      stage='bench';render();return;
+    }
+    if(k.startsWith('Axis'))return bench.handle(k,id,root,Machine.parts(model(),root));
     if(k==='Pair'){openPair(layer,id,t.dataset.to);return;}
     if(k==='Graph'){openGraph(id,root);return;}
     if(k==='Notebook'){openBook(root);return;}
@@ -6104,7 +6513,7 @@ function notebookPanel({doc,online,visible,render,proposed,modal,download,button
     return '<details class="card"><summary>Библиотека проекта'+(library?' · '+library.length:'')+'</summary>'+content+action('Refresh','Обновить список')+'</details>';
   }
   function view(){
-    const profiles={machine:'Станок · расчёт диагностической записи',full:'Полный анализ DSM',fleet:'Два ЦОД · расчёт, отказ и источники',installation:'Закупка и приёмка серверов',...Object.fromEntries(Object.entries(NotebookProfiles).map(([k,v])=>[k,v.name]))};
+    const profiles={axes:'Стенд ЧПУ · план и обратная связь XYZ',machine:'Станок · расчёт диагностической записи',full:'Полный анализ DSM',fleet:'Два ЦОД · расчёт, отказ и источники',installation:'Закупка и приёмка серверов',...Object.fromEntries(Object.entries(NotebookProfiles).map(([k,v])=>[k,v.name]))};
     const controls=session?'<p>Сохраните ячейки в Jupyter (Ctrl+S). Файл · '+esc(session.file)+'</p><div class="tools">'+action('Preview','Проверить изменения','class="primary"')+action('LiveResult','Проверить результат Python')+action('Saved','Скачать сохранённый блокнот')+action('Stop','Завершить сессию')+'</div>':
       '<div class="tools"><label>Расчёт <select id="bookProfile" aria-label="Профиль генерации">'+Object.entries(profiles).map(([k,v])=>option(k,v,profile)).join('')+'</select></label>'+action('Generate','Сгенерировать блокнот')+
       '<label class="btn">Загрузить .ipynb<input type="file" class="file-picker" id="bookFile" accept=".ipynb"></label>'+
@@ -6182,7 +6591,7 @@ function notebookPanel({doc,online,visible,render,proposed,modal,download,button
   }
   function machine(id,context){
     if(session||starting)throw Error('Завершите текущую сессию Jupyter');
-    profile='machine';choose(Notebook.write(doc(),profile,id,context),'machine-'+id+'.ipynb');
+    profile=context?.axisRun?'axes':'machine';choose(Notebook.write(doc(),profile,context?.axisRun||id,context),profile+'-'+(context?.axisRun||id)+'.ipynb');
   }
   return {view,handle,bind,refresh,reset,installation,replay,fleet,machine,active:()=>!!session};
 }
@@ -6299,7 +6708,7 @@ function inspector(){
   if(structure)box+='<div class="callout"><b>'+esc(structure.from)+' → '+esc(structure.to)+'</b><br>'+esc(structure.reason)+'</div>'+b('structureView',tab==='catalog'?(returnGraph==='concept'?'На концептуальную схему':'Вернуться на схему'):'В реестр архитектурных связей');
   if(structure&&Object.hasOwn(Views.relations,structure.layer))box+=b('typedEdit','Изменить архитектурную связь');
   const refs=[...new Set([...(n.refs||[]),...data().nodes.filter(other=>other.refs?.includes(n.id)).map(other=>other.id)])];
-  if(n.attrs)box+=table(['Атрибут','Значение'],Object.entries(n.attrs).filter(([k])=>k!=='content64').map(([k,v])=>[esc(k),esc(v)]));
+  if(n.attrs)box+=table(['Атрибут','Значение'],Object.entries(n.attrs).filter(([k])=>k!=='content64'&&!(k==='packet'&&n.attrs.machineRole==='axisRun')).map(([k,v])=>[esc(k),esc(v)]));
   const relations=data().nodes.flatMap(other=>(other.relations||[]).filter(([,to])=>other.id===n.id||to===n.id).map(([k,to])=>[idButton(other.id),esc(Views.relations[k]),idButton(to)]));
   if(relations.length)box+=table(['Объект','Связь','Цель'],relations);
   if(n.kind==='proposal')box+=toolbar([b('document','Оформить ADR','data-id="adr"'),b('specZip','Пакет OpenSpec','data-id="'+esc(n.id)+'"'),b('applySpec','Apply · применить патч','data-id="'+esc(n.id)+'" '+(n.state==='done'?'disabled':''))]);
@@ -6312,6 +6721,7 @@ function inspector(){
     const routes=[...new Set(direct)].filter(id=>by.get(id)?.kind==='requirement');
     if(routes.length)box+=toolbar(routes.map(id=>b('journeySelect','Маршрут '+esc(id),'data-id="'+esc(id)+'"')));
   }
+  if(n.attrs?.machineRole==='axisRun')box+=b('axisReplay','План и факт в Jupyter','data-id="'+esc(n.id)+'"');
   const purchase=fleet.owner(n);if(purchase)box+=b('fleetOpen','К закупке '+esc(purchase),'data-id="'+esc(purchase)+'"');
   if(n.kind==='scenario')box+=b('scenarioView','Показать последовательность','data-id="'+esc(n.id)+'"');
   if(refs.length)box+='<h3>Связанные артефакты и объекты</h3>'+toolbar(refs.map(idButton));
@@ -6484,7 +6894,7 @@ const books=notebookPanel({doc:()=>doc,online:()=>server,visible:()=>tab==='note
 const desk=reviewPanel({doc:()=>doc,esc,button:b,option,field,sel,table,tools:toolbar,modal,push,download,proposed,render,toast,
   inspect:id=>{registry='nodes';filter='';focus=id;pair=null;structure=null;resetCatalog();navigate('catalog');}});
 function openInstallationBook(id,context){books.installation(id,context);navigate('notebook');}
-const machine=machinePanel({doc:()=>doc,esc,b,option,table,field,modal,push,render,toast,download,
+const machine=machinePanel({doc:()=>doc,online:()=>server,esc,b,option,table,field,modal,push,render,toast,download,
   openGraph:(mode,id)=>{graphMode=mode;architectureFormat='diagram';focus=id;pair=null;structure=null;pages.drawing=0;navigate('graph');},
   openBook:(id,context)=>{books.machine(id,context);navigate('notebook');},openPair:(k,from,to)=>{layer=k;showPair(from,to,'matrix');}});
 const fleet=fleetPanel({doc:()=>doc,esc,b,option,sel,field,table,modal,push,render,download,navigate,toast,
@@ -6572,10 +6982,10 @@ async function exportAs(k){const stem='dsm-'+short(base()),m=data(),types={html:
   const payload=k==='sysl'?Sysl.write(m):k==='xlsx'?await ExcelIO.write(doc):k==='html'?dynamicHtml(doc):k==='md'?Formats.markdown(doc):k==='csv'?Formats.emitCsv(doc):JSON.stringify(k==='ipynb'?Notebook.write(doc):doc,null,2);
   download(stem+'.'+k,payload,types[k]);}
 function proposed(input,source=''){
-  if(input.kind==='machine-receipt'&&input.project===doc.project&&input.base!==base()){
+  if(['machine-receipt','axis-report'].includes(input.kind)&&input.project===doc.project&&input.base!==base()){
     const old=doc.history.find(h=>h.rev===input.base);
     const summary=old?Views.differences(DSM.diff(old.data,data())):hint('Исходная ревизия отсутствует в этом файле.');
-    modal('Расчёт устарел',hint('После выполнения блокнота изменилась модель. База '+esc(input.base)+' · текущая '+esc(base()))+summary,()=>{books.machine(input.root);navigate('notebook');},'Подготовить свежий блокнот');
+    modal('Расчёт устарел',hint('После выполнения блокнота изменилась модель. База '+esc(input.base)+' · текущая '+esc(base()))+summary,()=>{books.machine(input.root,input.kind==='axis-report'?{axisRun:input.runId}:undefined);navigate('notebook');},'Подготовить свежий блокнот');
     return;
   }
   const archive=input.kind==='archive';const next=Formats.preview(doc,input);
@@ -6622,6 +7032,7 @@ $('save').onclick=()=>exportAs('json');
 document.addEventListener('click',async e=>{const t=e.target.closest('[data-action]');if(!t)return;const action=t.dataset.action,id=t.dataset.id;
   try{
     if(action==='replayEvidence'){books.replay(id);navigate('notebook');return;}
+    if(action==='axisReplay'){books.machine(nodeBy(id).parent,{axisRun:id});navigate('notebook');return;}
     if(action.startsWith('machine')){await machine.handle(action.slice(7),id,t);return;}
     if(action.startsWith('fleet')){await fleet.handle(action.slice(5),id,t);return;}
     if(action==='openSizing'){sizing.select(id);navigate('sizing');return;}

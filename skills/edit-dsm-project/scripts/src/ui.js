@@ -108,7 +108,7 @@ function inspector(){
   if(structure)box+='<div class="callout"><b>'+esc(structure.from)+' → '+esc(structure.to)+'</b><br>'+esc(structure.reason)+'</div>'+b('structureView',tab==='catalog'?(returnGraph==='concept'?'На концептуальную схему':'Вернуться на схему'):'В реестр архитектурных связей');
   if(structure&&Object.hasOwn(Views.relations,structure.layer))box+=b('typedEdit','Изменить архитектурную связь');
   const refs=[...new Set([...(n.refs||[]),...data().nodes.filter(other=>other.refs?.includes(n.id)).map(other=>other.id)])];
-  if(n.attrs)box+=table(['Атрибут','Значение'],Object.entries(n.attrs).filter(([k])=>k!=='content64').map(([k,v])=>[esc(k),esc(v)]));
+  if(n.attrs)box+=table(['Атрибут','Значение'],Object.entries(n.attrs).filter(([k])=>k!=='content64'&&!(k==='packet'&&n.attrs.machineRole==='axisRun')).map(([k,v])=>[esc(k),esc(v)]));
   const relations=data().nodes.flatMap(other=>(other.relations||[]).filter(([,to])=>other.id===n.id||to===n.id).map(([k,to])=>[idButton(other.id),esc(Views.relations[k]),idButton(to)]));
   if(relations.length)box+=table(['Объект','Связь','Цель'],relations);
   if(n.kind==='proposal')box+=toolbar([b('document','Оформить ADR','data-id="adr"'),b('specZip','Пакет OpenSpec','data-id="'+esc(n.id)+'"'),b('applySpec','Apply · применить патч','data-id="'+esc(n.id)+'" '+(n.state==='done'?'disabled':''))]);
@@ -121,6 +121,7 @@ function inspector(){
     const routes=[...new Set(direct)].filter(id=>by.get(id)?.kind==='requirement');
     if(routes.length)box+=toolbar(routes.map(id=>b('journeySelect','Маршрут '+esc(id),'data-id="'+esc(id)+'"')));
   }
+  if(n.attrs?.machineRole==='axisRun')box+=b('axisReplay','План и факт в Jupyter','data-id="'+esc(n.id)+'"');
   const purchase=fleet.owner(n);if(purchase)box+=b('fleetOpen','К закупке '+esc(purchase),'data-id="'+esc(purchase)+'"');
   if(n.kind==='scenario')box+=b('scenarioView','Показать последовательность','data-id="'+esc(n.id)+'"');
   if(refs.length)box+='<h3>Связанные артефакты и объекты</h3>'+toolbar(refs.map(idButton));
@@ -293,7 +294,7 @@ const books=notebookPanel({doc:()=>doc,online:()=>server,visible:()=>tab==='note
 const desk=reviewPanel({doc:()=>doc,esc,button:b,option,field,sel,table,tools:toolbar,modal,push,download,proposed,render,toast,
   inspect:id=>{registry='nodes';filter='';focus=id;pair=null;structure=null;resetCatalog();navigate('catalog');}});
 function openInstallationBook(id,context){books.installation(id,context);navigate('notebook');}
-const machine=machinePanel({doc:()=>doc,esc,b,option,table,field,modal,push,render,toast,download,
+const machine=machinePanel({doc:()=>doc,online:()=>server,esc,b,option,table,field,modal,push,render,toast,download,
   openGraph:(mode,id)=>{graphMode=mode;architectureFormat='diagram';focus=id;pair=null;structure=null;pages.drawing=0;navigate('graph');},
   openBook:(id,context)=>{books.machine(id,context);navigate('notebook');},openPair:(k,from,to)=>{layer=k;showPair(from,to,'matrix');}});
 const fleet=fleetPanel({doc:()=>doc,esc,b,option,sel,field,table,modal,push,render,download,navigate,toast,
@@ -381,10 +382,10 @@ async function exportAs(k){const stem='dsm-'+short(base()),m=data(),types={html:
   const payload=k==='sysl'?Sysl.write(m):k==='xlsx'?await ExcelIO.write(doc):k==='html'?dynamicHtml(doc):k==='md'?Formats.markdown(doc):k==='csv'?Formats.emitCsv(doc):JSON.stringify(k==='ipynb'?Notebook.write(doc):doc,null,2);
   download(stem+'.'+k,payload,types[k]);}
 function proposed(input,source=''){
-  if(input.kind==='machine-receipt'&&input.project===doc.project&&input.base!==base()){
+  if(['machine-receipt','axis-report'].includes(input.kind)&&input.project===doc.project&&input.base!==base()){
     const old=doc.history.find(h=>h.rev===input.base);
     const summary=old?Views.differences(DSM.diff(old.data,data())):hint('Исходная ревизия отсутствует в этом файле.');
-    modal('Расчёт устарел',hint('После выполнения блокнота изменилась модель. База '+esc(input.base)+' · текущая '+esc(base()))+summary,()=>{books.machine(input.root);navigate('notebook');},'Подготовить свежий блокнот');
+    modal('Расчёт устарел',hint('После выполнения блокнота изменилась модель. База '+esc(input.base)+' · текущая '+esc(base()))+summary,()=>{books.machine(input.root,input.kind==='axis-report'?{axisRun:input.runId}:undefined);navigate('notebook');},'Подготовить свежий блокнот');
     return;
   }
   const archive=input.kind==='archive';const next=Formats.preview(doc,input);
@@ -431,6 +432,7 @@ $('save').onclick=()=>exportAs('json');
 document.addEventListener('click',async e=>{const t=e.target.closest('[data-action]');if(!t)return;const action=t.dataset.action,id=t.dataset.id;
   try{
     if(action==='replayEvidence'){books.replay(id);navigate('notebook');return;}
+    if(action==='axisReplay'){books.machine(nodeBy(id).parent,{axisRun:id});navigate('notebook');return;}
     if(action.startsWith('machine')){await machine.handle(action.slice(7),id,t);return;}
     if(action.startsWith('fleet')){await fleet.handle(action.slice(5),id,t);return;}
     if(action==='openSizing'){sizing.select(id);navigate('sizing');return;}

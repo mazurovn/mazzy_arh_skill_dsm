@@ -1,13 +1,14 @@
-function machinePanel({doc,esc,b,option,table,field,modal,push,render,toast,download,openBook,openPair,openGraph}){
+function machinePanel({doc,online,esc,b,option,table,field,modal,push,render,toast,download,openBook,openPair,openGraph}){
   const model=()=>DSM.head(doc()).data;
-  const stages={design:'Изделие',interfaces:'Интерфейсы и матрицы',job:'Задание ЧПУ',capture:'Диагностика'};
+  const stages={design:'Изделие',interfaces:'Интерфейсы и матрицы',job:'Задание ЧПУ',bench:'Испытания и ADR',capture:'Диагностика'};
   let project='',root='',stage='design',layer='flow',ordered=false,draft=null,jobResult=null,trace=null;
   const card=(id)=>b('objectRow',esc(id),'class="tiny" data-id="'+esc(id)+'"');
   const act=(k,label,id='')=>b('machine'+k,label,'data-id="'+esc(id)+'"');
   const section=(title,body)=>'<section class="card"><h2>'+title+'</h2>'+body+'</section>';
   const tools=items=>'<div class="tools">'+items.join('')+'</div>';
   const fmt=n=>n.toLocaleString('ru-RU');
-  function reset(){draft=null;jobResult=null;trace=null;}
+  const bench=axisPanel({doc,online,esc,b,option,table,field,modal,push,render,download,openBook,openPair,card,section,tools,act});
+  function reset(){bench.reset();draft=null;jobResult=null;trace=null;}
   function current(){
     const all=Machine.products(model());
     if(project!==doc().project||!all.some(n=>n.id===root)){project=doc().project;root=all[0]?.id||'';stage='design';reset();}
@@ -15,7 +16,7 @@ function machinePanel({doc,esc,b,option,table,field,modal,push,render,toast,down
   }
   function design(parts){
     const groups=parts.filter(n=>n.kind==='system'),decisions=parts.filter(n=>n.kind==='adr');
-    return section('Состав изделия',tools([act('Graph','Компонентная схема','component'),act('Graph','Программная архитектура','software')])+table(['Подсистема','Компоненты и модули','Назначение'],groups.map(g=>[card(g.id)+' '+esc(g.name),parts.filter(n=>n.parent===g.id).map(n=>card(n.id)+' '+esc(n.name)).join('<br>'),esc(g.note)])))+
+    return section('Работа над изделием',tools([act('Stage','1. Проверить задание','job'),act('Stage','2. Решение и испытание','bench'),act('Stage','3. Проверить диагностику','capture')]))+section('Состав изделия',tools([act('Graph','Компонентная схема','component'),act('Graph','Программная архитектура','software')])+table(['Подсистема','Компоненты и модули','Назначение'],groups.map(g=>[card(g.id)+' '+esc(g.name),parts.filter(n=>n.parent===g.id).map(n=>card(n.id)+' '+esc(n.name)).join('<br>'),esc(g.note)])))+
       section('Требования и решения',table(['Карточка','Назначение','Связи'],[...parts.filter(n=>n.kind==='requirement'),...decisions].map(n=>[card(n.id)+' '+esc(n.name),esc(n.note),(n.refs||[]).map(card).join(' ')])))+
       section('Пилотный релиз',table(['Работа','Исполнитель','Релиз','Этап'],parts.filter(n=>n.kind==='changeTask').map(n=>[card(n.id)+' '+esc(n.name),esc(n.attrs?.owner),card(n.release),esc(({done:'Готово',planned:'Запланировано',active:'В работе'})[n.state]||n.state)]))+tools([b('tab','Маршрут изменения','data-id="journey"'),b('tab','План релизов','data-id="plan"')]))+
       section('Клиентское задание и запись испытания',tools([act('Stage','Проверить программу','job'),act('Stage','Подобрать память и проверить файл','capture')]));
@@ -45,7 +46,7 @@ function machinePanel({doc,esc,b,option,table,field,modal,push,render,toast,down
     const result=jobResult?.base===DSM.head(doc()).rev?jobResult:null;
     return section('Программа технолога','<p>Рабочая зона '+limits.join(' × ')+' мм. Начало симуляции — (0, 0, 0). Поддержаны G21, G90, G0 и G1. Для рабочего хода задайте F в мм/мин.</p>'+
       '<label class="field">Линейная программа<textarea id="machineProgram" spellcheck="false" rows="9">'+esc(draft??source?.note??'')+'</textarea></label>'+
-      tools(['<label>Открыть .nc <input id="machineJobFile" type="file" accept=".nc,.txt,.gcode"></label>',act('Run','Проверить траекторию'),act('SaveJob','Сохранить задание')]))+
+      tools(['<label>Открыть .nc <input id="machineJobFile" type="file" accept=".nc,.txt,.gcode"></label>',act('Run','Проверить траекторию'),act('SaveJob','Сохранить задание'),act('ToBench','К решению и испытанию')]))+
       (result?section('Результат симуляции','<p>'+result.moves.length+' перемещений · '+fmt(Math.round(result.length*100)/100)+' мм пути</p><div class="machine-plot">'+plot(result.moves,limits)+'</div>'+table(['Строка','Тип','Конец XYZ, мм','Подача, мм/мин'],result.moves.slice(0,200).map(r=>[r.line,r.rapid?'Быстрый ход':'Рабочий ход',r.to.join(' · '),r.feed??'—']))+(result.moves.length>200?'<p>Показаны первые 200 перемещений.</p>':'')):'');
   }
   function waveform(values){
@@ -69,10 +70,11 @@ function machinePanel({doc,esc,b,option,table,field,modal,push,render,toast,down
     const all=current();
     if(!all.length)return section('Разработка станка','<p>Откройте проект станка в разделе «Обмен». Для нового изделия задайте карточке продукта атрибут workbench=cnc.</p>'+b('tab','Открыть обмен','data-id="io"'));
     const parts=Machine.parts(model(),root);
-    let body;try{body=({design,interfaces:matrix,job,capture})[stage](parts);}catch(e){body=section('Исходные данные','<p>'+esc(e.message)+'</p>'+b('tab','Каталог','data-id="catalog"'));}
+    let body;try{body=({design,interfaces:matrix,job,bench:()=>bench.view(root,parts),capture})[stage](parts);}catch(e){body=section('Исходные данные','<p>'+esc(e.message)+'</p>'+b('tab','Каталог','data-id="catalog"'));}
     return '<div class="stack">'+section('Разработка станка',select('machineRoot','Изделие',all.map(n=>[n.id,n.name]),root)+'<nav class="fleet-steps" aria-label="Работа над станком">'+Object.entries(stages).map(([id,name])=>b('machineStage',name,'data-id="'+id+'" aria-pressed="'+(stage===id)+'"')).join('')+'</nav>')+body+'</div>';
   }
   function bind(){
+    bench.bind();
     const el=id=>document.getElementById(id);
     el('machineRoot')?.addEventListener('change',e=>{root=e.target.value;reset();render();});
     el('machineLayer')?.addEventListener('change',e=>{layer=e.target.value;render();});
@@ -96,6 +98,12 @@ function machinePanel({doc,esc,b,option,table,field,modal,push,render,toast,down
   }
   async function handle(k,id,t){
     if(k==='Stage'){stage=id;render();return;}
+    if(k==='ToBench'){
+      const n=Machine.parts(model(),root).find(n=>n.attrs?.machineRole==='job');
+      if(!n||document.getElementById('machineProgram').value!==n.note)throw Error('Сначала сохраните изменённое задание');
+      stage='bench';render();return;
+    }
+    if(k.startsWith('Axis'))return bench.handle(k,id,root,Machine.parts(model(),root));
     if(k==='Pair'){openPair(layer,id,t.dataset.to);return;}
     if(k==='Graph'){openGraph(id,root);return;}
     if(k==='Notebook'){openBook(root);return;}

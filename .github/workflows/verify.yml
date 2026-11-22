@@ -11,7 +11,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node --test tests/core.cjs tests/workbench.cjs tests/enterprise_delivery.cjs tests/procurement.cjs tests/fleet.cjs tests/machine.cjs
+      - run: node --test tests/core.cjs tests/workbench.cjs tests/enterprise_delivery.cjs tests/procurement.cjs tests/fleet.cjs tests/machine.cjs tests/axis-bench.cjs
       - name: Install twice in a clean local workspace
         run: |
           node install-local.cjs --workspace "$RUNNER_TEMP/DSM workspace"
@@ -28,6 +28,7 @@ jobs:
       - run: python tests/procurement_browser.py
       - run: python tests/fleet_browser.py
       - run: python tests/machine_browser.py
+      - run: python tests/axis_browser.py
       - run: python tests/fleet_cycles.py
       - run: npm install -g @fission-ai/openspec@2.1.1
       - run: openspec validate --all --strict

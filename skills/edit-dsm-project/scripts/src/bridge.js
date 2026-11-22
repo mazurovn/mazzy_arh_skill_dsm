@@ -43,7 +43,7 @@ function mcp(file){
     let q;try{q=JSON.parse(line);}catch{reply(null,{error:{code:-32700,message:'Parse error'}});return;}
     if(q.jsonrpc!=='2.0'||typeof q.method!=='string'){reply(q.id??null,{error:{code:-32600,message:'Invalid Request'}});return;}
     if(q.id===undefined)return;
-    if(q.method==='initialize'){reply(q.id,{result:{protocolVersion:'2025-06-18',capabilities:{tools:{}},serverInfo:{name:'mazzy-dsm',version:'1.5.0'}}});return;}
+    if(q.method==='initialize'){reply(q.id,{result:{protocolVersion:'2025-06-18',capabilities:{tools:{}},serverInfo:{name:'mazzy-dsm',version:'1.6.0'}}});return;}
     if(q.method==='ping'){reply(q.id,{result:{}});return;}
     if(q.method==='tools/list'){reply(q.id,{result:{tools:defs.map(([name,description,inputSchema])=>({name,description,inputSchema}))}});return;}
     if(q.method!=='tools/call'){reply(q.id,{error:{code:-32601,message:'Method not found'}});return;}
@@ -96,6 +96,12 @@ function serve(file,port){
         if(action==='download'&&id){send(200,notebooks.saved(R.readProject(file).project,id));return;}
         if(action==='read'&&id){send(200,notebooks.read(id));return;}
         if(action==='stop'&&id){notebooks.stop(id);send(200,{});return;}
+      }
+      if(req.method==='POST'&&req.url==='/api/axis-bench'){
+        if(req.headers.origin!=='http://'+host||req.headers['content-type']!=='application/json'){send(403,{error:'Требуется локальный редактор'});return;}
+        const body=await jsonBody(req),result=await require('./axis-server.cjs').execute(read(),body);
+        if(M.head(read()).rev!==body.base)throw Error('Конфликт версии испытания');
+        send(200,result);return;
       }
       if(req.method==='POST'&&req.url==='/api/commit'){
         if(req.headers.origin!=='http://'+host||req.headers['content-type']?.split(';')[0]!=='application/json'){send(403,{error:'Требуется локальный редактор'});return;}

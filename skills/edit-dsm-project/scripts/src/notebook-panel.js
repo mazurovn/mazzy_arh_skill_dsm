@@ -82,7 +82,7 @@ function notebookPanel({doc,online,visible,render,proposed,modal,download,button
     return '<details class="card"><summary>Библиотека проекта'+(library?' · '+library.length:'')+'</summary>'+content+action('Refresh','Обновить список')+'</details>';
   }
   function view(){
-    const profiles={machine:'Станок · расчёт диагностической записи',full:'Полный анализ DSM',fleet:'Два ЦОД · расчёт, отказ и источники',installation:'Закупка и приёмка серверов',...Object.fromEntries(Object.entries(NotebookProfiles).map(([k,v])=>[k,v.name]))};
+    const profiles={axes:'Стенд ЧПУ · план и обратная связь XYZ',machine:'Станок · расчёт диагностической записи',full:'Полный анализ DSM',fleet:'Два ЦОД · расчёт, отказ и источники',installation:'Закупка и приёмка серверов',...Object.fromEntries(Object.entries(NotebookProfiles).map(([k,v])=>[k,v.name]))};
     const controls=session?'<p>Сохраните ячейки в Jupyter (Ctrl+S). Файл · '+esc(session.file)+'</p><div class="tools">'+action('Preview','Проверить изменения','class="primary"')+action('LiveResult','Проверить результат Python')+action('Saved','Скачать сохранённый блокнот')+action('Stop','Завершить сессию')+'</div>':
       '<div class="tools"><label>Расчёт <select id="bookProfile" aria-label="Профиль генерации">'+Object.entries(profiles).map(([k,v])=>option(k,v,profile)).join('')+'</select></label>'+action('Generate','Сгенерировать блокнот')+
       '<label class="btn">Загрузить .ipynb<input type="file" class="file-picker" id="bookFile" accept=".ipynb"></label>'+
@@ -160,7 +160,7 @@ function notebookPanel({doc,online,visible,render,proposed,modal,download,button
   }
   function machine(id,context){
     if(session||starting)throw Error('Завершите текущую сессию Jupyter');
-    profile='machine';choose(Notebook.write(doc(),profile,id,context),'machine-'+id+'.ipynb');
+    profile=context?.axisRun?'axes':'machine';choose(Notebook.write(doc(),profile,context?.axisRun||id,context),profile+'-'+(context?.axisRun||id)+'.ipynb');
   }
   return {view,handle,bind,refresh,reset,installation,replay,fleet,machine,active:()=>!!session};
 }

@@ -10,12 +10,13 @@ const usage=[
 'node dsm.cjs diff PROJECT.json FROM TO',
 'node dsm.cjs restore PROJECT.json BASE REV ACTOR NOTE',
 'node dsm.cjs export PROJECT.json NEW_FILE.{md,csv,xlsx,ipynb,html,json,sysl}',
-'node dsm.cjs notebook PROJECT.json NEW.ipynb [full|requirements|placement|readiness|installation|fleet|machine] [INSTALLATION_ID]',
+'node dsm.cjs notebook PROJECT.json NEW.ipynb [full|requirements|placement|readiness|installation|fleet|machine|axes] [OBJECT_ID]',
 'node dsm.cjs notebook-info FILE.ipynb',
 'node dsm.cjs report PROJECT.json [REPORT_KEY]',
 'node dsm.cjs installation PROJECT.json INSTALLATION_ID',
 'node dsm.cjs fleet PROJECT.json PROCUREMENT_ID',
 'node dsm.cjs machine PROJECT.json PRODUCT_ID',
+'node dsm.cjs axis-test PROJECT.json PRODUCT_ID BASE none|X|Y|Z [AT_MS]',
 'node dsm.cjs source-preview PROJECT.json CATEGORY FILE PROCUREMENT_ID',
 'node dsm.cjs source-import PROJECT.json CATEGORY FILE PROCUREMENT_ID BASE ACTOR NOTE',
 'node dsm.cjs journey PROJECT.json REQUIREMENT_ID [--markdown]',
@@ -42,6 +43,13 @@ async function run([cmd,file,...args]){
     if(cmd==='source-preview')return {project:doc.project,base:h.rev,changes:M.diff(h.data,next)};
     if(base!==h.rev)throw Error('Другая база документа');
     return R.current(R.update(file,doc.project,base,note,actor,()=>next));
+  }
+  if(cmd==='axis-test'){
+    const [root,base,axis,ms]=args,fault={axis,atMs:ms===undefined?null:Number(ms)};
+    const engine=require('./src/axis-bench.js'),c=engine.config(h.data,root),sha256=require('node:crypto').createHash('sha256').update(c.program).digest('hex');
+    const result=await require('./src/axis-server.cjs').execute(doc,{project:doc.project,base,root,fault,sha256});
+    const saved=R.update(file,doc.project,base,'Стенд SIL · '+c.job+' · '+axis,'Инженер испытаний',d=>engine.add(d,root,base,fault,result));
+    return {base:M.head(saved).rev,runId:M.head(saved).data.nodes.at(-1).id,sha256,...engine.metrics(result,c.settings,fault)};
   }
   if(cmd==='machine')return require('./src/machine.js').calculate(h.data,args[0]);
   if(cmd==='fleet')return require('./src/fleet.js').analyze(h.data,args[0]);

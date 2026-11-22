@@ -117,6 +117,7 @@ const Formats = ((M,A)=>{
     if(!nodes.size&&!edges.length)throw Error('Пустой текст');return {kind:'merge',nodes:[...nodes.values()],edges};
   }
   function preview(doc,input){
+    if(input.kind==='axis-report')return (typeof AxisBench!=='undefined'?AxisBench:require('./axis-bench.js')).record(doc,input);
     if(input.kind==='machine-receipt')return (typeof Machine!=='undefined'?Machine:require('./machine.js')).receipt(doc,input);
     if(input.kind==='fleet-result')return (typeof FleetChange!=='undefined'?FleetChange:require('./fleet-change.js')).fromBook(doc,input);
     if(input.kind==='installation-receipt')return (typeof Installations!=='undefined'?Installations:require('./installations.js')).receipt(doc,input);

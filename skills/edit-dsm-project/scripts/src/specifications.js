@@ -12,7 +12,8 @@ const Specifications = ((M,Zip)=>{
   }
   function document(n){
     const refs=(n.refs||[]).join(', ');
-    return '# '+n.name+'\n\n'+n.note+(refs?'\n\nСвязанные ID · '+refs:'')+(n.steps?'\n\n'+n.steps.map((s,i)=>(i+1)+'. '+s.join(' → ')).join('\n'):'')+'\n';
+    const decision=n.attrs?.machineRole==='axisDecision'?'\n\n## Альтернатива\n\n'+n.attrs.alternative+'\n\n## Основание\n\n'+n.attrs.rationale+'\n\n## Последствия\n\n'+n.attrs.consequences:'';
+    return '# '+n.name+'\n\n'+n.note+decision+(refs?'\n\nСвязанные ID · '+refs:'')+(n.steps?'\n\n'+n.steps.map((s,i)=>(i+1)+'. '+s.join(' → ')).join('\n'):'')+'\n';
   }
   function slug(id){
     if(!id.startsWith('dsm-u-')&&/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(id))return id;
@@ -90,7 +91,14 @@ const Specifications = ((M,Zip)=>{
       if(files[key]===expected[key])continue;
       const entry=edit[key];if(!entry)throw Error('Верните исходный служебный файл: '+key);
       const contents=files[key],node=M.head(doc).data.nodes.find(n=>n.id===entry.id);
-      if(entry.type==='document'){
+      if(entry.type==='document'&&node.attrs?.machineRole==='axisDecision'){
+        const suffix='\n\nСвязанные ID · '+node.refs.join(', ')+'\n';
+        if(!contents.endsWith(suffix))throw Error('Сохраните исходные ссылки ADR');
+        const sections=contents.slice(0,-suffix.length).match(/^# ([^\n]+)\n\n([\s\S]+?)\n\n## Альтернатива\n\n([\s\S]+?)\n\n## Основание\n\n([\s\S]+?)\n\n## Последствия\n\n([\s\S]+)$/);
+        if(!sections||sections.slice(1).some(v=>!v.trim()))throw Error('Заполните решение, альтернативу, основание и последствия ADR');
+        const [,name,note,alternative,rationale,consequences]=sections;
+        ops.push({op:'node',value:{id:node.id,name,note,attrs:{...node.attrs,alternative,rationale,consequences}}});
+      }else if(entry.type==='document'){
         const suffix=document(node).slice(('# '+node.name+'\n\n'+node.note).length);
         const head=contents.match(/^# ([^\n]+)\n\n/);
         if(!head||!contents.endsWith(suffix))throw Error('Проверьте заголовок и ссылки: '+key);

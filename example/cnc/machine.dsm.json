@@ -2201,6 +2201,2328 @@
           }
         ]
       }
+    },
+    {
+      "rev": "cfcd99ed-9457-4859-86e5-599d7f099c67",
+      "parent": "49eb1208-0b45-4a39-a460-60e73f8bbcd6",
+      "at": "2026-11-22T07:05:16.457Z",
+      "actor": "Системный инженер",
+      "note": "Архитектурная проработка контроля осей и план верификации SIL",
+      "data": {
+        "title": "КБ станкостроения · трёхосевой фрезерный центр",
+        "nodes": [
+          {
+            "id": "CNC",
+            "name": "Фрезерный центр для приборных корпусов",
+            "kind": "product",
+            "state": "unspecified",
+            "parent": "",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Учебное КБ среднего станкостроительного предприятия. Изделие выполняет трёхосевую обработку, прошивка управляет исполнением, клиент технолога передаёт программу и забирает протокол.",
+            "attrs": {
+              "workbench": "cnc"
+            }
+          },
+          {
+            "id": "HW",
+            "name": "Станок и электроника",
+            "kind": "system",
+            "state": "unspecified",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Механика, измерительный тракт, контроллер и приводы."
+          },
+          {
+            "id": "AXES",
+            "name": "Координатный стол XYZ",
+            "kind": "component",
+            "state": "unspecified",
+            "parent": "HW",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Рабочий объём прототипа в машинных координатах, мм.",
+            "attrs": {
+              "machineRole": "envelope",
+              "xMm": 400,
+              "yMm": 300,
+              "zMm": 120
+            },
+            "relations": [
+              [
+                "realizes",
+                "F-MOVE"
+              ]
+            ]
+          },
+          {
+            "id": "DRIVE",
+            "name": "Приводы осей с энкодерами",
+            "kind": "component",
+            "state": "unspecified",
+            "parent": "HW",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Исполняют задания контроллера, возвращают положение и состояние.",
+            "relations": [
+              [
+                "realizes",
+                "F-MOVE"
+              ]
+            ]
+          },
+          {
+            "id": "SPINDLE",
+            "name": "Мотор-шпиндель",
+            "kind": "component",
+            "state": "unspecified",
+            "parent": "HW",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Шпиндель предназначен для обработки корпусов из алюминия.",
+            "relations": [
+              [
+                "realizes",
+                "F-MOVE"
+              ]
+            ]
+          },
+          {
+            "id": "MCU",
+            "name": "Плата контроллера",
+            "kind": "component",
+            "state": "unspecified",
+            "parent": "HW",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Собирает телеметрию и исполняет подготовленные перемещения.",
+            "relations": [
+              [
+                "realizes",
+                "F-MOVE"
+              ],
+              [
+                "realizes",
+                "F-TRACE"
+              ]
+            ]
+          },
+          {
+            "id": "ACC",
+            "name": "Вибродатчики IIS3DWB",
+            "kind": "component",
+            "state": "unspecified",
+            "parent": "HW",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Два измерительных узла на опорах шпинделя. Отдельные потоки XYZ, без предположения о синхронности фаз.",
+            "attrs": {
+              "axes": 3,
+              "bytesPerAxis": 2,
+              "machineRole": "sensor",
+              "quantity": 2,
+              "sampleHz": 26700,
+              "source": "https://www.st.com/en/mems-and-sensors/iis3dwb.html"
+            },
+            "relations": [
+              [
+                "realizes",
+                "F-TRACE"
+              ]
+            ]
+          },
+          {
+            "id": "NOR4",
+            "name": "SPI NOR W25Q32JV",
+            "kind": "component",
+            "state": "unspecified",
+            "parent": "HW",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Вариант накопителя контроллера. Сравнивается полезная ёмкость.",
+            "attrs": {
+              "capacityBytes": 4194304,
+              "machineRole": "storage",
+              "source": "https://www.winbond.com/productResource-files/Winbond%20Serial%20Flash%20Product%20Brief.pdf"
+            }
+          },
+          {
+            "id": "NOR8",
+            "name": "SPI NOR W25Q64JV",
+            "kind": "component",
+            "state": "unspecified",
+            "parent": "HW",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Вариант накопителя контроллера. Сравнивается полезная ёмкость.",
+            "attrs": {
+              "capacityBytes": 8388608,
+              "machineRole": "storage",
+              "source": "https://www.winbond.com/productResource-files/Winbond%20Serial%20Flash%20Product%20Brief.pdf"
+            }
+          },
+          {
+            "id": "FW",
+            "name": "Прошивка контроллера",
+            "kind": "system",
+            "state": "unspecified",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Проверка команд, планирование и диагностика."
+          },
+          {
+            "id": "PLAN",
+            "name": "Планировщик перемещений",
+            "kind": "module",
+            "state": "unspecified",
+            "parent": "FW",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Принимает задание и проверяет рабочую зону.",
+            "relations": [
+              [
+                "uses",
+                "AXES"
+              ],
+              [
+                "uses",
+                "DRIVE"
+              ],
+              [
+                "realizes",
+                "F-MOVE"
+              ],
+              [
+                "realizes",
+                "F-JOB"
+              ]
+            ]
+          },
+          {
+            "id": "REC",
+            "name": "Регистратор вибрации",
+            "kind": "module",
+            "state": "unspecified",
+            "parent": "FW",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Упаковывает отсчёты в блоки. Последний блок записывается фактической длины.",
+            "attrs": {
+              "blockSamples": 256,
+              "headerBytes": 32,
+              "machineRole": "format",
+              "reservePercent": 20
+            },
+            "relations": [
+              [
+                "uses",
+                "ACC"
+              ],
+              [
+                "uses",
+                "MCU"
+              ],
+              [
+                "realizes",
+                "F-TRACE"
+              ]
+            ]
+          },
+          {
+            "id": "HOST",
+            "name": "Клиентское ПО технолога",
+            "kind": "system",
+            "state": "unspecified",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Подготовка задания, предпроверка траектории, получение протокола."
+          },
+          {
+            "id": "EDITOR",
+            "name": "Редактор задания",
+            "kind": "module",
+            "state": "unspecified",
+            "parent": "HOST",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Работает с линейной программой в миллиметрах.",
+            "relations": [
+              [
+                "uses",
+                "PLAN"
+              ],
+              [
+                "realizes",
+                "F-JOB"
+              ]
+            ]
+          },
+          {
+            "id": "VIEW",
+            "name": "Просмотрщик диагностики",
+            "kind": "module",
+            "state": "unspecified",
+            "parent": "HOST",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Получает файл записи, номер задания и описание формата.",
+            "relations": [
+              [
+                "uses",
+                "REC"
+              ],
+              [
+                "realizes",
+                "F-TRACE"
+              ]
+            ]
+          },
+          {
+            "id": "REQ-CAP",
+            "name": "Сохранить окно вибрации",
+            "kind": "requirement",
+            "state": "unspecified",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Сохранить полное окно на обеих опорах при отключённом клиентском ПК.",
+            "attrs": {
+              "durationSeconds": 10,
+              "machineRole": "capture",
+              "then": "Обе записи сохранены полностью за требуемое окно.",
+              "when": "Клиент недоступен во время испытания"
+            },
+            "refs": [
+              "CNC",
+              "REC",
+              "VIEW"
+            ]
+          },
+          {
+            "id": "IF-JOB",
+            "name": "Контракт задания клиента",
+            "kind": "artifact",
+            "state": "unspecified",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Клиент передаёт линейную программу в мм. Контроллер проверяет границы перед выдачей заданий.",
+            "refs": [
+              "EDITOR",
+              "PLAN",
+              "AXES"
+            ],
+            "attrs": {
+              "boundary": "internal",
+              "machineRole": "interface"
+            }
+          },
+          {
+            "id": "IF-TRACE",
+            "name": "Контракт файла диагностики",
+            "kind": "artifact",
+            "state": "unspecified",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "У каждого блока есть номер потока, порядковый номер, временная метка и контрольная сумма в 32-байтовом заголовке.",
+            "refs": [
+              "ACC",
+              "REC",
+              "VIEW",
+              "REQ-CAP"
+            ],
+            "attrs": {
+              "boundary": "internal",
+              "machineRole": "interface"
+            }
+          },
+          {
+            "id": "REL-PILOT",
+            "name": "Опытный образец",
+            "kind": "release",
+            "state": "unspecified",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Проверка программного контура и изготовление опытного комплекта."
+          },
+          {
+            "id": "CAB",
+            "name": "Шкаф питания и автоматики",
+            "kind": "component",
+            "state": "unspecified",
+            "parent": "HW",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Питание и дискретные сигналы контроллера."
+          },
+          {
+            "id": "FIX",
+            "name": "Приспособление для заготовки",
+            "kind": "component",
+            "state": "unspecified",
+            "parent": "HW",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Базирует алюминиевый корпус на столе."
+          },
+          {
+            "id": "LINK",
+            "name": "Транспорт задания и протокола",
+            "kind": "module",
+            "state": "unspecified",
+            "parent": "FW",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Разделяет формат сетевого сообщения и внутреннее представление управляющей программы.",
+            "relations": [
+              [
+                "realizes",
+                "F-JOB"
+              ],
+              [
+                "realizes",
+                "F-TRACE"
+              ]
+            ]
+          },
+          {
+            "id": "CAM",
+            "name": "CAM-система участка",
+            "kind": "system",
+            "state": "unspecified",
+            "parent": "",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Внешняя система, из которой технолог передаёт программу.",
+            "refs": [
+              "CNC"
+            ]
+          },
+          {
+            "id": "TECH",
+            "name": "Технолог участка",
+            "kind": "actor",
+            "state": "unspecified",
+            "parent": "",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Подготавливает задание и принимает протокол.",
+            "refs": [
+              "CNC"
+            ]
+          },
+          {
+            "id": "MAINS",
+            "name": "Питание цеха",
+            "kind": "system",
+            "state": "unspecified",
+            "parent": "",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Граница поставки шкафа питания.",
+            "refs": [
+              "CNC"
+            ]
+          },
+          {
+            "id": "BLANK",
+            "name": "Заготовка корпуса",
+            "kind": "data",
+            "state": "unspecified",
+            "parent": "",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Геометрия и присоединительная поверхность оснастки.",
+            "refs": [
+              "CNC"
+            ]
+          },
+          {
+            "id": "IF-CAM",
+            "name": "Импорт программы",
+            "kind": "artifact",
+            "state": "unspecified",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Файл .nc, миллиметры и абсолютные координаты в поддержанном подмножестве.",
+            "refs": [
+              "CAM",
+              "EDITOR"
+            ],
+            "attrs": {
+              "boundary": "external",
+              "machineRole": "interface"
+            }
+          },
+          {
+            "id": "IF-UI",
+            "name": "Рабочее место технолога",
+            "kind": "artifact",
+            "state": "unspecified",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Выбор программы, строка отказа, просмотр траектории и результата испытания.",
+            "refs": [
+              "TECH",
+              "HOST"
+            ],
+            "attrs": {
+              "boundary": "external",
+              "machineRole": "interface"
+            }
+          },
+          {
+            "id": "IF-POWER",
+            "name": "Ввод питания",
+            "kind": "artifact",
+            "state": "unspecified",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Граница подключения силового шкафа. Параметры ввода требует согласовать электроконструктор.",
+            "refs": [
+              "MAINS",
+              "CAB"
+            ],
+            "attrs": {
+              "boundary": "external",
+              "machineRole": "interface"
+            }
+          },
+          {
+            "id": "IF-FIX",
+            "name": "Базирование заготовки",
+            "kind": "artifact",
+            "state": "unspecified",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Технолог и конструктор согласуют присоединительные размеры оснастки.",
+            "refs": [
+              "BLANK",
+              "FIX"
+            ],
+            "attrs": {
+              "boundary": "external",
+              "machineRole": "interface"
+            }
+          },
+          {
+            "id": "F-MOVE",
+            "name": "Перемещать инструмент",
+            "kind": "capability",
+            "state": "unspecified",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Преобразовать подготовленное задание в перемещение по трём осям."
+          },
+          {
+            "id": "F-JOB",
+            "name": "Принимать программу обработки",
+            "kind": "capability",
+            "state": "unspecified",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Передать и проверить программу технолога."
+          },
+          {
+            "id": "F-TRACE",
+            "name": "Сохранять и читать диагностику",
+            "kind": "capability",
+            "state": "unspecified",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Сохранить измерительный поток и передать его клиенту."
+          },
+          {
+            "id": "ADR-FILE",
+            "name": "Граница прошивки и клиента",
+            "kind": "adr",
+            "state": "done",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Хранить блоки вибрации в версионируемом файле. Клиент и прошивка могут выпускаться раздельно. Цена выбора — заголовок каждого блока и совместная проверка формата. Следующее улучшение — проверять совместимость обеих версий на одном эталонном файле.",
+            "refs": [
+              "vib1-pilot",
+              "REQ-CAP",
+              "IF-TRACE",
+              "REC",
+              "VIEW"
+            ],
+            "attrs": {
+              "owner": "Системный архитектор",
+              "tradeoff": "Дополнительные байты и тест совместимости"
+            }
+          },
+          {
+            "id": "JOB-1",
+            "name": "Контур крышки корпуса",
+            "kind": "artifact",
+            "state": "unspecified",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "G21\nG90\nG0 X15 Y10 Z10\nG1 Z3 F100\nG1 X85 F600\nG1 Y50\nG1 X15\nG1 Y10\nG0 Z10",
+            "refs": [
+              "IF-JOB",
+              "EDITOR",
+              "PLAN"
+            ],
+            "attrs": {
+              "machineRole": "job"
+            }
+          },
+          {
+            "id": "CR-FILE",
+            "name": "Доступ к записи после отключения клиента",
+            "kind": "request",
+            "state": "done",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "",
+            "refs": [
+              "REQ-CAP"
+            ],
+            "attrs": {
+              "disposition": "accepted"
+            }
+          },
+          {
+            "id": "vib1-pilot",
+            "name": "Согласовать файл прошивки и клиента",
+            "kind": "proposal",
+            "state": "active",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Проверить передачу записи между регистратором и клиентом. В пилот входят кодирование, декодирование и стендовое испытание.",
+            "refs": [
+              "CR-FILE",
+              "REQ-CAP",
+              "IF-TRACE"
+            ],
+            "attrs": {
+              "owner": "Руководитель разработки"
+            }
+          },
+          {
+            "id": "BUILD-REC",
+            "name": "Упаковать блок данных в прошивке",
+            "kind": "changeTask",
+            "state": "done",
+            "parent": "vib1-pilot",
+            "release": "REL-PILOT",
+            "segment": "",
+            "bundle": "",
+            "effort": 2,
+            "capacity": null,
+            "note": "",
+            "refs": [
+              "REC",
+              "IF-TRACE"
+            ],
+            "attrs": {
+              "owner": "Разработчик прошивки"
+            }
+          },
+          {
+            "id": "BUILD-VIEW",
+            "name": "Прочитать блок и проверить CRC в клиенте",
+            "kind": "changeTask",
+            "state": "done",
+            "parent": "vib1-pilot",
+            "release": "REL-PILOT",
+            "segment": "",
+            "bundle": "",
+            "effort": 2,
+            "capacity": null,
+            "note": "",
+            "refs": [
+              "VIEW",
+              "IF-TRACE"
+            ],
+            "attrs": {
+              "owner": "Разработчик клиентского ПО"
+            }
+          },
+          {
+            "id": "BENCH",
+            "name": "Испытать запись на собранном станке",
+            "kind": "changeTask",
+            "state": "planned",
+            "parent": "vib1-pilot",
+            "release": "REL-PILOT",
+            "segment": "",
+            "bundle": "",
+            "effort": 3,
+            "capacity": null,
+            "note": "",
+            "refs": [
+              "REQ-CAP",
+              "IF-TRACE",
+              "ACC",
+              "MCU"
+            ],
+            "relations": [
+              [
+                "dependsOn",
+                "BUILD-REC"
+              ],
+              [
+                "dependsOn",
+                "BUILD-VIEW"
+              ]
+            ],
+            "attrs": {
+              "owner": "Инженер испытаний"
+            }
+          },
+          {
+            "id": "RUN-JOB",
+            "name": "Загрузка задания и передача в контроллер",
+            "kind": "scenario",
+            "state": "unspecified",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "",
+            "refs": [
+              "IF-JOB"
+            ],
+            "steps": [
+              [
+                "EDITOR",
+                "LINK"
+              ],
+              [
+                "LINK",
+                "PLAN"
+              ]
+            ]
+          },
+          {
+            "id": "READ-TRACE",
+            "name": "Диагностика опор шпинделя",
+            "kind": "scenario",
+            "state": "unspecified",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "",
+            "refs": [
+              "IF-TRACE"
+            ],
+            "steps": [
+              [
+                "VIEW",
+                "REC"
+              ],
+              [
+                "REC",
+                "ACC"
+              ]
+            ]
+          },
+          {
+            "id": "REQ-AXIS",
+            "name": "Контроль обратной связи осей",
+            "kind": "requirement",
+            "state": "unspecified",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "В штатном режиме измеренное положение каждой оси должно находиться в допуске. При замере энкодера движущейся оси контроллер должен зафиксировать превышение и удержать все три команды в пределах заданного времени реакции.",
+            "attrs": {
+              "countsPerMm": 100,
+              "machineRole": "axisAcceptance",
+              "maxResponseMs": 80,
+              "periodMs": 20,
+              "rapidMmMin": 1200,
+              "toleranceMm": 0.2,
+              "tripSamples": 2
+            },
+            "refs": [
+              "PLAN",
+              "DRIVE",
+              "MCU"
+            ]
+          },
+          {
+            "id": "ADR-HOLD",
+            "name": "Где обнаруживать потерю обратной связи",
+            "kind": "adr",
+            "state": "done",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Контроллер сравнивает команду с показаниями энкодера каждый такт. При устойчивом превышении допуска он фиксирует ALARM и удерживает все три команды.",
+            "refs": [
+              "REQ-AXIS",
+              "PLAN",
+              "DRIVE",
+              "MCU"
+            ],
+            "attrs": {
+              "alternative": "Обнаруживать расхождение в клиентском ПО и отправлять команду останова.",
+              "consequences": "Нужны калибровка энкодера и подбор допуска. Малый допуск повышает риск ложного останова. Физический тормозной путь измеряется на оборудовании.",
+              "machineRole": "axisDecision",
+              "rationale": "Контроллер располагает командой и обратной связью в одном такте. Реакция не зависит от доступности клиентского ПК."
+            }
+          },
+          {
+            "id": "IF-AXIS",
+            "name": "Команда осей и обратная связь",
+            "kind": "artifact",
+            "state": "unspecified",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Клиент передаёт задание UTF-8. Контроллер подтверждает SHA-256, записывает уставки XYZ в мм, показания энкодеров в отсчётах и событие ALARM с номером строки NC.",
+            "refs": [
+              "EDITOR",
+              "PLAN",
+              "MCU",
+              "DRIVE",
+              "REQ-AXIS",
+              "ADR-HOLD"
+            ],
+            "attrs": {
+              "boundary": "internal",
+              "machineRole": "interface"
+            }
+          },
+          {
+            "id": "TEST-AXIS",
+            "name": "План верификации обратной связи",
+            "kind": "artifact",
+            "state": "unspecified",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Один исходный файл. Штатный прогон проверяет точность по XYZ и завершение программы. Во втором прогоне фиксируется отсчёт выбранного энкодера. Проверить время реакции, номер оси и удержание команды. Валидация технологом изделия остаётся отдельной работой.",
+            "refs": [
+              "REQ-AXIS",
+              "ADR-HOLD",
+              "JOB-1",
+              "EDITOR",
+              "PLAN",
+              "MCU",
+              "DRIVE",
+              "IF-AXIS"
+            ],
+            "attrs": {
+              "client": "EDITOR",
+              "controller": "MCU",
+              "drive": "DRIVE",
+              "iface": "IF-AXIS",
+              "machineRole": "axisPlan",
+              "planner": "PLAN"
+            }
+          }
+        ],
+        "edges": [
+          {
+            "from": "EDITOR",
+            "to": "PLAN",
+            "layer": "flow",
+            "weight": 2,
+            "reason": "Передача программы через IF-JOB"
+          },
+          {
+            "from": "PLAN",
+            "to": "DRIVE",
+            "layer": "flow",
+            "weight": 3,
+            "reason": "Задания осей и обратная связь"
+          },
+          {
+            "from": "REC",
+            "to": "ACC",
+            "layer": "flow",
+            "weight": 3,
+            "reason": "Чтение трёхосевых отсчётов"
+          },
+          {
+            "from": "VIEW",
+            "to": "REC",
+            "layer": "flow",
+            "weight": 2,
+            "reason": "Получение файла IF-TRACE"
+          },
+          {
+            "from": "EDITOR",
+            "to": "PLAN",
+            "layer": "risk",
+            "weight": 3,
+            "reason": "Одинаковая трактовка координат и границ"
+          },
+          {
+            "from": "VIEW",
+            "to": "REC",
+            "layer": "risk",
+            "weight": 3,
+            "reason": "Единый формат блока и номера потоков"
+          },
+          {
+            "from": "EDITOR",
+            "to": "LINK",
+            "layer": "flow",
+            "weight": 2,
+            "reason": "Сообщение задания клиента"
+          },
+          {
+            "from": "LINK",
+            "to": "PLAN",
+            "layer": "flow",
+            "weight": 2,
+            "reason": "Передача проверенного пакета планировщику"
+          },
+          {
+            "from": "REC",
+            "to": "MCU",
+            "layer": "flow",
+            "weight": 3,
+            "reason": "Доступ к периферии контроллера"
+          },
+          {
+            "from": "DRIVE",
+            "to": "AXES",
+            "layer": "flow",
+            "weight": 3,
+            "reason": "Перемещение координатного стола"
+          },
+          {
+            "from": "SPINDLE",
+            "to": "CAB",
+            "layer": "flow",
+            "weight": 2,
+            "reason": "Питание привода шпинделя"
+          },
+          {
+            "from": "MCU",
+            "to": "CAB",
+            "layer": "flow",
+            "weight": 1,
+            "reason": "Готовность шкафа"
+          },
+          {
+            "from": "FIX",
+            "to": "AXES",
+            "layer": "flow",
+            "weight": 1,
+            "reason": "Механическая база на столе"
+          },
+          {
+            "from": "REC",
+            "to": "NOR4",
+            "layer": "risk",
+            "weight": 2,
+            "reason": "Проверка полезной ёмкости и времени записи"
+          },
+          {
+            "from": "REC",
+            "to": "NOR8",
+            "layer": "risk",
+            "weight": 2,
+            "reason": "Проверка альтернативного накопителя"
+          },
+          {
+            "from": "PLAN",
+            "to": "AXES",
+            "layer": "risk",
+            "weight": 3,
+            "reason": "Проверка рабочего объёма"
+          },
+          {
+            "from": "LINK",
+            "to": "VIEW",
+            "layer": "risk",
+            "weight": 2,
+            "reason": "Совместимость версии диагностического файла"
+          },
+          {
+            "from": "ACC",
+            "to": "MCU",
+            "layer": "risk",
+            "weight": 3,
+            "reason": "Темп выдачи отсчётов и обслуживания буфера"
+          },
+          {
+            "from": "DRIVE",
+            "to": "CAB",
+            "layer": "risk",
+            "weight": 2,
+            "reason": "Проверка состояний привода"
+          }
+        ]
+      }
+    },
+    {
+      "rev": "1b20ae01-e140-4191-8c85-bc1bbd34642c",
+      "parent": "cfcd99ed-9457-4859-86e5-599d7f099c67",
+      "at": "2026-11-22T07:08:54.397Z",
+      "actor": "Системный инженер",
+      "note": "Связи требования, ADR, интерфейсов, работ и решения OpenSpec",
+      "data": {
+        "title": "КБ станкостроения · трёхосевой фрезерный центр",
+        "nodes": [
+          {
+            "id": "CNC",
+            "name": "Фрезерный центр для приборных корпусов",
+            "kind": "product",
+            "state": "unspecified",
+            "parent": "",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Учебное КБ среднего станкостроительного предприятия. Изделие выполняет трёхосевую обработку, прошивка управляет исполнением, клиент технолога передаёт программу и забирает протокол.",
+            "attrs": {
+              "workbench": "cnc"
+            }
+          },
+          {
+            "id": "HW",
+            "name": "Станок и электроника",
+            "kind": "system",
+            "state": "unspecified",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Механика, измерительный тракт, контроллер и приводы."
+          },
+          {
+            "id": "AXES",
+            "name": "Координатный стол XYZ",
+            "kind": "component",
+            "state": "unspecified",
+            "parent": "HW",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Рабочий объём прототипа в машинных координатах, мм.",
+            "attrs": {
+              "machineRole": "envelope",
+              "xMm": 400,
+              "yMm": 300,
+              "zMm": 120
+            },
+            "relations": [
+              [
+                "realizes",
+                "F-MOVE"
+              ]
+            ]
+          },
+          {
+            "id": "DRIVE",
+            "name": "Приводы осей с энкодерами",
+            "kind": "component",
+            "state": "unspecified",
+            "parent": "HW",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Исполняют задания контроллера, возвращают положение и состояние.",
+            "relations": [
+              [
+                "realizes",
+                "F-MOVE"
+              ]
+            ]
+          },
+          {
+            "id": "SPINDLE",
+            "name": "Мотор-шпиндель",
+            "kind": "component",
+            "state": "unspecified",
+            "parent": "HW",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Шпиндель предназначен для обработки корпусов из алюминия.",
+            "relations": [
+              [
+                "realizes",
+                "F-MOVE"
+              ]
+            ]
+          },
+          {
+            "id": "MCU",
+            "name": "Плата контроллера",
+            "kind": "component",
+            "state": "unspecified",
+            "parent": "HW",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Собирает телеметрию и исполняет подготовленные перемещения.",
+            "relations": [
+              [
+                "realizes",
+                "F-MOVE"
+              ],
+              [
+                "realizes",
+                "F-TRACE"
+              ],
+              [
+                "realizes",
+                "REQ-AXIS"
+              ]
+            ]
+          },
+          {
+            "id": "ACC",
+            "name": "Вибродатчики IIS3DWB",
+            "kind": "component",
+            "state": "unspecified",
+            "parent": "HW",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Два измерительных узла на опорах шпинделя. Отдельные потоки XYZ, без предположения о синхронности фаз.",
+            "attrs": {
+              "axes": 3,
+              "bytesPerAxis": 2,
+              "machineRole": "sensor",
+              "quantity": 2,
+              "sampleHz": 26700,
+              "source": "https://www.st.com/en/mems-and-sensors/iis3dwb.html"
+            },
+            "relations": [
+              [
+                "realizes",
+                "F-TRACE"
+              ]
+            ]
+          },
+          {
+            "id": "NOR4",
+            "name": "SPI NOR W25Q32JV",
+            "kind": "component",
+            "state": "unspecified",
+            "parent": "HW",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Вариант накопителя контроллера. Сравнивается полезная ёмкость.",
+            "attrs": {
+              "capacityBytes": 4194304,
+              "machineRole": "storage",
+              "source": "https://www.winbond.com/productResource-files/Winbond%20Serial%20Flash%20Product%20Brief.pdf"
+            }
+          },
+          {
+            "id": "NOR8",
+            "name": "SPI NOR W25Q64JV",
+            "kind": "component",
+            "state": "unspecified",
+            "parent": "HW",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Вариант накопителя контроллера. Сравнивается полезная ёмкость.",
+            "attrs": {
+              "capacityBytes": 8388608,
+              "machineRole": "storage",
+              "source": "https://www.winbond.com/productResource-files/Winbond%20Serial%20Flash%20Product%20Brief.pdf"
+            }
+          },
+          {
+            "id": "FW",
+            "name": "Прошивка контроллера",
+            "kind": "system",
+            "state": "unspecified",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Проверка команд, планирование и диагностика."
+          },
+          {
+            "id": "PLAN",
+            "name": "Планировщик перемещений",
+            "kind": "module",
+            "state": "unspecified",
+            "parent": "FW",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Принимает задание и проверяет рабочую зону.",
+            "relations": [
+              [
+                "uses",
+                "AXES"
+              ],
+              [
+                "uses",
+                "DRIVE"
+              ],
+              [
+                "realizes",
+                "F-MOVE"
+              ],
+              [
+                "realizes",
+                "F-JOB"
+              ]
+            ]
+          },
+          {
+            "id": "REC",
+            "name": "Регистратор вибрации",
+            "kind": "module",
+            "state": "unspecified",
+            "parent": "FW",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Упаковывает отсчёты в блоки. Последний блок записывается фактической длины.",
+            "attrs": {
+              "blockSamples": 256,
+              "headerBytes": 32,
+              "machineRole": "format",
+              "reservePercent": 20
+            },
+            "relations": [
+              [
+                "uses",
+                "ACC"
+              ],
+              [
+                "uses",
+                "MCU"
+              ],
+              [
+                "realizes",
+                "F-TRACE"
+              ]
+            ]
+          },
+          {
+            "id": "HOST",
+            "name": "Клиентское ПО технолога",
+            "kind": "system",
+            "state": "unspecified",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Подготовка задания, предпроверка траектории, получение протокола."
+          },
+          {
+            "id": "EDITOR",
+            "name": "Редактор задания",
+            "kind": "module",
+            "state": "unspecified",
+            "parent": "HOST",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Работает с линейной программой в миллиметрах.",
+            "relations": [
+              [
+                "uses",
+                "PLAN"
+              ],
+              [
+                "realizes",
+                "F-JOB"
+              ]
+            ]
+          },
+          {
+            "id": "VIEW",
+            "name": "Просмотрщик диагностики",
+            "kind": "module",
+            "state": "unspecified",
+            "parent": "HOST",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Получает файл записи, номер задания и описание формата.",
+            "relations": [
+              [
+                "uses",
+                "REC"
+              ],
+              [
+                "realizes",
+                "F-TRACE"
+              ]
+            ]
+          },
+          {
+            "id": "REQ-CAP",
+            "name": "Сохранить окно вибрации",
+            "kind": "requirement",
+            "state": "unspecified",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Сохранить полное окно на обеих опорах при отключённом клиентском ПК.",
+            "attrs": {
+              "durationSeconds": 10,
+              "machineRole": "capture",
+              "then": "Обе записи сохранены полностью за требуемое окно.",
+              "when": "Клиент недоступен во время испытания"
+            },
+            "refs": [
+              "CNC",
+              "REC",
+              "VIEW"
+            ]
+          },
+          {
+            "id": "IF-JOB",
+            "name": "Контракт задания клиента",
+            "kind": "artifact",
+            "state": "unspecified",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Клиент передаёт линейную программу в мм. Контроллер проверяет границы перед выдачей заданий.",
+            "refs": [
+              "EDITOR",
+              "PLAN",
+              "AXES"
+            ],
+            "attrs": {
+              "boundary": "internal",
+              "machineRole": "interface"
+            }
+          },
+          {
+            "id": "IF-TRACE",
+            "name": "Контракт файла диагностики",
+            "kind": "artifact",
+            "state": "unspecified",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "У каждого блока есть номер потока, порядковый номер, временная метка и контрольная сумма в 32-байтовом заголовке.",
+            "refs": [
+              "ACC",
+              "REC",
+              "VIEW",
+              "REQ-CAP"
+            ],
+            "attrs": {
+              "boundary": "internal",
+              "machineRole": "interface"
+            }
+          },
+          {
+            "id": "REL-PILOT",
+            "name": "Опытный образец",
+            "kind": "release",
+            "state": "unspecified",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Проверка программного контура и изготовление опытного комплекта."
+          },
+          {
+            "id": "CAB",
+            "name": "Шкаф питания и автоматики",
+            "kind": "component",
+            "state": "unspecified",
+            "parent": "HW",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Питание и дискретные сигналы контроллера."
+          },
+          {
+            "id": "FIX",
+            "name": "Приспособление для заготовки",
+            "kind": "component",
+            "state": "unspecified",
+            "parent": "HW",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Базирует алюминиевый корпус на столе."
+          },
+          {
+            "id": "LINK",
+            "name": "Транспорт задания и протокола",
+            "kind": "module",
+            "state": "unspecified",
+            "parent": "FW",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Разделяет формат сетевого сообщения и внутреннее представление управляющей программы.",
+            "relations": [
+              [
+                "realizes",
+                "F-JOB"
+              ],
+              [
+                "realizes",
+                "F-TRACE"
+              ]
+            ]
+          },
+          {
+            "id": "CAM",
+            "name": "CAM-система участка",
+            "kind": "system",
+            "state": "unspecified",
+            "parent": "",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Внешняя система, из которой технолог передаёт программу.",
+            "refs": [
+              "CNC"
+            ]
+          },
+          {
+            "id": "TECH",
+            "name": "Технолог участка",
+            "kind": "actor",
+            "state": "unspecified",
+            "parent": "",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Подготавливает задание и принимает протокол.",
+            "refs": [
+              "CNC"
+            ]
+          },
+          {
+            "id": "MAINS",
+            "name": "Питание цеха",
+            "kind": "system",
+            "state": "unspecified",
+            "parent": "",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Граница поставки шкафа питания.",
+            "refs": [
+              "CNC"
+            ]
+          },
+          {
+            "id": "BLANK",
+            "name": "Заготовка корпуса",
+            "kind": "data",
+            "state": "unspecified",
+            "parent": "",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Геометрия и присоединительная поверхность оснастки.",
+            "refs": [
+              "CNC"
+            ]
+          },
+          {
+            "id": "IF-CAM",
+            "name": "Импорт программы",
+            "kind": "artifact",
+            "state": "unspecified",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Файл .nc, миллиметры и абсолютные координаты в поддержанном подмножестве.",
+            "refs": [
+              "CAM",
+              "EDITOR"
+            ],
+            "attrs": {
+              "boundary": "external",
+              "machineRole": "interface"
+            }
+          },
+          {
+            "id": "IF-UI",
+            "name": "Рабочее место технолога",
+            "kind": "artifact",
+            "state": "unspecified",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Выбор программы, строка отказа, просмотр траектории и результата испытания.",
+            "refs": [
+              "TECH",
+              "HOST"
+            ],
+            "attrs": {
+              "boundary": "external",
+              "machineRole": "interface"
+            }
+          },
+          {
+            "id": "IF-POWER",
+            "name": "Ввод питания",
+            "kind": "artifact",
+            "state": "unspecified",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Граница подключения силового шкафа. Параметры ввода требует согласовать электроконструктор.",
+            "refs": [
+              "MAINS",
+              "CAB"
+            ],
+            "attrs": {
+              "boundary": "external",
+              "machineRole": "interface"
+            }
+          },
+          {
+            "id": "IF-FIX",
+            "name": "Базирование заготовки",
+            "kind": "artifact",
+            "state": "unspecified",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Технолог и конструктор согласуют присоединительные размеры оснастки.",
+            "refs": [
+              "BLANK",
+              "FIX"
+            ],
+            "attrs": {
+              "boundary": "external",
+              "machineRole": "interface"
+            }
+          },
+          {
+            "id": "F-MOVE",
+            "name": "Перемещать инструмент",
+            "kind": "capability",
+            "state": "unspecified",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Преобразовать подготовленное задание в перемещение по трём осям."
+          },
+          {
+            "id": "F-JOB",
+            "name": "Принимать программу обработки",
+            "kind": "capability",
+            "state": "unspecified",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Передать и проверить программу технолога."
+          },
+          {
+            "id": "F-TRACE",
+            "name": "Сохранять и читать диагностику",
+            "kind": "capability",
+            "state": "unspecified",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Сохранить измерительный поток и передать его клиенту."
+          },
+          {
+            "id": "ADR-FILE",
+            "name": "Граница прошивки и клиента",
+            "kind": "adr",
+            "state": "done",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Хранить блоки вибрации в версионируемом файле. Клиент и прошивка могут выпускаться раздельно. Цена выбора — заголовок каждого блока и совместная проверка формата. Следующее улучшение — проверять совместимость обеих версий на одном эталонном файле.",
+            "refs": [
+              "vib1-pilot",
+              "REQ-CAP",
+              "IF-TRACE",
+              "REC",
+              "VIEW"
+            ],
+            "attrs": {
+              "owner": "Системный архитектор",
+              "tradeoff": "Дополнительные байты и тест совместимости"
+            }
+          },
+          {
+            "id": "JOB-1",
+            "name": "Контур крышки корпуса",
+            "kind": "artifact",
+            "state": "unspecified",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "G21\nG90\nG0 X15 Y10 Z10\nG1 Z3 F100\nG1 X85 F600\nG1 Y50\nG1 X15\nG1 Y10\nG0 Z10",
+            "refs": [
+              "IF-JOB",
+              "EDITOR",
+              "PLAN"
+            ],
+            "attrs": {
+              "machineRole": "job"
+            }
+          },
+          {
+            "id": "CR-FILE",
+            "name": "Доступ к записи после отключения клиента",
+            "kind": "request",
+            "state": "done",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "",
+            "refs": [
+              "REQ-CAP"
+            ],
+            "attrs": {
+              "disposition": "accepted"
+            }
+          },
+          {
+            "id": "vib1-pilot",
+            "name": "Согласовать файл прошивки и клиента",
+            "kind": "proposal",
+            "state": "active",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Проверить передачу записи между регистратором и клиентом. В пилот входят кодирование, декодирование и стендовое испытание.",
+            "refs": [
+              "CR-FILE",
+              "REQ-CAP",
+              "IF-TRACE"
+            ],
+            "attrs": {
+              "owner": "Руководитель разработки"
+            }
+          },
+          {
+            "id": "BUILD-REC",
+            "name": "Упаковать блок данных в прошивке",
+            "kind": "changeTask",
+            "state": "done",
+            "parent": "vib1-pilot",
+            "release": "REL-PILOT",
+            "segment": "",
+            "bundle": "",
+            "effort": 2,
+            "capacity": null,
+            "note": "",
+            "refs": [
+              "REC",
+              "IF-TRACE"
+            ],
+            "attrs": {
+              "owner": "Разработчик прошивки"
+            }
+          },
+          {
+            "id": "BUILD-VIEW",
+            "name": "Прочитать блок и проверить CRC в клиенте",
+            "kind": "changeTask",
+            "state": "done",
+            "parent": "vib1-pilot",
+            "release": "REL-PILOT",
+            "segment": "",
+            "bundle": "",
+            "effort": 2,
+            "capacity": null,
+            "note": "",
+            "refs": [
+              "VIEW",
+              "IF-TRACE"
+            ],
+            "attrs": {
+              "owner": "Разработчик клиентского ПО"
+            }
+          },
+          {
+            "id": "BENCH",
+            "name": "Испытать запись на собранном станке",
+            "kind": "changeTask",
+            "state": "planned",
+            "parent": "vib1-pilot",
+            "release": "REL-PILOT",
+            "segment": "",
+            "bundle": "",
+            "effort": 3,
+            "capacity": null,
+            "note": "",
+            "refs": [
+              "REQ-CAP",
+              "IF-TRACE",
+              "ACC",
+              "MCU"
+            ],
+            "relations": [
+              [
+                "dependsOn",
+                "BUILD-REC"
+              ],
+              [
+                "dependsOn",
+                "BUILD-VIEW"
+              ]
+            ],
+            "attrs": {
+              "owner": "Инженер испытаний"
+            }
+          },
+          {
+            "id": "RUN-JOB",
+            "name": "Загрузка задания и передача в контроллер",
+            "kind": "scenario",
+            "state": "unspecified",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "",
+            "refs": [
+              "IF-JOB"
+            ],
+            "steps": [
+              [
+                "EDITOR",
+                "LINK"
+              ],
+              [
+                "LINK",
+                "PLAN"
+              ]
+            ]
+          },
+          {
+            "id": "READ-TRACE",
+            "name": "Диагностика опор шпинделя",
+            "kind": "scenario",
+            "state": "unspecified",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "",
+            "refs": [
+              "IF-TRACE"
+            ],
+            "steps": [
+              [
+                "VIEW",
+                "REC"
+              ],
+              [
+                "REC",
+                "ACC"
+              ]
+            ]
+          },
+          {
+            "id": "REQ-AXIS",
+            "name": "Контроль обратной связи осей",
+            "kind": "requirement",
+            "state": "unspecified",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "В штатном режиме измеренное положение каждой оси должно находиться в допуске. При замере энкодера движущейся оси контроллер должен зафиксировать превышение и удержать все три команды в пределах заданного времени реакции.",
+            "attrs": {
+              "countsPerMm": 100,
+              "machineRole": "axisAcceptance",
+              "maxResponseMs": 80,
+              "periodMs": 20,
+              "rapidMmMin": 1200,
+              "then": "Телеметрия подтверждает допуск в штатном режиме и удержание трёх команд в пределах лимита реакции при внесённом отказе.",
+              "toleranceMm": 0.2,
+              "tripSamples": 2,
+              "when": "При штатном ходе и замере показания движущейся оси"
+            },
+            "refs": [
+              "PLAN",
+              "DRIVE",
+              "MCU"
+            ]
+          },
+          {
+            "id": "ADR-HOLD",
+            "name": "Где обнаруживать потерю обратной связи",
+            "kind": "adr",
+            "state": "done",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Контроллер сравнивает команду с показаниями энкодера каждый такт. При устойчивом превышении допуска он фиксирует ALARM и удерживает все три команды.",
+            "refs": [
+              "REQ-AXIS",
+              "axis-feedback-pilot",
+              "PLAN",
+              "DRIVE",
+              "MCU"
+            ],
+            "attrs": {
+              "alternative": "Обнаруживать расхождение в клиентском ПО и отправлять команду останова.",
+              "consequences": "Нужны калибровка энкодера и подбор допуска. Малый допуск повышает риск ложного останова. Физический тормозной путь измеряется на оборудовании.",
+              "machineRole": "axisDecision",
+              "rationale": "Контроллер располагает командой и обратной связью в одном такте. Реакция не зависит от доступности клиентского ПК."
+            }
+          },
+          {
+            "id": "IF-AXIS",
+            "name": "Команда осей и обратная связь",
+            "kind": "artifact",
+            "state": "unspecified",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Клиент передаёт задание UTF-8. Контроллер подтверждает SHA-256, записывает уставки XYZ в мм, показания энкодеров в отсчётах и событие ALARM с номером строки NC.",
+            "refs": [
+              "EDITOR",
+              "PLAN",
+              "MCU",
+              "DRIVE",
+              "REQ-AXIS",
+              "ADR-HOLD"
+            ],
+            "attrs": {
+              "boundary": "internal",
+              "machineRole": "interface"
+            }
+          },
+          {
+            "id": "TEST-AXIS",
+            "name": "План верификации обратной связи",
+            "kind": "artifact",
+            "state": "unspecified",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "Один исходный файл. Штатный прогон проверяет точность по XYZ и завершение программы. Во втором прогоне фиксируется отсчёт выбранного энкодера. Проверить время реакции, номер оси и удержание команды. Валидация технологом изделия остаётся отдельной работой.",
+            "refs": [
+              "REQ-AXIS",
+              "ADR-HOLD",
+              "JOB-1",
+              "EDITOR",
+              "PLAN",
+              "MCU",
+              "DRIVE",
+              "IF-AXIS",
+              "axis-feedback-pilot"
+            ],
+            "attrs": {
+              "client": "EDITOR",
+              "controller": "MCU",
+              "drive": "DRIVE",
+              "iface": "IF-AXIS",
+              "machineRole": "axisPlan",
+              "planner": "PLAN",
+              "proposal": "axis-feedback-pilot"
+            }
+          },
+          {
+            "id": "CR-AXIS",
+            "name": "Обнаруживать замер энкодера на станке",
+            "kind": "request",
+            "state": "done",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "",
+            "refs": [
+              "REQ-AXIS"
+            ],
+            "attrs": {
+              "disposition": "accepted",
+              "owner": "Системный инженер",
+              "requester": "Технолог"
+            }
+          },
+          {
+            "id": "axis-feedback-pilot",
+            "name": "Верификация останова по обратной связи",
+            "kind": "proposal",
+            "state": "active",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": null,
+            "note": "## Why\n\nТехнологу требуется распознавать потерю обратной связи.\n\n## What Changes\n\nПроверять замер энкодера в контроллере. Версионировать протокол, требование и ADR.\n\n## Capabilities\n\n- axis-feedback\n\n## Impact\n\nКлиент, контроллер, привод и процедура приёмки.",
+            "refs": [
+              "REQ-AXIS",
+              "CR-AXIS",
+              "IF-AXIS"
+            ]
+          },
+          {
+            "id": "REL-AXIS",
+            "name": "Пилот контроля обратной связи",
+            "kind": "release",
+            "state": "unspecified",
+            "parent": "CNC",
+            "release": "",
+            "segment": "",
+            "bundle": "",
+            "effort": null,
+            "capacity": 4,
+            "note": ""
+          },
+          {
+            "id": "TASK-SIL",
+            "name": "Рассмотреть протоколы SIL и заключение Jupyter",
+            "kind": "changeTask",
+            "state": "planned",
+            "parent": "axis-feedback-pilot",
+            "release": "REL-AXIS",
+            "segment": "",
+            "bundle": "",
+            "effort": 2,
+            "capacity": null,
+            "note": "",
+            "refs": [
+              "TEST-AXIS",
+              "REQ-AXIS",
+              "ADR-HOLD"
+            ],
+            "attrs": {
+              "owner": "Инженер испытаний"
+            }
+          },
+          {
+            "id": "TASK-ACCEPT",
+            "name": "Подтвердить приёмку изделия технологом",
+            "kind": "changeTask",
+            "state": "planned",
+            "parent": "axis-feedback-pilot",
+            "release": "REL-AXIS",
+            "segment": "",
+            "bundle": "",
+            "effort": 2,
+            "capacity": null,
+            "note": "",
+            "refs": [
+              "REQ-AXIS",
+              "ADR-HOLD"
+            ],
+            "attrs": {
+              "owner": "Технолог"
+            }
+          }
+        ],
+        "edges": [
+          {
+            "from": "EDITOR",
+            "to": "PLAN",
+            "layer": "flow",
+            "weight": 2,
+            "reason": "Передача программы через IF-JOB"
+          },
+          {
+            "from": "PLAN",
+            "to": "DRIVE",
+            "layer": "flow",
+            "weight": 3,
+            "reason": "Задания осей и обратная связь"
+          },
+          {
+            "from": "REC",
+            "to": "ACC",
+            "layer": "flow",
+            "weight": 3,
+            "reason": "Чтение трёхосевых отсчётов"
+          },
+          {
+            "from": "VIEW",
+            "to": "REC",
+            "layer": "flow",
+            "weight": 2,
+            "reason": "Получение файла IF-TRACE"
+          },
+          {
+            "from": "EDITOR",
+            "to": "PLAN",
+            "layer": "risk",
+            "weight": 3,
+            "reason": "Одинаковая трактовка координат и границ"
+          },
+          {
+            "from": "VIEW",
+            "to": "REC",
+            "layer": "risk",
+            "weight": 3,
+            "reason": "Единый формат блока и номера потоков"
+          },
+          {
+            "from": "EDITOR",
+            "to": "LINK",
+            "layer": "flow",
+            "weight": 2,
+            "reason": "Сообщение задания клиента"
+          },
+          {
+            "from": "LINK",
+            "to": "PLAN",
+            "layer": "flow",
+            "weight": 2,
+            "reason": "Передача проверенного пакета планировщику"
+          },
+          {
+            "from": "REC",
+            "to": "MCU",
+            "layer": "flow",
+            "weight": 3,
+            "reason": "Доступ к периферии контроллера"
+          },
+          {
+            "from": "DRIVE",
+            "to": "AXES",
+            "layer": "flow",
+            "weight": 3,
+            "reason": "Перемещение координатного стола"
+          },
+          {
+            "from": "SPINDLE",
+            "to": "CAB",
+            "layer": "flow",
+            "weight": 2,
+            "reason": "Питание привода шпинделя"
+          },
+          {
+            "from": "MCU",
+            "to": "CAB",
+            "layer": "flow",
+            "weight": 1,
+            "reason": "Готовность шкафа"
+          },
+          {
+            "from": "FIX",
+            "to": "AXES",
+            "layer": "flow",
+            "weight": 1,
+            "reason": "Механическая база на столе"
+          },
+          {
+            "from": "REC",
+            "to": "NOR4",
+            "layer": "risk",
+            "weight": 2,
+            "reason": "Проверка полезной ёмкости и времени записи"
+          },
+          {
+            "from": "REC",
+            "to": "NOR8",
+            "layer": "risk",
+            "weight": 2,
+            "reason": "Проверка альтернативного накопителя"
+          },
+          {
+            "from": "PLAN",
+            "to": "AXES",
+            "layer": "risk",
+            "weight": 3,
+            "reason": "Проверка рабочего объёма"
+          },
+          {
+            "from": "LINK",
+            "to": "VIEW",
+            "layer": "risk",
+            "weight": 2,
+            "reason": "Совместимость версии диагностического файла"
+          },
+          {
+            "from": "ACC",
+            "to": "MCU",
+            "layer": "risk",
+            "weight": 3,
+            "reason": "Темп выдачи отсчётов и обслуживания буфера"
+          },
+          {
+            "from": "DRIVE",
+            "to": "CAB",
+            "layer": "risk",
+            "weight": 2,
+            "reason": "Проверка состояний привода"
+          },
+          {
+            "from": "PLAN",
+            "to": "MCU",
+            "layer": "flow",
+            "reason": "Передача уставок XYZ",
+            "weight": 2
+          },
+          {
+            "from": "MCU",
+            "to": "DRIVE",
+            "layer": "flow",
+            "reason": "Задание положения и чтение энкодера",
+            "weight": 2
+          },
+          {
+            "from": "EDITOR",
+            "to": "MCU",
+            "layer": "flow",
+            "reason": "Квитанция и протокол испытания",
+            "weight": 2
+          },
+          {
+            "from": "MCU",
+            "to": "DRIVE",
+            "layer": "risk",
+            "reason": "Совместная проверка замера энкодера и удержания команд",
+            "weight": 3
+          }
+        ]
+      }
     }
   ]
 }
