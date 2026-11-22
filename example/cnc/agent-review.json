@@ -1,0 +1,63 @@
+{
+  "project": "5279208b-8a19-4a14-a35c-7ca0d5ed742e",
+  "initialBase": "5233c151-aa4d-41ef-8788-fca0c4697e02",
+  "clients": [
+    {
+      "client": "Kimi Code",
+      "version": "2.4.1",
+      "role": "Изменил REQ-CAP с 10 до 20 секунд",
+      "versionWritten": "1ce0a8dc-d916-4e27-9c2a-b3e64302b49b"
+    },
+    {
+      "client": "Claude Code",
+      "version": "2.1.330",
+      "role": "Вызвал инструмент MCP, который исполнил блокнот и выполнил import-preview",
+      "kernel": {
+        "base": "1ce0a8dc-d916-4e27-9c2a-b3e64302b49b",
+        "required_bytes": 6541504,
+        "memory": "NOR8",
+        "changed": [
+          "CALC-1"
+        ],
+        "code_cells_run": 4,
+        "sha256": "6144c217ffa059b7cc2a12fe44e57fb53ac480906d695ebf56e1d5b030a99dc3"
+      },
+      "versionWritten": "35b4077e-624c-4374-92f7-cda5a4c0414c"
+    },
+    {
+      "client": "Codex CLI",
+      "version": "0.166",
+      "role": "Независимо определил стороны интерфейса и пересчитал объём",
+      "result": {
+        "project": "5279208b-8a19-4a14-a35c-7ca0d5ed742e",
+        "base": "5233c151-aa4d-41ef-8788-fca0c4697e02",
+        "producer": "REC",
+        "consumer": "VIEW",
+        "bytes": 6541504,
+        "sku": "NOR8"
+      }
+    },
+    {
+      "client": "Qwen Code",
+      "version": "0.28.3",
+      "model": "qwen-plus",
+      "role": "Проверил общий риск REC и VIEW в контракте IF-TRACE",
+      "invocations": 1
+    },
+    {
+      "client": "Grok CLI",
+      "version": "1.0.77",
+      "role": "Подготовил патч IF-TRACE, затем пересмотрел его на свежей базе",
+      "stale": {
+        "actor": "grok",
+        "base": "5233c151-aa4d-41ef-8788-fca0c4697e02",
+        "current": "1ce0a8dc-d916-4e27-9c2a-b3e64302b49b",
+        "error": "{\"error\":\"Конфликт версии\"}",
+        "unchanged": true
+      },
+      "freshBase": "35b4077e-624c-4374-92f7-cda5a4c0414c",
+      "versionWritten": "ac2e8292-5387-4412-aae9-7688bd8a1f60"
+    }
+  ],
+  "writes": "Запись выполнялась координатором через DSM CLI после проверки изменений. Основа расчёта и обе версии патча Grok сохранены в комплекте выпуска."
+}

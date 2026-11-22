@@ -64,3 +64,6 @@ label.btn:has(.file-picker:focus-visible){outline:2px solid var(--teal);outline-
 .fleet-tree li{flex:1 1 9rem;border-left:3px solid #287261;padding:.5rem .7rem;background:#f2f7f4}
 .fleet-tree li[data-reached=false]{background:#f6f6f5;border-color:#aeb8b3}.fleet-tree span{display:block;margin-top:.3rem;font-size:.85rem}
 @media print{#fleetReport .fleet-tree{display:none}#fleetReport .fleet-report-policy{break-before:page}}
+.machine-plot{max-width:740px;background:#f5f8f6;padding:.5rem}.machine-plot svg{width:100%;max-height:300px}
+.machine-matrix .table{width:auto}.machine-matrix .table th,.machine-matrix .table td{font-size:.72rem;text-align:center;padding:.25rem}.machine-matrix .table td:first-child,.machine-matrix .table th:first-child{position:sticky;left:0;background:white}
+#machineProgram{font-family:ui-monospace,monospace;max-width:100%}

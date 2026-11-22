@@ -66,6 +66,9 @@ label.btn:has(.file-picker:focus-visible){outline:2px solid var(--teal);outline-
 .fleet-tree li{flex:1 1 9rem;border-left:3px solid #287261;padding:.5rem .7rem;background:#f2f7f4}
 .fleet-tree li[data-reached=false]{background:#f6f6f5;border-color:#aeb8b3}.fleet-tree span{display:block;margin-top:.3rem;font-size:.85rem}
 @media print{#fleetReport .fleet-tree{display:none}#fleetReport .fleet-report-policy{break-before:page}}
+.machine-plot{max-width:740px;background:#f5f8f6;padding:.5rem}.machine-plot svg{width:100%;max-height:300px}
+.machine-matrix .table{width:auto}.machine-matrix .table th,.machine-matrix .table td{font-size:.72rem;text-align:center;padding:.25rem}.machine-matrix .table td:first-child,.machine-matrix .table th:first-child{position:sticky;left:0;background:white}
+#machineProgram{font-family:ui-monospace,monospace;max-width:100%}
 </style><script type="text/plain" id="licenses">Mazzy Attribution License 1.0
 
 Copyright © 2026 mazzy (mazurovn)
@@ -3389,6 +3392,7 @@ const Formats = ((M,A)=>{
     if(!nodes.size&&!edges.length)throw Error('Пустой текст');return {kind:'merge',nodes:[...nodes.values()],edges};
   }
   function preview(doc,input){
+    if(input.kind==='machine-receipt')return (typeof Machine!=='undefined'?Machine:require('./machine.js')).receipt(doc,input);
     if(input.kind==='fleet-result')return (typeof FleetChange!=='undefined'?FleetChange:require('./fleet-change.js')).fromBook(doc,input);
     if(input.kind==='installation-receipt')return (typeof Installations!=='undefined'?Installations:require('./installations.js')).receipt(doc,input);
     if(input.kind==='spec-package')return (typeof Specifications!=='undefined'?Specifications:require('./specifications.js')).importPackage(doc,input.files).data;
@@ -3740,6 +3744,100 @@ if(typeof module!=='undefined')module.exports=InstallationNotebook;
 
 </script>
 <script>
+const MachineBook=(()=>{
+  function cells(doc,root,code,md,context){
+    const h=doc.history.at(-1);root=root||h.data.nodes.find(n=>n.kind==='product'&&n.attrs?.workbench==='cnc')?.id;
+    if(!root)throw Error('В проекте нет станка');
+    return [md('scope','## Диагностическая запись шпинделя\nРасчёт ведётся по каждой группе одинаковых датчиков. Неполный блок получает полный заголовок и хранит фактическое число отсчётов.'),
+      code('scope-data',`from html import escape
+from IPython.display import HTML, SVG, display
+root = ${JSON.stringify(root)}
+by_id = {n["id"]: n for n in model["nodes"]}
+def belongs(n):
+    while n.get("parent"):
+        if n["parent"] == root:
+            return True
+        n = by_id[n["parent"]]
+    return False
+def role(key):
+    return [n for n in model["nodes"] if belongs(n) and n.get("attrs", {}).get("machineRole") == key]
+requirement, = role("capture")
+format_node, = role("format")
+seconds = requirement["attrs"]["durationSeconds"]
+fmt = format_node["attrs"]
+print(root, requirement["id"], seconds, "с", format_node["id"])
+def table(columns, rows):
+    def tr(row, tag):
+        return "<tr>" + "".join(f"<{tag}>{escape(str(v))}</{tag}>" for v in row) + "</tr>"
+    display(HTML("<table>"+tr(columns, "th")+"".join(tr(r, "td") for r in rows)+"</table>"))`),
+      md('inputs','## Потоки и нагрузка регистратора'),code('capture-storage',`streams = []
+for sensor in role("sensor"):
+    a = sensor["attrs"]
+    samples = seconds * a["sampleHz"]
+    blocks = (samples + fmt["blockSamples"] - 1) // fmt["blockSamples"]
+    total = a["quantity"] * (samples * a["axes"] * a["bytesPerAxis"] + blocks * fmt["headerBytes"])
+    streams.append([sensor["id"], a["quantity"], samples, blocks, total])
+required = sum(row[-1] for row in streams)
+table(["Датчик","Количество","Отсчётов на датчик","Блоков на датчик","Всего байт"], streams)
+options = []
+for chip in sorted(role("storage"), key=lambda n: (n["attrs"]["capacityBytes"], n["id"])):
+    usable = chip["attrs"]["capacityBytes"] * (100 - fmt["reservePercent"]) // 100
+    options.append([chip["id"], usable, usable - required])
+selected = next((row[0] for row in options if row[2] >= 0), None)
+table(["Накопитель","Доступно, байт","Остаток, байт"], options)
+width = max([required, *(row[1] for row in options), 1])
+bars = []
+for i, (label, size) in enumerate([("Запись", required), *((row[0], row[1]) for row in options)]):
+    y = 24 + i * 28
+    bars.append(f'<text x="2" y="{y}">{escape(label)}</text><rect x="105" y="{y-14}" width="{300*size/width:.2f}" height="17" fill="#397b68"/><text x="415" y="{y}">{size:,} Б</text>')
+display(SVG(f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 570 {34+len(options)*28}" role="img" aria-label="Запись и доступная память">{"".join(bars)}</svg>'))
+print("Нужно", required, "байт. Выбор:", selected or "нет подходящего варианта")`),
+      ...(context?.machineTrace?traceCells(context.machineTrace,code,md):[]),
+      md('return-help','## Проверка версии\nСохраните блокнот и верните результат Python через предпросмотр.'),
+      code('result',`display({"application/vnd.mazzy.machine+json":{"project":${JSON.stringify(doc.project)},"base":${JSON.stringify(h.rev)},"root":root,"values":[required,selected,streams,options]},"text/plain":"Готов к проверке DSM"},raw=True)`,['dsm-result'])];
+  }
+  function traceCells(file,code,md){
+    const packed=code('vib1-file','import base64, gzip, hashlib\ntrace_name = '+JSON.stringify(file.name)+'\ntrace = gzip.decompress(base64.b64decode('+JSON.stringify(file.packed)+'))\nassert hashlib.sha256(trace).hexdigest() == '+JSON.stringify(file.digest)+'\nprint(trace_name, len(trace), "байт")');
+    packed.metadata.jupyter={source_hidden:true};
+    return [md('vib1-title','## Запись испытания\nВложен загруженный файл. Python сверяет SHA-256 и CRC каждого блока. График показывает первый канал одного потока в кодах датчика.'),packed,
+      code('vib1-analysis',`import struct, zlib
+expected = {}
+for sensor in role("sensor"):
+    a = sensor["attrs"]
+    for i in range(a["quantity"]):
+        expected[a.get("streamBase", 0)+i] = (sensor["id"], a["axes"], a["sampleHz"])
+counts = {stream: [0, 0] for stream in expected}
+offset, signal, starts, last = 0, [], {}, {}
+while offset < len(trace):
+    magic, version, axes, width, flags, stream, count, seq, micros, size, checksum = struct.unpack_from("<4sBBBBHHIQII", trace, offset)
+    sensor_id, expected_axes, hz = expected[stream]
+    blocks, samples = counts[stream]
+    assert (magic, version, axes, width, flags) == (b"VIB1", 1, expected_axes, 2, 0)
+    assert seq == blocks and samples == blocks * fmt["blockSamples"] and 0 < count <= fmt["blockSamples"]
+    starts.setdefault(stream, micros)
+    assert micros > last.get(stream, -1) and abs(micros-starts[stream]-samples*1000000//hz) <= (1000000+hz-1)//hz
+    last[stream] = micros
+    tail = offset + 32 + size
+    payload = memoryview(trace)[offset+32:tail]
+    assert len(payload) == size == axes * count * width
+    assert zlib.crc32(payload, zlib.crc32(trace[offset:offset+28])) == checksum
+    if stream == min(expected) and len(signal) < 256:
+        signal.extend(struct.unpack_from("<h", payload, j*axes*2)[0] for j in range(min(count, 256-len(signal))))
+    counts[stream] = [blocks+1, samples+count]
+    offset = tail
+table(["Поток", "Датчик", "Блоков", "Принято", "Ожидалось"], [[k, expected[k][0], *v, expected[k][2]*seconds] for k,v in counts.items()])
+if signal:
+    low, span = min(signal), max(1, max(signal)-min(signal))
+    pts = " ".join(f"{5+i*490/max(1,len(signal)-1):.1f},{90-(y-low)*80/span:.1f}" for i,y in enumerate(signal))
+    display(SVG(f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 505 100"><polyline fill="none" stroke="#196b56" stroke-width="2" points="{pts}"/></svg>'))
+print("Полное окно:", all(samples == seconds*expected[k][2] for k, (_, samples) in counts.items()))`)];
+  }
+  return {cells};
+})();
+if(typeof module!=='undefined')module.exports=MachineBook;
+
+</script>
+<script>
 const FleetPythonSource="# %% library\nfrom collections import Counter, defaultdict\nfrom copy import deepcopy\nfrom itertools import product\nfrom pathlib import Path\nfrom html import escape\nfrom IPython.display import HTML, SVG, display\nimport base64, csv, hashlib, io, json, re, zipfile\n\nKEYS = (\"cpuCores\", \"ramGiB\", \"diskGiB\")\ntables, charts = {}, {}\ndef table(title, columns, rows):\n    rows = list(rows)\n    def row(values, tag):\n        return \"<tr>\"+\"\".join(\"<\"+tag+\">\"+escape(str(v))+\"</\"+tag+\">\" for v in values)+\"</tr>\"\n    html = \"<table>\"+row(columns,\"th\")+\"\".join(row(r,\"td\") for r in rows)+\"</table>\"\n    tables[title] = (columns, rows, html)\n    display(HTML(\"<h4>\"+escape(title)+\"</h4>\"+html))\n\ndef bars(title, entries, unit):\n    entries = list(entries)\n    high = max([1]+[v for _,v in entries])\n    pieces = [f'<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"790\" height=\"{35+30*len(entries)}\"><title>{escape(title)}</title><text x=\"4\" y=\"18\">{escape(title)}</text>']\n    for i,(label,v) in enumerate(entries):\n        y=40+i*30\n        pieces.append(f'<text x=\"4\" y=\"{y}\">{escape(str(label))}</text><rect x=\"265\" y=\"{y-13}\" width=\"{290*v/high}\" height=\"15\" fill=\"#246f63\"/><text x=\"570\" y=\"{y}\">{v:,} {escape(unit)}</text>')\n    charts[title]=\"\".join(pieces)+\"</svg>\"\n    display(SVG(charts[title]))\n\ndef related(n, kind):\n    return [t for k,t in n.get(\"relations\",[]) if k==kind]\n\ndef records():\n    return {n[\"id\"]:n for n in model[\"nodes\"]}\n\ndef whole(v, name, minimum=0):\n    if type(v) is not int or v < minimum:\n        raise ValueError(f\"{name}: нужно целое число от {minimum}\")\n    return v\n\n# %% sources\ndef checked_sources():\n    result={}\n    for n in model['nodes']:\n        a=n.get('attrs',{})\n        if a.get('fleetRole')!='source' or n.get('parent')!=procurement_id: continue\n        raw=base64.b64decode(a['content64'],validate=True)\n        if len(raw)!=a['bytes'] or hashlib.sha256(raw).hexdigest()!=a['sha256']:\n            raise ValueError(\"Нарушена контрольная сумма \"+n['id'])\n        result[n['id']]=(n,raw)\n    return result\n\ndef scalar(v):\n    if not isinstance(v,str): return v\n    if v in ('true','false'): return v=='true'\n    if re.fullmatch(r'-?(0|[1-9][0-9]*)(\\.[0-9]+)?',v): return float(v) if '.' in v else int(v)\n    return v\n\ndef input_tables(name, raw):\n    if name.lower().endswith('.xlsx'):\n        try: import openpyxl\n        except ImportError as error: raise ImportError(\"Для чтения нового Excel в ядре установите openpyxl. Каталог из снимка доступен без этой зависимости.\") from error\n        workbook=openpyxl.load_workbook(io.BytesIO(raw),read_only=True,data_only=False)\n        for sheet in workbook:\n            data=iter(sheet.values);header=next(data,())\n            if any(str(v).startswith('=') for v in header): raise ValueError(\"Сохраните значения исходного Excel\")\n            for cells in data:\n                if any(isinstance(v,str) and v.startswith('=') for v in cells): raise ValueError(\"В исходном Excel нужны значения вместо формул\")\n                if any(v is not None for v in cells): yield dict(zip(header,cells))\n    else:\n        content=raw.decode('utf-8-sig')\n        dialect=csv.Sniffer().sniff(content.splitlines()[0],delimiters=',;\\t')\n        yield from csv.DictReader(io.StringIO(content),dialect=dialect)\n\ndef import_source(category, path, content=None, requirement=''):\n    if category not in ('catalog','requirements','specifications','contracts'):raise ValueError(\"Неизвестный тип источника \"+category)\n    path=Path(path)\n    if path.suffix.lower() not in ('.csv','.tsv','.xlsx') and not (category=='specifications' and path.suffix.lower()=='.md'):raise ValueError(\"Недопустимый формат \"+path.name)\n    raw=path.read_bytes() if content is None else content\n    if len(raw)>2*1024*1024 or not raw: raise ValueError(\"Источник должен иметь размер от 1 байта до 2 МиБ\")\n    by=records(); touched=set()\n    if path.suffix.lower()=='.md' and category=='specifications':\n        body=raw.decode('utf-8-sig')\n        old=next((n for n in by.values() if n.get('attrs',{}).get('filename')==path.name and procurement_id in n.get('refs',[]) and n.get('attrs',{}).get('fleetRole')=='specification'),None)\n        rows=[dict(id=old['id'] if old else new_id(by,'SPEC'),name=body.splitlines()[0].lstrip('# '),note=body,attrs={'filename':path.name})]\n    else: rows=list(input_tables(path.name,raw))\n    links=[]\n    for row in rows:\n        row={k:v for k,v in row.items() if k is not None and v is not None and v!=''}\n        if 'from' in row and 'to' in row:\n            links.append(row);continue\n        ident=row.get('id')\n        if not ident or not row.get('name'): raise ValueError(\"Нужны id и name\")\n        n=deepcopy(by.get(ident,{'id':ident,'name':row['name'],'kind':'component'}))\n        for k in ('name','kind','parent','release','state','note','segment','bundle'):\n            if k in row:n[k]=row[k]\n        for k in ('refs','relations','steps','attrs'):\n            if k in row:n[k]=json.loads(row[k]) if isinstance(row[k],str) else row[k]\n        for k in ('effort','capacity'):\n            if k in row:n[k]=float(row[k])\n        for k,v in row.items():\n            if k.startswith('attr.'):n.setdefault('attrs',{})[k[5:]]=scalar(v)\n        if category in ('requirements','specifications'):\n            expected='requirement' if category=='requirements' else 'artifact'\n            if ident in by and by[ident]['kind']!=expected:raise ValueError(\"Конфликт типа \"+ident)\n            n['kind']=expected;n['refs']=list(dict.fromkeys(n.get('refs',[])+[procurement_id]))\n            if category=='specifications':\n                n.setdefault('attrs',{})['fleetRole']='specification'\n                if requirement:\n                    req=by.get(requirement,{})\n                    if req.get('kind')!='requirement' or procurement_id not in req.get('refs',[]):raise ValueError(\"Требование другой закупки\")\n                    n['refs']=list(dict.fromkeys(n['refs']+[requirement]))\n        by[ident]=n;touched.add(ident)\n    for row in links:\n        a,b=row['from'],row['to'];k=row.get('relation',row.get('layer','flow'))\n        if a not in by or b not in by:raise ValueError(\"Неизвестный конец связи \"+a+\" / \"+b)\n        touched.update((a,b))\n        if k in ('flow','risk'):\n            def match(e):return e['layer']==k and ((e['from'],e['to'])==(a,b) or k=='risk' and (e['from'],e['to'])==(b,a))\n            e={'layer':k,'from':a,'to':b,'weight':whole(int(row.get('weight',1)),'weight',1),'reason':row['reason']}\n            prior=next((x for x in model['edges'] if match(x)),None)\n            if prior is None:model['edges'].append(e)\n            else:prior.update(e)\n        elif k=='parent':by[b]['parent']=a\n        elif k=='release':by[a]['release']=b\n        elif k=='ref':by[a]['refs']=list(dict.fromkeys(by[a].get('refs',[])+[b]))\n        elif [k,b] not in by[a].setdefault('relations',[]):by[a]['relations'].append([k,b])\n    old=next((n for n in by.values() if n.get('attrs',{}).get('fleetRole')=='source' and n.get('parent')==procurement_id and n['attrs'].get('category')==category and n['attrs'].get('filename')==path.name),None)\n    ident=old['id'] if old else new_id(by,'SOURCE')\n    by[ident]={'id':ident,'name':path.name,'kind':'artifact','parent':procurement_id,'note':'Исходный документ · '+category,'refs':sorted(touched|{procurement_id}),\n               'attrs':dict(fleetRole='source',filename=path.name,category=category,sha256=hashlib.sha256(raw).hexdigest(),bytes=len(raw),content64=base64.b64encode(raw).decode())}\n    model['nodes']=list(by.values())\n\ndef new_id(by,prefix):\n    n=1\n    while f\"{prefix}-{n}\" in by:n+=1\n    return f\"{prefix}-{n}\"\n\nfor entry in attached_files:\n    content=base64.b64decode(entry['content64'],validate=True)\n    if hashlib.sha256(content).hexdigest()!=entry['sha256']:raise ValueError(\"Нарушена целостность \"+entry['filename'])\n    if entry['category']=='inventory':archived_inventory=entry\n    else:import_source(entry['category'],entry['filename'],content,entry.get('requirement') or specification_requirement)\nfor category,path in source_files: import_source(category,path,requirement=specification_requirement)\nby=records()\nfor ident, values in attribute_edits.items():by[ident].setdefault('attrs',{}).update(values)\nsources=checked_sources()\ntable('Происхождение данных',['Источник','Файл','Категория','Байты','SHA-256','Связанные ID'],[(k,n['attrs']['filename'],n['attrs']['category'],len(raw),n['attrs']['sha256'],', '.join(n['refs'])) for k,(n,raw) in sources.items()])\ntable('Требования и спецификации',['ID','Название','Описание','Связи'],[(n['id'],n['name'],n.get('note',''),', '.join(n.get('refs',[]))) for n in by.values() if procurement_id in n.get('refs',[]) and (n['kind']=='requirement' or n.get('attrs',{}).get('fleetRole')=='specification')])\n\n# %% topology\ndef scope():\n    by=records()\n    if by[procurement_id]['kind']!='procurement': raise ValueError(\"Нужна закупка\")\n    sites=[]\n    clusters=set()\n    for ident in sorted(related(by[procurement_id],'uses')):\n        inst=by[ident]\n        if inst['kind']!='installation' or inst.get('attrs',{}).get('verification'):continue\n        target=[k for k in related(inst,'deployedOn') if by[k]['kind']=='cluster']\n        if len(target)!=1 or target[0] in clusters: raise ValueError(\"Нужен отдельный кластер \"+ident)\n        clusters.add(target[0]);pools=[];loads=[]\n        for n in sorted(by.values(),key=lambda n:n['id']):\n            attrs=n.get('attrs',{})\n            if n.get('parent')==ident and attrs.get('fleetRole')=='stock':\n                sku,=[by[t] for t in related(n,'uses') if by[t]['kind']=='server']\n                a=sku['attrs'];pools.append(dict(id=n['id'],sku=sku['id'],limits=[whole(a[k],k,1) for k in KEYS],price=whole(a['unitPriceRub'],'price'),quantity=whole(attrs['quantity'],'quantity'),maxBuy=whole(attrs['maxBuy'],'maxBuy')))\n            if n['kind'] in ('component','system','service','module') and ident in related(n,'deployedOn'):\n                demand=[whole(attrs[k],k) for k in KEYS];apart=attrs.get('antiAffinity',False)\n                if not any(demand) or type(apart)!=bool:raise ValueError(\"Проверьте нагрузку \"+n['id'])\n                loads.append(dict(id=n['id'],demand=demand,count=whole(attrs['replicas'],'replicas',1),apart=apart))\n        if not pools or not loads or len({p['sku'] for p in pools})!=len(pools): raise ValueError(\"Неполный или неоднозначный парк \"+ident)\n        if sum(l['count'] for l in loads)>256 or sum(p['quantity']+p['maxBuy'] for p in pools)>96:raise ValueError(\"Превышен размер задачи\")\n        sites.append(dict(id=ident,cluster=target[0],pools=pools,loads=loads))\n    if not sites:raise ValueError(\"У закупки нет площадок\")\n    return sites\nsites=scope()\ntable('Парк AS-IS',['Площадка','Кластер','Строка','SKU','Сейчас','Можно купить','Цена, ₽',*KEYS],[(s['id'],s['cluster'],p['id'],p['sku'],p['quantity'],p['maxBuy'],p['price'],*p['limits']) for s in sites for p in s['pools']])\ntable('Нагрузки',['Площадка','Объект','Реплик',*KEYS,'Разнести'],[(s['id'],l['id'],l['count'],*l['demand'],l['apart']) for s in sites for l in s['loads']])\n\n# %% solver\ndef replicas(site):\n    scales=[max(p['limits'][i] for p in site['pools']) for i in range(3)]\n    ordered=sorted(site['loads'],key=lambda l:(-max(v/s for v,s in zip(l['demand'],scales)),l['id']))\n    return [dict(id=f\"{l['id']}#{i+1}\",load=l['id'],demand=l['demand'],apart=l['apart']) for l in ordered for i in range(l['count'])]\n\ndef place(hosts,items):\n    missing=[]\n    for r in items:\n        best=None; score=float('inf')\n        for h in hosts:\n            if r['apart'] and any(k['load']==r['load'] for k in h['replicas']):continue\n            left=[a-b for a,b in zip(h['free'],r['demand'])]\n            if min(left)<0:continue\n            waste=0.0\n            for a,b in zip(left,h['limits']):waste+=a/b\n            if waste<score:best=h;score=waste\n        if best is None:missing.append(r)\n        else:\n            best['free']=[a-b for a,b in zip(best['free'],r['demand'])]\n            best['replicas'].append(r)\n    return missing\n\ndef evaluate(site, order):\n    hosts=[];cost=units=0;items=replicas(site)\n    for p in site['pools']:\n        q=whole(order.get(p['id'],0),p['id'])\n        if q>p['maxBuy']:raise ValueError(\"Превышен лимит \"+p['id'])\n        cost+=q*p['price'];units+=q\n        for i in range(p['quantity']+q):\n            hosts.append(dict(id=f\"{p['id']}#{i+1}\",pool=p['id'],sku=p['sku'],limits=p['limits'],free=p['limits'][:],replicas=[]))\n    missing=place(hosts,items);failures=[]\n    for dead in hosts:\n        live=[dict(h,free=h['free'][:],replicas=h['replicas'][:]) for h in hosts if h is not dead]\n        displaced={r['id'] for r in dead['replicas']+missing}\n        pending=place(live,[r for r in items if r['id'] in displaced])\n        failures.append(dict(host=dead['id'],pool=dead['pool'],lost=[r['id'] for r in dead['replicas']],unplaced=[r['id'] for r in pending],moves=[[r['id'],h['id']] for h in live for r in h['replicas'] if r['id'] in displaced]))\n    return dict(site=site['id'],order=order,units=units,cost=cost,hosts=hosts,missing=[r['id'] for r in missing],failures=failures,worst=max([len(missing)]+[len(f['unplaced']) for f in failures]),idle=sum(not h['replicas'] for h in hosts))\n\ndef optimize(site):\n    from math import prod\n    pools=site['pools'];options=prod(p['maxBuy']+1 for p in pools)\n    h=sum(p['quantity']+p['maxBuy'] for p in pools)\n    if options>10000 or options*len(replicas(site))*max(1,h)**2>20_000_000:raise ValueError(\"Сузьте пределы полного перебора\")\n    best={}\n    for counts in product(*(range(p['maxBuy']+1) for p in pools)):\n        order={p['id']:q for p,q in zip(pools,counts)};r=evaluate(site,order)\n        if r['missing']:continue\n        keys=['normal']\n        if r['worst']==0:\n            keys+=['resilient']+['sku:'+p['sku'] for p in pools if all(t['sku']==p['sku'] or not order[t['id']] for t in pools)]\n            if r['units']==0:keys.append('existing')\n        for k in keys:\n            if k not in best or (r['cost'],r['units'])<(best[k]['cost'],best[k]['units']):best[k]=r\n    return best,options\n\ndef summarize(key,sites_result):\n    valid=all(s is not None for s in sites_result)\n    return dict(key=key,available=valid,sites=sites_result,units=sum(s['units'] for s in sites_result) if valid else None,cost=sum(s['cost'] for s in sites_result) if valid else None,idle=sum(s['idle'] for s in sites_result) if valid else None,worst=max(s['worst'] for s in sites_result) if valid else None,missing=sum(len(s['missing']) for s in sites_result) if valid else None)\nsearch=[optimize(s) for s in sites]\nvariants={'asis':summarize('asis',[evaluate(s,{}) for s in sites])}\nfor key in ['normal','resilient']+['sku:'+sku for sku in sorted({p['sku'] for s in sites for p in s['pools']})]:\n    variants[key]=summarize(key,[best.get(key,best.get('existing') if key.startswith('sku:') else None) for best,_ in search])\nif manual_order is not None:\n    unknown=set(manual_order)-{p['id'] for s in sites for p in s['pools']}\n    if unknown:raise ValueError(\"Неизвестные позиции \"+str(unknown))\n    variants['manual']=summarize('manual',[evaluate(s,{p['id']:manual_order.get(p['id'],0) for p in s['pools']}) for s in sites])\nchoice=variants[variant_key]\ntable('Сравнение AS-IS / TO-BE',['Вариант','Доступен','Купить','Цена, ₽','Свободные узлы','Дефицит штатно','Худший отказ'],[(k,r['available'],r['units'],r['cost'],r['idle'],r['missing'],r['worst']) for k,r in variants.items()])\nbars('Стоимость вариантов',[(k,r['cost']) for k,r in variants.items() if r['available']],'₽')\nprint(\"Проверено конфигураций по площадкам:\",sum(n for _,n in search),\"· выбор:\",variant_key)\n\n# %% failures\nif choice['available']:\n    table('Позиции заказа',['Площадка','Строка парка','SKU','Было','Добавить','Станет'],[(s['id'],p['id'],p['sku'],p['quantity'],r['order'].get(p['id'],0),p['quantity']+r['order'].get(p['id'],0)) for s,r in zip(sites,choice['sites']) for p in s['pools']])\n    table('Назначения',['Площадка','Узел','SKU','Реплики','Свободно CPU / RAM / диск'],[(s['site'],h['id'],h['sku'],', '.join(r['id'] for r in h['replicas']),h['free']) for s in choice['sites'] for h in s['hosts']])\n    all_failures=[(s['site'],f) for s in choice['sites'] for f in s['failures']]\n    if failed_host and not any(f['host']==failed_host for _,f in all_failures):raise ValueError(\"Узел отсутствует в выбранном варианте: \"+failed_host)\n    table('Отказ каждого узла',['Площадка','Отказал','Затронуты','Перенос реплика → узел','Без места'],[(site,f['host'],', '.join(f['lost']),'; '.join(' → '.join(m) for m in f['moves']),', '.join(f['unplaced']) or '0') for site,f in all_failures if not failed_host or f['host']==failed_host])\n    bars('Худший дефицит после одного отказа',[(k,r['worst']) for k,r in variants.items() if r['available']],'реплик')\nelse:print('Доступный парк и лимиты закупки не позволяют собрать этот вариант.')\n\n# %% trace\nload_ids={w['id'] for s in sites for w in s['loads']}\nload_order=[n['id'] for n in model['nodes'] if n['id'] in load_ids]\ndef dsm_groups(layer):\n    edges=[e for e in model['edges'] if e['layer']==layer and {e['from'],e['to']}<=load_ids]\n    weights=Counter()\n    for e in edges:weights[tuple(sorted((e['from'],e['to'])))]+=e['weight']\n    total=sum(weights.values());deg=Counter();groups=[[ident] for ident in load_order]\n    for (a,b),v in weights.items():deg[a]+=v;deg[b]+=v\n    while total:\n        owner={v:i for i,g in enumerate(groups) for v in g};mass=[sum(deg[v] for v in g) for g in groups];cuts=Counter()\n        for (a,b),w in weights.items():\n            i,j=sorted([owner[a],owner[b]])\n            if i!=j:cuts[i,j]+=w\n        best=0;pair=None\n        for (i,j),v in sorted(cuts.items()):\n            gain=v/total-mass[i]*mass[j]/(2*total**2)\n            if gain>best+1e-12:best=gain;pair=(i,j)\n        if pair is None:break\n        i,j=pair;groups=[g for k,g in enumerate(groups) if k not in pair]+[groups[i]+groups[j]]\n    positions={v:i for i,v in enumerate(load_order)}\n    groups=sorted((sorted(g,key=positions.get) for g in groups),key=lambda g:positions[g[0]])\n    matrix={(e['from'],e['to']):e['weight'] for e in edges}\n    if layer=='risk':matrix.update({(b,a):v for (a,b),v in list(matrix.items())})\n    order=[v for g in groups for v in g]\n    table('DSM '+layer,['ID']+order,[[v]+[matrix.get((v,t),0) for t in order] for v in order])\n    return groups\nclusters={layer:dsm_groups(layer) for layer in ('flow','risk')}\ntable('Кластеры по связям',['Слой','Группа','ID нагрузок'],[(k,i+1,', '.join(g)) for k,groups in clusters.items() for i,g in enumerate(groups)])\ngroups=defaultdict(list)\nif group_by not in ('site','sku','cluster'):raise ValueError(\"group_by: site, sku или cluster\")\nfor s in sites:\n    for p in s['pools']:groups[{'site':s['id'],'sku':p['sku'],'cluster':s['cluster']}[group_by]].append(p)\ntable('Группировка парка',['Группа','Строки исходных данных','Серверов AS-IS'],[(k,', '.join(p['id'] for p in ps),sum(p['quantity'] for p in ps)) for k,ps in groups.items()])\ntrace_ids={procurement_id}|load_ids|{s['id'] for s in sites}|{s['cluster'] for s in sites}|{p['id'] for s in sites for p in s['pools']}|{p['sku'] for s in sites for p in s['pools']}\nfor n in by.values():\n    if procurement_id in n.get('refs',[]) or n.get('parent')==procurement_id:trace_ids.add(n['id'])\nfor n in by.values():\n    if n.get('parent') in trace_ids or n.get('attrs',{}).get('fleetRole')=='order' and any(t in trace_ids for _,t in n.get('relations',[])):trace_ids.add(n['id'])\ntrace_ids.update(n['release'] for n in by.values() if n['id'] in trace_ids and n.get('release'))\nrelation_rows=[]\nfor n in by.values():\n    if n['id'] not in trace_ids:continue\n    relations=list(n.get('relations',[]))+[('ref',t) for t in n.get('refs',[])]\n    if n.get('parent'):relations.append(('partOf',n['parent']))\n    if n.get('release'):relations.append(('release',n['release']))\n    relation_rows.extend((n['id'],k,t) for k,t in relations if t in trace_ids)\ntable('Архитектурные связи',['Источник','Отношение','Цель'],relation_rows)\ntable('Контракты DSM',['Источник','Цель','Слой','Вес','Основание'],[(e['from'],e['to'],e['layer'],e['weight'],e['reason']) for e in model['edges'] if e['from'] in load_ids and e['to'] in load_ids])\ntable('ADR, варианты и релизы',['ID','Тип','Состояние','Релиз','Связанные ID','Описание'],[(n['id'],n['kind'],n.get('attrs',{}).get('stage',n.get('state','')),n.get('release',''),', '.join(n.get('refs',[])),n.get('note','')) for n in by.values() if n['id'] in trace_ids and (n['kind'] in ('adr','release') or n.get('attrs',{}).get('fleetRole')=='variant')])\n\n# %% decisions\n# Field measurements use the current AS-IS inventory. A proposed order is a separate scenario.\nobservations=[];inventory_source=None\nif inventory_file or archived_inventory:\n\n    path=Path(inventory_file or archived_inventory['filename']);raw=path.read_bytes() if inventory_file else base64.b64decode(archived_inventory['content64'])\n    if not inventory_file and hashlib.sha256(raw).hexdigest()!=archived_inventory['sha256']:raise ValueError(\"Нарушена целостность архивной ведомости\")\n    if not raw or len(raw)>2*1024*1024:raise ValueError(\"Недопустимый размер ведомости\")\n    pools={p['id']:p for site in sites for p in site['pools']};serials=set()\n    for row in input_tables(path.name,raw):\n        serial=str(row.get('serial','')).strip();pool=row.get('pool')\n        if not serial or serial in serials or pool not in pools:raise ValueError(\"Неизвестная строка парка или повтор серийного номера\")\n        vals=[whole(int(str(row[k])),k,1) for k in KEYS]\n        observations.append(dict(serial=serial,pool=pool,values=vals))\n        serials.add(serial)\n    count=Counter(o['pool'] for o in observations if all(v>=lim for v,lim in zip(o['values'],pools[o['pool']]['limits'])))\n    table('Проверка фактического парка',['Строка парка','План AS-IS','Замерено','Соответствуют профилю','Расхождение'],\n          [(k,p['quantity'],sum(o['pool']==k for o in observations),count[k],count[k]-p['quantity']) for k,p in pools.items()])\n    inventory_source=dict(filename=path.name,sha256=hashlib.sha256(raw).hexdigest(),bytes=len(raw),content64=base64.b64encode(raw).decode())\n    print(\"Ведомость\",path.name,inventory_source['sha256'])\n\nchecks=[('Доступен состав в пределах заказа',choice['available'],'Пересмотреть доступные типы и пределы закупки'),('Все реплики размещены',choice['missing']==0,'Добавить ёмкость или изменить размещение'),('Каждый одиночный отказ выдержан',choice['worst']==0,'Увеличить резерв площадки'),('В пределах бюджета',budget_rub is None or choice['cost'] is not None and choice['cost']<=budget_rub,'Пересогласовать бюджет')]\noutcome=next((no for _,ok,no in checks if not ok),'Предложить к согласованию')\ntable('Дерево принятия решения',['Условие','Да','Нет','Значение'],[(label,checks[i+1][0] if i+1<len(checks) else 'Предложить к согласованию',no,'Да' if ok else 'Нет') for i,(label,ok,no) in enumerate(checks)])\nprint('Результат дерева:',outcome)\ntable('Журнал ревизий',['Версия','Ревизия','Дата','Автор','Изменение'],history_rows)\n\n# %% export\ndef safe_filename(name):return re.sub(r'[^\\w. -]+','_',name).strip('. ') or 'source'\ndef html_report():\n    css=\"body{font:13px system-ui;color:#193a33;margin:24px}table{border-collapse:collapse;width:100%;font-size:11px}td,th{text-align:left;padding:4px;border-bottom:1px solid #c9d6cf;overflow-wrap:anywhere}h2{break-after:avoid}tr,svg{break-inside:avoid}svg{max-width:100%}@page{size:A4 landscape;margin:12mm}thead{display:table-header-group}\"\n    return \"<!doctype html><meta charset=utf-8><style>\"+css+\"</style><h1>\"+escape(model['title'])+\"</h1><p>\"+escape(procurement_id+\" · \"+variant_key+\" · \"+base_revision)+\"</p>\"+''.join('<h2>'+escape(k)+'</h2>'+v[2] for k,v in tables.items())+''.join(charts.values())\nif export_directory:\n    target=Path(export_directory);target.mkdir(exist_ok=True,parents=True)\n    with zipfile.ZipFile(target/'analysis.zip','w',zipfile.ZIP_DEFLATED) as bundle:\n        for k,(cols,rows,_) in tables.items():\n            buf=io.StringIO();writer=csv.writer(buf);writer.writerow(cols);writer.writerows(rows);bundle.writestr('tables/'+safe_filename(k)+'.csv',buf.getvalue().encode('utf-8-sig'))\n        for k,(n,raw) in sources.items():bundle.writestr('sources/'+safe_filename(k)+'-'+safe_filename(n['attrs']['filename']),raw)\n        for k,chart in charts.items():bundle.writestr('charts/'+safe_filename(k)+'.svg',chart)\n        if inventory_source:bundle.writestr('measurements/'+safe_filename(inventory_source['filename']),base64.b64decode(inventory_source['content64']))\n        bundle.writestr('variants.json',json.dumps(variants,ensure_ascii=False));bundle.writestr('report.html',html_report())\n    report=target/'report.html';report.write_text(html_report(),encoding='utf-8')\n    if export_pdf:\n        import shutil,subprocess,tempfile\n        chrome=next((shutil.which(k) for k in ('google-chrome','chromium','chromium-browser') if shutil.which(k)),None)\n        if not chrome:raise RuntimeError(\"Откройте report.html в браузере и выберите Печать → Сохранить в PDF\")\n        with tempfile.TemporaryDirectory() as profile:\n            subprocess.run([chrome,'--headless','--disable-gpu','--no-pdf-header-footer','--user-data-dir='+profile,'--print-to-pdf='+str((target/'report.pdf').resolve()),report.resolve().as_uri()],check=True,timeout=60,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)\n    print(\"Сохранено:\",target.resolve())\nelse:print(\"Для выгрузки таблиц, исходников, графиков и отчёта задайте export_directory в параметрах.\")\n";
 </script>
 <script>
@@ -3794,7 +3892,7 @@ const Notebook=((M,A,F,Files,Profiles)=>{
   const md=(id,source)=>({id,cell_type:'markdown',metadata:{},source});
   const pre='null = None\ntrue = True\nfalse = False\nmodel = ';
   function write(doc,profile='full',installation,context){
-    if(profile!=='full'&&profile!=='installation'&&profile!=='fleet'&&!Object.hasOwn(Profiles,profile))throw Error('Неизвестный профиль блокнота');
+    if(profile!=='full'&&profile!=='machine'&&profile!=='installation'&&profile!=='fleet'&&!Object.hasOwn(Profiles,profile))throw Error('Неизвестный профиль блокнота');
     const h=M.head(doc),meta=F.meta(doc);
     const initial=profile==='full'?Object.fromEntries(['flow','risk'].map(l=>[l,A.calculate(h.data,l)])):{};
     const cells=[
@@ -3821,7 +3919,10 @@ const Notebook=((M,A,F,Files,Profiles)=>{
       code('release','rows=[]\nfor r in model["nodes"]:\n    if r["kind"] != "release": continue\n    assigned = [n for n in model["nodes"] if n.get("release")==r["id"]]\n    members={n["id"] for n in assigned}\n    known=sum(n["effort"] for n in assigned if n.get("effort") is not None)\n    unknown=sum(n.get("effort") is None for n in assigned)\n    outside=sum(e["layer"]=="flow" and e["from"] in members and e["to"] not in members for e in model["edges"])\n    rows.append([r["id"],len(assigned),known,unknown,r.get("capacity"),outside])\ntable(["Релиз","Работы","Оценено","Без оценки","Ёмкость","Внешние вызовы"],rows)'),
       md('handoff','## Возврат в редактор\nСохраните блокнот и выберите его в разделе «Обмен». Просмотрите разницу и сохраните новую версию. Если после экспорта агент уже изменил проект, откройте актуальный JSON и перенесите нужные изменения через патч.')
     ];
-    if(profile==='fleet'){
+    if(profile==='machine'){
+      const lab=typeof MachineBook!=='undefined'?MachineBook:require('./machine-notebook.js');
+      cells.splice(2,cells.length-2,...lab.cells(doc,installation,code,md,context));meta.profile=profile;
+    }else if(profile==='fleet'){
       const lab=typeof FleetNotebook!=='undefined'?FleetNotebook:require('./fleet-notebook.js');
       cells.splice(2,cells.length-2,...lab.cells(doc,installation,code,md,context));meta.profile=profile;
     }else if(profile==='installation'){
@@ -3832,7 +3933,7 @@ const Notebook=((M,A,F,Files,Profiles)=>{
       cells.splice(2,cells.length-3,md('report-title','## '+spec.name+'\n'+spec.caption),code('report',spec.python));
       meta.profile=profile;
     }
-    if(profile!=='installation'&&profile!=='fleet')cells.push(md('result-help','## Передать результат вычислений в DSM\nВыполните эту ячейку после своих изменений model и сохраните блокнот. В редакторе выберите «Проверить результат Python».'),
+    if(profile!=='machine'&&profile!=='installation'&&profile!=='fleet')cells.push(md('result-help','## Передать результат вычислений в DSM\nВыполните эту ячейку после своих изменений model и сохраните блокнот. В редакторе выберите «Проверить результат Python».'),
       code('result',"from IPython.display import display\n"+'display({"application/vnd.mazzy.dsm+json": {"project": '+JSON.stringify(doc.project)+', "base": '+JSON.stringify(h.rev)+', "data": model}, "text/plain": "Модель подготовлена для DSM"}, raw=True)',['dsm-result']));
     return {nbformat:4,nbformat_minor:5,metadata:{kernelspec:{display_name:'Python 3',language:'python',name:'python3'},language_info:{name:'python'},dsm:meta},cells};
   }
@@ -3848,6 +3949,12 @@ const Notebook=((M,A,F,Files,Profiles)=>{
   function result(book){
     Files.validate(book);
     const cells=book.cells.filter(c=>c.cell_type==='code'&&c.metadata.tags?.includes('dsm-result'));
+    if(book.metadata?.dsm?.profile==='machine'){
+      const payloads=cells.flatMap(c=>c.outputs.map(o=>o.data?.['application/vnd.mazzy.machine+json']).filter(Boolean));
+      const v=payloads[0],meta=book.metadata.dsm;
+      if(cells.length!==1||payloads.length!==1||v.base!==meta.base||v.project!==meta.project)throw Error('Выполните расчёт изделия и сохраните блокнот с текущей базой');
+      return {...v,kind:'machine-receipt'};
+    }
     if(book.metadata?.dsm?.profile==='fleet'){
       const outputs=cells.flatMap(c=>c.outputs.map(o=>o.data?.['application/vnd.mazzy.fleet+json']).filter(Boolean));
       if(cells.length!==1||outputs.length!==1)throw Error('Выполните расчёт парка и сохраните блокнот');
@@ -5304,6 +5411,300 @@ function fleetPanel({doc,esc,b,option,sel,field,table,modal,push,render,download
 
 </script>
 <script>
+const Machine=(M=>{
+  const products=m=>m.nodes.filter(n=>n.kind==='product'&&n.attrs?.workbench==='cnc');
+  function parts(m,root){
+    if(!products(m).some(n=>n.id===root))throw Error('Выберите изделие с атрибутом workbench=cnc');
+    const children=new Map();
+    for(const n of m.nodes){if(!children.has(n.parent))children.set(n.parent,[]);children.get(n.parent).push(n);}
+    const list=[...children.get(root)||[]];
+    for(const n of list)list.push(...children.get(n.id)||[]);
+    return list;
+  }
+  function one(list,role){const rows=list.filter(n=>n.attrs?.machineRole===role);if(rows.length!==1)throw Error('Требуется ровно одна карточка роли '+role);return rows[0];}
+  function integer(n,k,min=1,max=Number.MAX_SAFE_INTEGER){
+    const v=n.attrs?.[k];if(!Number.isSafeInteger(v)||v<min||v>max)throw Error(n.id+' · проверьте '+k);return v;
+  }
+  function calculate(m,root){
+    const list=parts(m,root),req=one(list,'capture'),format=one(list,'format'),sensors=list.filter(n=>n.attrs?.machineRole==='sensor');
+    if(!sensors.length)throw Error('Добавьте хотя бы один поток датчика');
+    const duration=integer(req,'durationSeconds'),block=integer(format,'blockSamples'),header=integer(format,'headerBytes',0),reserve=integer(format,'reservePercent',0,99);
+    const streams=sensors.map(n=>{
+      const samples=integer(n,'sampleHz')*duration,count=integer(n,'quantity');
+      const payload=samples*integer(n,'axes')*integer(n,'bytesPerAxis'),blocks=Math.ceil(samples/block);
+      return {id:n.id,count,samples,blocks,total:count*(payload+blocks*header)};
+    });
+    const bytes=streams.reduce((s,x)=>s+x.total,0);
+    if(!Number.isSafeInteger(bytes))throw Error('Объём превышает диапазон точного расчёта');
+    const options=list.filter(n=>n.attrs?.machineRole==='storage').map(n=>{
+      const capacity=integer(n,'capacityBytes');
+      const usable=Number(BigInt(capacity)*BigInt(100-reserve)/100n);
+      return {id:n.id,capacity,usable,margin:usable-bytes};
+    }).sort((a,b)=>a.capacity-b.capacity||(a.id<b.id?-1:a.id>b.id?1:0));
+    if(!options.length)throw Error('Добавьте вариант накопителя');
+    return {root,requirement:req.id,format:format.id,duration,reserve,streams,bytes,options,selected:options.find(o=>o.margin>=0)?.id??null};
+  }
+  function architecture(m,root){
+    const nodes=parts(m,root).filter(n=>['system','component','module','actor'].includes(n.kind)),ids=new Set(nodes.map(n=>n.id));
+    const edges=m.edges.filter(e=>ids.has(e.from)&&ids.has(e.to));
+    return {nodes,edges};
+  }
+  function envelope(m,root){const n=one(parts(m,root),'envelope');return ['xMm','yMm','zMm'].map(k=>integer(n,k));}
+  function simulate(program,limits){
+    if(typeof program!=='string'||program.length>128000)throw Error('Размер программы до 128 000 символов');
+    let mm=false,absolute=false,feed=null,at=[0,0,0],length=0;
+    const moves=[],lines=program.split(/\r?\n/);
+    for(const [i,row] of lines.entries()){
+      const error=reason=>{throw Error('Строка '+(i+1)+' · '+reason);};
+      const line=row.split(';')[0].trim().toUpperCase();if(!line)continue;
+      const words=line.match(/[A-Z][+-]?(?:\d+(?:\.\d*)?|\.\d+)/g);
+      if(!words||words.join('')!==line.replace(/\s+/g,''))error('Неподдержанный синтаксис');
+      const [command,...args]=words;
+      if(command==='G21'||command==='G90'){if(args.length)error('Команда режима должна быть на отдельной строке');if(command==='G21')mm=true;else absolute=true;continue;}
+      if(!['G0','G00','G1','G01'].includes(command))error('Поддерживаются G21, G90, G0 и G1');
+      if(!mm||!absolute)error('Сначала задайте G21 и G90');
+      const next=[...at],seen=new Set();
+      for(const w of args){
+        const k=w[0],v=Number(w.slice(1));if(!Number.isFinite(v)||seen.has(k)||!'XYZF'.includes(k))error('Некорректное слово '+w);
+        seen.add(k);
+        if(k==='F'){if(v<=0)error('Подача должна быть положительной');feed=v;continue;}
+        const ix='XYZ'.indexOf(k);if(v<0||v>limits[ix])error(k+' вне рабочего диапазона 0…'+limits[ix]+' мм');next[ix]=v;
+      }
+      if(!'XYZ'.split('').some(k=>seen.has(k)))error('Укажите координату перемещения');
+      const rapid=command==='G0'||command==='G00';if(!rapid&&feed===null)error('Для G1 нужна подача F');
+      const distance=Math.hypot(...next.map((v,j)=>v-at[j]));length+=distance;
+      moves.push({line:i+1,from:at,to:next,rapid,feed:rapid?null:feed,distance});at=next;
+    }
+    if(!moves.length)throw Error('В программе нет перемещений');
+    return {moves,length};
+  }
+  function receipt(doc,input){
+    const h=M.head(doc);
+    if(doc.project!==input.project||h.rev!==input.base)throw Error('Конфликт версии расчёта. База '+input.base+', текущая '+h.rev+'. Выполните новый блокнот.');
+    const calc=calculate(h.data,input.root),expected=[calc.bytes,calc.selected,calc.streams.map(s=>[s.id,s.count,s.samples,s.blocks,s.total]),calc.options.map(o=>[o.id,o.usable,o.margin])];
+    if(JSON.stringify(expected)!==JSON.stringify(input.values))throw Error('Результат ядра расходится с моделью станка');
+    let seq=1;while(h.data.nodes.some(n=>n.id==='CALC-'+seq))seq++;
+    return M.patch(h.data,[{op:'node',value:{id:'CALC-'+seq,kind:'artifact',parent:calc.root,name:'Расчёт памяти · '+calc.duration+' с',state:'done',attrs:{machineRole:'calculation',base:h.rev,bytes:calc.bytes,selected:calc.selected??'',durationSeconds:calc.duration},
+      refs:[calc.requirement,calc.format,...calc.streams.map(s=>s.id),...calc.options.map(o=>o.id)],relations:[['verifies',calc.requirement]],note:calc.selected?'Расчёт Python по исходной версии. Выбран минимальный подходящий накопитель.':'Расчёт Python по исходной версии. Требуемое окно превышает доступную ёмкость всех вариантов.'}}]);
+  }
+  return {products,parts,calculate,architecture,envelope,simulate,receipt};
+})(typeof DSM!=='undefined'?DSM:require('./model.js'));
+if(typeof module!=='undefined')module.exports=Machine;
+
+</script>
+<script>
+/* VIB1 uses little-endian fields and IEEE CRC-32 over the first 28 header bytes and payload. */
+const Vibration=(()=>{
+  const header=32,limit=32*1024*1024;
+  const crcTable=Uint32Array.from({length:256},(_,i)=>{
+    let v=i;for(let bit=0;bit<8;bit++)v=v&1?0xedb88320^(v>>>1):v>>>1;return v>>>0;
+  });
+  function crc(bytes,start,end){
+    let v=0xffffffff;
+    for(let i=start;i<end;i++){if(i>=start+28&&i<start+32)continue;v=crcTable[(v^bytes[i])&255]^(v>>>8);}
+    return (v^0xffffffff)>>>0;
+  }
+  function layout(m,root,engine){
+    const calc=engine.calculate(m,root),by=new Map(m.nodes.map(n=>[n.id,n])),fmt=by.get(calc.format).attrs,streams=[],ids=new Set();
+    if(fmt.headerBytes!==header||fmt.blockSamples>65535)throw Error('VIB1 требует заголовок 32 байта и до 65535 отсчётов в блоке');
+    if(calc.streams.reduce((sum,s)=>sum+s.count,0)>65535)throw Error('Слишком много потоков для VIB1');
+    for(const s of calc.streams){const a=by.get(s.id).attrs;
+      if(a.axes>255||a.bytesPerAxis!==2)throw Error('VIB1 поддерживает до 255 каналов и 16-битные отсчёты');
+      const base=a.streamBase??(calc.streams.length===1?0:undefined);
+      if(!Number.isInteger(base)||base<0||base+s.count>65536)throw Error('Укажите начальный номер потока streamBase для '+s.id);
+      for(let i=0;i<s.count;i++){
+        const id=base+i;
+        if(ids.has(id))throw Error('Номер потока назначен повторно: '+id);
+        ids.add(id);streams.push({id,sensor:s.id,number:i+1,axes:a.axes,hz:a.sampleHz,samples:s.samples});
+      }
+    }
+    return {calc,block:fmt.blockSamples,streams};
+  }
+  function generate(m,root,engine){
+    const {calc,block,streams}=layout(m,root,engine);
+    if(calc.bytes>limit)throw Error('Тестовый файл превышает 32 МиБ');
+    const bytes=new Uint8Array(calc.bytes),v=new DataView(bytes.buffer);
+    let pos=0;
+    for(const s of streams){
+      for(let first=0,seq=0;first<s.samples;first+=block,seq++){
+        const n=Math.min(block,s.samples-first),size=n*s.axes*2;
+        v.setUint32(pos,0x56494231);v.setUint8(pos+4,1);v.setUint8(pos+5,s.axes);v.setUint8(pos+6,2);
+        v.setUint16(pos+8,s.id,true);v.setUint16(pos+10,n,true);v.setUint32(pos+12,seq,true);
+        v.setBigUint64(pos+16,BigInt(Math.floor(first*1000000/s.hz)),true);v.setUint32(pos+24,size,true);
+        for(let i=0;i<n*s.axes;i++)v.setInt16(pos+header+i*2,(first*s.axes+i)%1024-512,true);
+        v.setUint32(pos+28,crc(bytes,pos,pos+header+size),true);pos+=header+size;
+      }
+    }
+    return bytes;
+  }
+  function inspect(m,root,bytes,engine){
+    if(!(bytes instanceof Uint8Array)||!bytes.length||bytes.length>limit)throw Error('Выберите файл VIB1 от 1 байта до 32 МиБ');
+    const {streams,block}=layout(m,root,engine),v=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);
+    const rows=streams.map(s=>({sensor:s.sensor,number:s.number,samples:0,blocks:0,expected:s.samples,lastTime:null,start:null}));
+    const byId=new Map(streams.map((s,i)=>[s.id,i])),wave=[];
+    let pos=0;
+    while(pos<bytes.length){
+      if(pos+header>bytes.length||v.getUint32(pos)!==0x56494231||v.getUint8(pos+4)!==1||v.getUint8(pos+7)!==0)throw Error('Некорректный заголовок VIB1 · байт '+pos);
+      const id=v.getUint16(pos+8,true),index=byId.get(id),s=streams[index],r=rows[index],n=v.getUint16(pos+10,true),size=v.getUint32(pos+24,true),end=pos+header+size;
+      if(!s||!n||n>block||s.axes!==v.getUint8(pos+5)||v.getUint8(pos+6)!==2||size!==n*s.axes*2||end>bytes.length)throw Error('Неверный размер или поток · байт '+pos);
+      if(v.getUint32(pos+28,true)!==crc(bytes,pos,end))throw Error('Ошибка CRC · байт '+pos);
+      const seq=v.getUint32(pos+12,true),time=v.getBigUint64(pos+16,true);
+      if(seq!==r.blocks)throw Error('Нарушена последовательность · поток '+id+', ожидался блок '+r.blocks+', получен '+seq);
+      if(r.blocks>0&&r.samples!==r.blocks*block)throw Error('Короткий блок разрешён только в конце потока '+id);
+      if(r.lastTime!==null&&time<=r.lastTime)throw Error('Нарушен порядок времени · поток '+id);
+      if(r.start===null)r.start=time;
+      const nominal=BigInt(r.samples)*1000000n/BigInt(s.hz),delta=time-r.start-nominal,tolerance=BigInt(Math.ceil(1000000/s.hz));
+      if(delta>tolerance||delta< -tolerance)throw Error('Метка времени расходится с частотой потока '+id);
+      if(index===0)for(let i=0;i<n&&wave.length<256;i++)wave.push(v.getInt16(pos+header+i*s.axes*2,true));
+      r.blocks++;r.samples+=n;r.lastTime=time;pos=end;
+    }
+    return {bytes:bytes.length,complete:rows.every(r=>r.samples===r.expected),wave,streams:rows.map(({lastTime,start,...r})=>r)};
+  }
+  return {generate,inspect};
+})();
+if(typeof module!=='undefined')module.exports=Vibration;
+
+</script>
+<script>
+function machinePanel({doc,esc,b,option,table,field,modal,push,render,toast,download,openBook,openPair,openGraph}){
+  const model=()=>DSM.head(doc()).data;
+  const stages={design:'Изделие',interfaces:'Интерфейсы и матрицы',job:'Задание ЧПУ',capture:'Диагностика'};
+  let project='',root='',stage='design',layer='flow',ordered=false,draft=null,jobResult=null,trace=null;
+  const card=(id)=>b('objectRow',esc(id),'class="tiny" data-id="'+esc(id)+'"');
+  const act=(k,label,id='')=>b('machine'+k,label,'data-id="'+esc(id)+'"');
+  const section=(title,body)=>'<section class="card"><h2>'+title+'</h2>'+body+'</section>';
+  const tools=items=>'<div class="tools">'+items.join('')+'</div>';
+  const fmt=n=>n.toLocaleString('ru-RU');
+  function reset(){draft=null;jobResult=null;trace=null;}
+  function current(){
+    const all=Machine.products(model());
+    if(project!==doc().project||!all.some(n=>n.id===root)){project=doc().project;root=all[0]?.id||'';stage='design';reset();}
+    return all;
+  }
+  function design(parts){
+    const groups=parts.filter(n=>n.kind==='system'),decisions=parts.filter(n=>n.kind==='adr');
+    return section('Состав изделия',tools([act('Graph','Компонентная схема','component'),act('Graph','Программная архитектура','software')])+table(['Подсистема','Компоненты и модули','Назначение'],groups.map(g=>[card(g.id)+' '+esc(g.name),parts.filter(n=>n.parent===g.id).map(n=>card(n.id)+' '+esc(n.name)).join('<br>'),esc(g.note)])))+
+      section('Требования и решения',table(['Карточка','Назначение','Связи'],[...parts.filter(n=>n.kind==='requirement'),...decisions].map(n=>[card(n.id)+' '+esc(n.name),esc(n.note),(n.refs||[]).map(card).join(' ')])))+
+      section('Пилотный релиз',table(['Работа','Исполнитель','Релиз','Этап'],parts.filter(n=>n.kind==='changeTask').map(n=>[card(n.id)+' '+esc(n.name),esc(n.attrs?.owner),card(n.release),esc(({done:'Готово',planned:'Запланировано',active:'В работе'})[n.state]||n.state)]))+tools([b('tab','Маршрут изменения','data-id="journey"'),b('tab','План релизов','data-id="plan"')]))+
+      section('Клиентское задание и запись испытания',tools([act('Stage','Проверить программу','job'),act('Stage','Подобрать память и проверить файл','capture')]));
+  }
+  function matrix(parts){
+    const m=model(),scope=Machine.architecture(m,root),a=Analysis.calculate(scope,layer);
+    const order=ordered?a.order:scope.nodes.map(n=>n.id),fns=parts.filter(n=>n.kind==='capability');
+    const interfaces=parts.filter(n=>n.attrs?.machineRole==='interface');
+    const visible=order.slice(0,32),cells=Analysis.matrix(scope,layer,visible);
+    const overflow=visible.length<order.length?'<p>Показаны первые 32 объекта. '+b('tab','Открыть полную матрицу','data-id="matrix"')+'</p>':'';
+    return section('Граница изделия и контракты',table(['Интерфейс','Граница','Участники','Условие совместимости'],interfaces.map(n=>[card(n.id)+' '+esc(n.name),n.attrs.boundary==='external'?'Внешняя':'Внутренняя',(n.refs||[]).map(card).join(' '),esc(n.note)])))+
+      section('MDM · функции и реализации',table(['Реализация',...fns.map(n=>card(n.id)+' '+esc(n.name))],scope.nodes.filter(n=>n.relations?.some(([k])=>k==='realizes')).map(n=>[card(n.id)+' '+esc(n.name),...fns.map(f=>n.relations.some(([k,to])=>k==='realizes'&&to===f.id)?'●':'—')])))+
+      section('DSM · зависимости компонентов',tools([select('machineLayer','Слой',[['flow','Потоки'],['risk','Совместные проверки']],layer),select('machineOrder','Порядок',[['input','Исходный'],['groups','После кластеризации']],ordered?'groups':'input')])+
+      '<p>'+order.length+' × '+order.length+' · '+a.links+' связей · взвешенная длина до упорядочивания '+a.cost_before+', после '+a.cost_after+'</p>'+
+      overflow+'<div class="machine-matrix">'+table(['Источник / цель',...visible.map(esc)],cells.map((row,i)=>[card(order[i]),...row.map((v,j)=>v?b('machinePair',String(v),'class="tiny" aria-label="'+esc(order[i]+' → '+order[j])+'" data-id="'+esc(order[i])+'" data-to="'+esc(order[j])+'"'):'·')]))+'</div>'+
+      table(['Группа','Объекты'],a.groups.map((g,i)=>[i+1,g.map(card).join(' ')]))+
+      '<details><summary>Проверка строк без связей в слое</summary>'+scope.nodes.filter(n=>!scope.edges.some(e=>e.layer===layer&&(e.from===n.id||e.to===n.id))).map(n=>card(n.id)).join(' ')+'</details>');
+  }
+  function select(id,title,rows,value){return '<label>'+title+' <select id="'+id+'">'+rows.map(([v,l])=>option(v,l,value)).join('')+'</select></label>';}
+  function plot(moves,limits){
+    const points=[moves[0].from,...moves.map(m=>m.to)],scale=Math.min(560/limits[0],230/limits[1]);
+    const line=points.map(([x,y])=>(20+x*scale).toFixed(2)+','+(255-y*scale).toFixed(2)).join(' ');
+    return '<svg viewBox="0 0 600 280" role="img" aria-label="Траектория программы, проекция XY"><rect x="20" y="'+(255-limits[1]*scale)+'" width="'+limits[0]*scale+'" height="'+limits[1]*scale+'" fill="#eff5f2" stroke="#819a91"/><polyline points="'+line+'" fill="none" stroke="#196b56" stroke-width="2"/><text x="20" y="275">XY · мм</text></svg>';
+  }
+  function job(parts){
+    const source=parts.find(n=>n.attrs?.machineRole==='job'),limits=Machine.envelope(model(),root);
+    const result=jobResult?.base===DSM.head(doc()).rev?jobResult:null;
+    return section('Программа технолога','<p>Рабочая зона '+limits.join(' × ')+' мм. Начало симуляции — (0, 0, 0). Поддержаны G21, G90, G0 и G1. Для рабочего хода задайте F в мм/мин.</p>'+
+      '<label class="field">Линейная программа<textarea id="machineProgram" spellcheck="false" rows="9">'+esc(draft??source?.note??'')+'</textarea></label>'+
+      tools(['<label>Открыть .nc <input id="machineJobFile" type="file" accept=".nc,.txt,.gcode"></label>',act('Run','Проверить траекторию'),act('SaveJob','Сохранить задание')]))+
+      (result?section('Результат симуляции','<p>'+result.moves.length+' перемещений · '+fmt(Math.round(result.length*100)/100)+' мм пути</p><div class="machine-plot">'+plot(result.moves,limits)+'</div>'+table(['Строка','Тип','Конец XYZ, мм','Подача, мм/мин'],result.moves.slice(0,200).map(r=>[r.line,r.rapid?'Быстрый ход':'Рабочий ход',r.to.join(' · '),r.feed??'—']))+(result.moves.length>200?'<p>Показаны первые 200 перемещений.</p>':'')):'');
+  }
+  function waveform(values){
+    if(!values.length)return '';
+    const low=Math.min(...values),high=Math.max(...values),span=high-low||1;
+    const line=values.map((v,i)=>(10+540*i/Math.max(1,values.length-1)).toFixed(2)+','+(90-80*(v-low)/span).toFixed(2)).join(' ');
+    return '<figure><svg viewBox="0 0 560 100" role="img" aria-label="Осциллограмма первого канала"><polyline points="'+line+'" fill="none" stroke="#196b56" stroke-width="2"/></svg><figcaption>Первый поток, канал 1 · '+values.length+' отсчётов · диапазон кодов '+low+'…'+high+'</figcaption></figure>';
+  }
+  function capture(parts){
+    const m=model(),r=Machine.calculate(m,root),currentTrace=trace?.base===DSM.head(doc()).rev?trace:null;
+    return section('Запись вибрации при отключённом клиенте','<div class="sizing-metrics">'+[[r.duration+' с','Окно записи'],[fmt(r.bytes),'Требуется, байт'],[esc(r.selected||'Нет варианта'),'Минимальная ёмкость']].map(([v,l])=>'<div><strong>'+v+'</strong><span>'+l+'</span></div>').join('')+'</div>'+
+      tools([act('Duration','Изменить окно записи'),act('Notebook','Пересчитать в Jupyter'),card(r.requirement),card(r.format)])+
+      table(['Датчик','Количество','Отсчётов на каждый','Блоков на каждый','Всего байт'],r.streams.map(s=>[card(s.id),s.count,fmt(s.samples),fmt(s.blocks),fmt(s.total)]))+
+      table(['Вариант памяти','Номинал, байт','После резерва '+r.reserve+'%, байт','Остаток, байт'],r.options.map(o=>[card(o.id),fmt(o.capacity),fmt(o.usable),fmt(o.margin)])))+
+      section('Приём файла клиентским ПО','<p>Декодер VIB1 проверяет CRC, последовательность блоков, время и число отсчётов каждого потока.</p>'+tools([act('ExportTrace','Скачать тестовый VIB1'),'<label>Проверить запись <input id="machineTrace" type="file" accept=".vib,.bin"></label>'])+
+      (currentTrace?'<p><b>'+esc(currentTrace.file)+'</b> · '+(currentTrace.complete?'Окно подтверждено':'Неполное окно')+' · '+fmt(currentTrace.bytes)+' байт</p>'+table(['Датчик','Поток','Получено','Ожидалось','Блоков'],currentTrace.streams.map(s=>[card(s.sensor),s.number,s.samples,s.expected,s.blocks]))+waveform(currentTrace.wave)+tools([act('TraceBook','Открыть сигнал в Jupyter'),act('SaveTrace','Сохранить протокол файла')]):''))+
+      section('Проверенные файлы',table(['Файл','Окно','SHA-256'],parts.filter(n=>n.attrs?.machineRole==='traceReceipt').map(n=>[card(n.id)+' '+esc(n.name),n.attrs.complete?'Подтверждено':'Неполное',esc(n.attrs.sha256)])))+
+      section('Расчёты в истории',table(['Протокол','Исходная ревизия','Память','Источники'],parts.filter(n=>n.attrs?.machineRole==='calculation').map(n=>[card(n.id),esc(n.attrs.base),n.attrs.selected?card(n.attrs.selected):'—',(n.refs||[]).map(card).join(' ')])));
+  }
+  function view(){
+    const all=current();
+    if(!all.length)return section('Разработка станка','<p>Откройте проект станка в разделе «Обмен». Для нового изделия задайте карточке продукта атрибут workbench=cnc.</p>'+b('tab','Открыть обмен','data-id="io"'));
+    const parts=Machine.parts(model(),root);
+    let body;try{body=({design,interfaces:matrix,job,capture})[stage](parts);}catch(e){body=section('Исходные данные','<p>'+esc(e.message)+'</p>'+b('tab','Каталог','data-id="catalog"'));}
+    return '<div class="stack">'+section('Разработка станка',select('machineRoot','Изделие',all.map(n=>[n.id,n.name]),root)+'<nav class="fleet-steps" aria-label="Работа над станком">'+Object.entries(stages).map(([id,name])=>b('machineStage',name,'data-id="'+id+'" aria-pressed="'+(stage===id)+'"')).join('')+'</nav>')+body+'</div>';
+  }
+  function bind(){
+    const el=id=>document.getElementById(id);
+    el('machineRoot')?.addEventListener('change',e=>{root=e.target.value;reset();render();});
+    el('machineLayer')?.addEventListener('change',e=>{layer=e.target.value;render();});
+    el('machineOrder')?.addEventListener('change',e=>{ordered=e.target.value==='groups';render();});
+    el('machineProgram')?.addEventListener('input',e=>{draft=e.target.value;if(jobResult){jobResult=null;const result=el('machineProgram').closest('section').nextElementSibling;if(result)result.remove();}});
+    for(const [id,isTrace] of [['machineJobFile',false],['machineTrace',true]])el(id)?.addEventListener('change',async e=>{
+      const file=e.target.files[0],rev=DSM.head(doc()).rev,owner=root;if(!file)return;
+      try{
+        if(file.size>(isTrace?32*1024*1024:128000))throw Error('Файл слишком велик');
+        const content=isTrace?new Uint8Array(await file.arrayBuffer()):await file.text();
+        if(rev!==DSM.head(doc()).rev||owner!==root)throw Error('Проект изменился во время загрузки');
+        if(isTrace){
+          const decoded=Vibration.inspect(model(),root,content,Machine);
+          const digest=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',content)),v=>v.toString(16).padStart(2,'0')).join('');
+          if(rev!==DSM.head(doc()).rev||owner!==root)throw Error('Проект изменился во время проверки');
+          trace={...decoded,file:file.name,base:rev,digest,content};
+        }else{draft=content;jobResult=null;}
+        render();
+      }catch(err){if(isTrace)trace=null;render();toast(err.message);}
+    });
+  }
+  async function handle(k,id,t){
+    if(k==='Stage'){stage=id;render();return;}
+    if(k==='Pair'){openPair(layer,id,t.dataset.to);return;}
+    if(k==='Graph'){openGraph(id,root);return;}
+    if(k==='Notebook'){openBook(root);return;}
+    const m=model(),h=DSM.head(doc()),parts=Machine.parts(m,root);
+    if(k==='Duration'){const c=Machine.calculate(m,root),n=parts.find(n=>n.id===c.requirement);
+      modal('Требование к записи',field('seconds','Длительность, с',c.duration,'type="number" min="1" step="1" required')+field('criterion','Проверяемый результат',n.attrs.then,'required'),f=>{
+        const attrs={...n.attrs,durationSeconds:Number(f.seconds),then:f.criterion},next=DSM.patch(m,[{op:'node',value:{id:n.id,attrs}}]);Machine.calculate(next,root);
+        return push(next,'Окно диагностической записи · '+f.seconds+' с','Конструктор',h.rev);
+      });return;}
+    if(k==='TraceBook'){
+      if(!trace||trace.base!==h.rev)throw Error('Проверьте файл на текущей версии');
+      const file=trace;
+      const packed=new Uint8Array(await new Response(new Blob([file.content]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer());
+      if(packed.length>10*1024*1024)throw Error('Сжатый файл превышает 10 МиБ для встраивания в блокнот');
+      let binary='';for(let i=0;i<packed.length;i+=32768)binary+=String.fromCharCode(...packed.subarray(i,i+32768));
+      if(file!==trace||h.rev!==DSM.head(doc()).rev)throw Error('Исходная версия записи изменилась');
+      openBook(root,{machineTrace:{name:file.file,digest:file.digest,packed:btoa(binary)}});return;
+    }
+    if(k==='SaveTrace'){
+      if(!trace||trace.base!==h.rev)throw Error('Проверьте файл на текущей версии');
+      const c=Machine.calculate(m,root);let seq=1;while(m.nodes.some(n=>n.id==='TRACE-'+seq))seq++;
+      const value={id:'TRACE-'+seq,name:trace.file,kind:'artifact',parent:root,state:'done',
+        attrs:{machineRole:'traceReceipt',sha256:trace.digest,base:h.rev,bytes:trace.bytes,complete:trace.complete,streamCount:trace.streams.length},
+        refs:[c.requirement,c.format,...c.streams.map(s=>s.id)],relations:[[trace.complete?'verifies':'uses',c.requirement]],
+        note:trace.streams.map(s=>s.sensor+' #'+s.number+' · '+s.samples+' / '+s.expected+' отсчётов').join('\n')};
+      return push(DSM.patch(m,[{op:'node',value}]),'Проверка VIB1 · '+trace.file,'Технолог',h.rev);
+    }
+    if(k==='ExportTrace'){download(root+'-test.vib',Vibration.generate(m,root,Machine),'application/octet-stream');return;}
+    const program=document.getElementById('machineProgram')?.value;
+    const checked=Machine.simulate(program,Machine.envelope(m,root));draft=program;
+    if(k==='Run'){jobResult={...checked,base:h.rev};render();return;}
+    if(k==='SaveJob'){const n=parts.find(n=>n.attrs?.machineRole==='job');if(!n)throw Error('Добавьте карточку задания с machineRole=job');
+      if(n.note===program){toast('Эта программа уже сохранена');return;}
+      return push(DSM.patch(m,[{op:'node',value:{id:n.id,note:program}}]),'Программа технолога · '+n.id,'Технолог',h.rev);
+    }
+  }
+  return {view,bind,handle};
+}
+
+</script>
+<script>
 function installationPanel({model,esc,b,field,sel,option,table,modal,push,render,download,notebook,graph}){
   let selected='';
   const card=id=>b('objectRow',esc(id),'class="tiny" data-id="'+esc(id)+'"');
@@ -5703,7 +6104,7 @@ function notebookPanel({doc,online,visible,render,proposed,modal,download,button
     return '<details class="card"><summary>Библиотека проекта'+(library?' · '+library.length:'')+'</summary>'+content+action('Refresh','Обновить список')+'</details>';
   }
   function view(){
-    const profiles={full:'Полный анализ DSM',fleet:'Два ЦОД · расчёт, отказ и источники',installation:'Закупка и приёмка серверов',...Object.fromEntries(Object.entries(NotebookProfiles).map(([k,v])=>[k,v.name]))};
+    const profiles={machine:'Станок · расчёт диагностической записи',full:'Полный анализ DSM',fleet:'Два ЦОД · расчёт, отказ и источники',installation:'Закупка и приёмка серверов',...Object.fromEntries(Object.entries(NotebookProfiles).map(([k,v])=>[k,v.name]))};
     const controls=session?'<p>Сохраните ячейки в Jupyter (Ctrl+S). Файл · '+esc(session.file)+'</p><div class="tools">'+action('Preview','Проверить изменения','class="primary"')+action('LiveResult','Проверить результат Python')+action('Saved','Скачать сохранённый блокнот')+action('Stop','Завершить сессию')+'</div>':
       '<div class="tools"><label>Расчёт <select id="bookProfile" aria-label="Профиль генерации">'+Object.entries(profiles).map(([k,v])=>option(k,v,profile)).join('')+'</select></label>'+action('Generate','Сгенерировать блокнот')+
       '<label class="btn">Загрузить .ipynb<input type="file" class="file-picker" id="bookFile" accept=".ipynb"></label>'+
@@ -5779,7 +6180,11 @@ function notebookPanel({doc,online,visible,render,proposed,modal,download,button
     let snapshot=doc();if(context?.base){const i=snapshot.history.findIndex(h=>h.rev===context.base);if(i<0)throw Error('Исходная ревизия отсутствует');snapshot={...snapshot,history:snapshot.history.slice(0,i+1)};}
     profile='fleet';choose(Notebook.write(snapshot,profile,id,context),'fleet-'+id+'.ipynb');
   }
-  return {view,handle,bind,refresh,reset,installation,replay,fleet,active:()=>!!session};
+  function machine(id,context){
+    if(session||starting)throw Error('Завершите текущую сессию Jupyter');
+    profile='machine';choose(Notebook.write(doc(),profile,id,context),'machine-'+id+'.ipynb');
+  }
+  return {view,handle,bind,refresh,reset,installation,replay,fleet,machine,active:()=>!!session};
 }
 
 </script>
@@ -5789,9 +6194,9 @@ function notebookPanel({doc,online,visible,render,proposed,modal,download,button
 const $=id=>document.getElementById(id), esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
 const embedded=DSM.document(JSON.parse($('project-data').textContent));
 const original='<!doctype html>\n'+document.documentElement.outerHTML;
-const tabs={fleet:'Закупка по ЦОД',sizing:'Расчёт инсталляций',journey:'Маршрут изменения',matrix:'Матрица',graph:'Граф и схема',catalog:'Каталог',plan:'Релизы и фичи',history:'Версии',io:'Обмен',notebook:'Jupyter Notebook',artifacts:'Артефакты',requirements:'Требования',requests:'Запросы',reports:'Анализ'};
+const tabs={machine:'Разработка станка',fleet:'Закупка по ЦОД',sizing:'Расчёт инсталляций',journey:'Маршрут изменения',matrix:'Матрица',graph:'Граф и схема',catalog:'Каталог',plan:'Релизы и фичи',history:'Версии',io:'Обмен',notebook:'Jupyter Notebook',artifacts:'Артефакты',requirements:'Требования',requests:'Запросы',reports:'Анализ'};
 const kinds=Views.types;
-const sections={architecture:['fleet','sizing','journey','matrix','graph','plan','requirements','requests','artifacts','reports'],data:['catalog','notebook']};
+const sections={architecture:['machine','fleet','sizing','journey','matrix','graph','plan','requirements','requests','artifacts','reports'],data:['catalog','notebook']};
 const lastTab={architecture:'matrix',data:'catalog'};
 let architectureFormat='diagram',returnGraph='concept',boundaryOpen=false,structure=null,workMode='architecture',registry='nodes',scenarioId='';
 function navigate(id,record=true){
@@ -5877,7 +6282,7 @@ function shell(content){
   $('workMode').innerHTML=Object.entries({architecture:'Архитектура',data:'Данные и расчёты'}).map(([k,v])=>b('workMode',v,'aria-pressed="'+(k===workMode)+'" data-id="'+k+'"')).join('');
   $('notebookHost').hidden=tab!=='notebook'||!books.active();
   $('demoGuide').hidden=doc.project!==embedded.project||!data().nodes.some(n=>n.id==='TK'&&n.note.includes('Qwen Code'))||!nodeBy('F02')||!nodeBy('F03');
-  const menu={'Изменения':['journey','requirements','requests','artifacts','plan'],'Архитектура':['fleet','sizing','catalog','matrix','graph','reports'],'Данные':['notebook','history','io']};
+  const menu={'Изменения':['journey','requirements','requests','artifacts','plan'],'Архитектура':['machine','fleet','sizing','catalog','matrix','graph','reports'],'Данные':['notebook','history','io']};
   $('nav').innerHTML=Object.entries(menu).map(([title,items])=>'<section><h2>'+title+'</h2>'+items.map(k=>
     b('tab',tabs[k],'class="'+(k===tab?'on':'')+'" '+(k===tab?'aria-current="page" ':'')+'data-id="'+k+'"')).join('')+'</section>').join('');
   $('content').innerHTML=content;
@@ -6079,6 +6484,9 @@ const books=notebookPanel({doc:()=>doc,online:()=>server,visible:()=>tab==='note
 const desk=reviewPanel({doc:()=>doc,esc,button:b,option,field,sel,table,tools:toolbar,modal,push,download,proposed,render,toast,
   inspect:id=>{registry='nodes';filter='';focus=id;pair=null;structure=null;resetCatalog();navigate('catalog');}});
 function openInstallationBook(id,context){books.installation(id,context);navigate('notebook');}
+const machine=machinePanel({doc:()=>doc,esc,b,option,table,field,modal,push,render,toast,download,
+  openGraph:(mode,id)=>{graphMode=mode;architectureFormat='diagram';focus=id;pair=null;structure=null;pages.drawing=0;navigate('graph');},
+  openBook:(id,context)=>{books.machine(id,context);navigate('notebook');},openPair:(k,from,to)=>{layer=k;showPair(from,to,'matrix');}});
 const fleet=fleetPanel({doc:()=>doc,esc,b,option,sel,field,table,modal,push,render,download,navigate,toast,
   notebook:(id,context)=>{books.fleet(id,context);navigate('notebook');},
   matrix:(edge)=>{layer=edge.layer;showPair(edge.from,edge.to,'matrix');},
@@ -6112,7 +6520,8 @@ function io(){return '<div class="cols"><div class="card"><h2>Загрузить
 function render(){
   if(!nodeBy(focus))focus=data().nodes[0]?.id||'';
   if(pair&&pair.some(id=>!nodeBy(id)))pair=null;
-  shell(({fleet:fleet.view,sizing:sizing.view,journey:journey.view,matrix,graph,catalog,plan,history,io,artifacts,requirements,requests:desk.view,reports:desk.reports,notebook:books.view})[tab]());
+  shell(({machine:machine.view,fleet:fleet.view,sizing:sizing.view,journey:journey.view,matrix,graph,catalog,plan,history,io,artifacts,requirements,requests:desk.view,reports:desk.reports,notebook:books.view})[tab]());
+  if(tab==='machine')machine.bind();
   if(tab==='fleet')fleet.bind();
   if(tab==='journey')journey.bind();
   if(tab==='notebook')books.bind();
@@ -6163,6 +6572,12 @@ async function exportAs(k){const stem='dsm-'+short(base()),m=data(),types={html:
   const payload=k==='sysl'?Sysl.write(m):k==='xlsx'?await ExcelIO.write(doc):k==='html'?dynamicHtml(doc):k==='md'?Formats.markdown(doc):k==='csv'?Formats.emitCsv(doc):JSON.stringify(k==='ipynb'?Notebook.write(doc):doc,null,2);
   download(stem+'.'+k,payload,types[k]);}
 function proposed(input,source=''){
+  if(input.kind==='machine-receipt'&&input.project===doc.project&&input.base!==base()){
+    const old=doc.history.find(h=>h.rev===input.base);
+    const summary=old?Views.differences(DSM.diff(old.data,data())):hint('Исходная ревизия отсутствует в этом файле.');
+    modal('Расчёт устарел',hint('После выполнения блокнота изменилась модель. База '+esc(input.base)+' · текущая '+esc(base()))+summary,()=>{books.machine(input.root);navigate('notebook');},'Подготовить свежий блокнот');
+    return;
+  }
   const archive=input.kind==='archive';const next=Formats.preview(doc,input);
   const changes=DSM.diff(data(),next);
   const title=archive?'Открыть проект с историей':'Проверить изменения';
@@ -6207,6 +6622,7 @@ $('save').onclick=()=>exportAs('json');
 document.addEventListener('click',async e=>{const t=e.target.closest('[data-action]');if(!t)return;const action=t.dataset.action,id=t.dataset.id;
   try{
     if(action==='replayEvidence'){books.replay(id);navigate('notebook');return;}
+    if(action.startsWith('machine')){await machine.handle(action.slice(7),id,t);return;}
     if(action.startsWith('fleet')){await fleet.handle(action.slice(5),id,t);return;}
     if(action==='openSizing'){sizing.select(id);navigate('sizing');return;}
     if(action.startsWith('sizing')){await sizing.handle(action.slice(6),id);return;}
@@ -6324,7 +6740,7 @@ async function start(){
   if(location.protocol==='http:'&&location.hostname==='127.0.0.1'&&location.pathname==='/'){
     try{const r=await fetch('/api/head',{cache:'no-store'});if(r.ok){const h=await r.json();if(h.rev!==base()||h.project&&h.project!==doc.project){const update=await fetch('/api/project',{cache:'no-store'});doc=DSM.document(await update.json());}server=true;}}catch{}}
   if(!server){try{const active=localStorage.getItem(entryKey);if(active?.startsWith('mazzy.dsm.1/'))cacheKey=active;const c=localStorage.getItem(cacheKey);if(c){const saved=DSM.document(JSON.parse(c));if(active||saved.project===embedded.project&&saved.history.some(h=>h.rev===DSM.head(embedded).rev))doc=saved;}}catch{cacheOK=false;}}
-  resetView();if(!readLocation()){if(data().nodes.some(n=>Fleet.role(n)==='stock'))tab='fleet';else if(tab==='matrix'&&(!data().nodes.length||data().nodes.some(n=>n.kind==='requirement')))tab='journey';render();}if(server)setInterval(sync,1800);
+  resetView();if(!readLocation()){if(Machine.products(data()).length)tab='machine';else if(data().nodes.some(n=>Fleet.role(n)==='stock'))tab='fleet';else if(tab==='matrix'&&(!data().nodes.length||data().nodes.some(n=>n.kind==='requirement')))tab='journey';render();}if(server)setInterval(sync,1800);
   window.addEventListener('hashchange',readLocation);
   window.addEventListener('storage',e=>{if(!server&&e.key===cacheKey&&e.newValue){if($('dialog').open||!cacheOK){toast('Есть новая версия в другой вкладке. Сохраните свою копию в JSON.');return;}try{const incoming=DSM.document(JSON.parse(e.newValue));const switched=incoming.project!==doc.project;doc=incoming;if(switched||!nodeBy(focus))resetView(switched);render();toast('Получена версия из другой вкладки');}catch{}}});
 }

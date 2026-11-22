@@ -3,9 +3,9 @@
 const $=id=>document.getElementById(id), esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
 const embedded=DSM.document(JSON.parse($('project-data').textContent));
 const original='<!doctype html>\n'+document.documentElement.outerHTML;
-const tabs={fleet:'Закупка по ЦОД',sizing:'Расчёт инсталляций',journey:'Маршрут изменения',matrix:'Матрица',graph:'Граф и схема',catalog:'Каталог',plan:'Релизы и фичи',history:'Версии',io:'Обмен',notebook:'Jupyter Notebook',artifacts:'Артефакты',requirements:'Требования',requests:'Запросы',reports:'Анализ'};
+const tabs={machine:'Разработка станка',fleet:'Закупка по ЦОД',sizing:'Расчёт инсталляций',journey:'Маршрут изменения',matrix:'Матрица',graph:'Граф и схема',catalog:'Каталог',plan:'Релизы и фичи',history:'Версии',io:'Обмен',notebook:'Jupyter Notebook',artifacts:'Артефакты',requirements:'Требования',requests:'Запросы',reports:'Анализ'};
 const kinds=Views.types;
-const sections={architecture:['fleet','sizing','journey','matrix','graph','plan','requirements','requests','artifacts','reports'],data:['catalog','notebook']};
+const sections={architecture:['machine','fleet','sizing','journey','matrix','graph','plan','requirements','requests','artifacts','reports'],data:['catalog','notebook']};
 const lastTab={architecture:'matrix',data:'catalog'};
 let architectureFormat='diagram',returnGraph='concept',boundaryOpen=false,structure=null,workMode='architecture',registry='nodes',scenarioId='';
 function navigate(id,record=true){
@@ -91,7 +91,7 @@ function shell(content){
   $('workMode').innerHTML=Object.entries({architecture:'Архитектура',data:'Данные и расчёты'}).map(([k,v])=>b('workMode',v,'aria-pressed="'+(k===workMode)+'" data-id="'+k+'"')).join('');
   $('notebookHost').hidden=tab!=='notebook'||!books.active();
   $('demoGuide').hidden=doc.project!==embedded.project||!data().nodes.some(n=>n.id==='TK'&&n.note.includes('Qwen Code'))||!nodeBy('F02')||!nodeBy('F03');
-  const menu={'Изменения':['journey','requirements','requests','artifacts','plan'],'Архитектура':['fleet','sizing','catalog','matrix','graph','reports'],'Данные':['notebook','history','io']};
+  const menu={'Изменения':['journey','requirements','requests','artifacts','plan'],'Архитектура':['machine','fleet','sizing','catalog','matrix','graph','reports'],'Данные':['notebook','history','io']};
   $('nav').innerHTML=Object.entries(menu).map(([title,items])=>'<section><h2>'+title+'</h2>'+items.map(k=>
     b('tab',tabs[k],'class="'+(k===tab?'on':'')+'" '+(k===tab?'aria-current="page" ':'')+'data-id="'+k+'"')).join('')+'</section>').join('');
   $('content').innerHTML=content;
@@ -293,6 +293,9 @@ const books=notebookPanel({doc:()=>doc,online:()=>server,visible:()=>tab==='note
 const desk=reviewPanel({doc:()=>doc,esc,button:b,option,field,sel,table,tools:toolbar,modal,push,download,proposed,render,toast,
   inspect:id=>{registry='nodes';filter='';focus=id;pair=null;structure=null;resetCatalog();navigate('catalog');}});
 function openInstallationBook(id,context){books.installation(id,context);navigate('notebook');}
+const machine=machinePanel({doc:()=>doc,esc,b,option,table,field,modal,push,render,toast,download,
+  openGraph:(mode,id)=>{graphMode=mode;architectureFormat='diagram';focus=id;pair=null;structure=null;pages.drawing=0;navigate('graph');},
+  openBook:(id,context)=>{books.machine(id,context);navigate('notebook');},openPair:(k,from,to)=>{layer=k;showPair(from,to,'matrix');}});
 const fleet=fleetPanel({doc:()=>doc,esc,b,option,sel,field,table,modal,push,render,download,navigate,toast,
   notebook:(id,context)=>{books.fleet(id,context);navigate('notebook');},
   matrix:(edge)=>{layer=edge.layer;showPair(edge.from,edge.to,'matrix');},
@@ -326,7 +329,8 @@ function io(){return '<div class="cols"><div class="card"><h2>Загрузить
 function render(){
   if(!nodeBy(focus))focus=data().nodes[0]?.id||'';
   if(pair&&pair.some(id=>!nodeBy(id)))pair=null;
-  shell(({fleet:fleet.view,sizing:sizing.view,journey:journey.view,matrix,graph,catalog,plan,history,io,artifacts,requirements,requests:desk.view,reports:desk.reports,notebook:books.view})[tab]());
+  shell(({machine:machine.view,fleet:fleet.view,sizing:sizing.view,journey:journey.view,matrix,graph,catalog,plan,history,io,artifacts,requirements,requests:desk.view,reports:desk.reports,notebook:books.view})[tab]());
+  if(tab==='machine')machine.bind();
   if(tab==='fleet')fleet.bind();
   if(tab==='journey')journey.bind();
   if(tab==='notebook')books.bind();
@@ -377,6 +381,12 @@ async function exportAs(k){const stem='dsm-'+short(base()),m=data(),types={html:
   const payload=k==='sysl'?Sysl.write(m):k==='xlsx'?await ExcelIO.write(doc):k==='html'?dynamicHtml(doc):k==='md'?Formats.markdown(doc):k==='csv'?Formats.emitCsv(doc):JSON.stringify(k==='ipynb'?Notebook.write(doc):doc,null,2);
   download(stem+'.'+k,payload,types[k]);}
 function proposed(input,source=''){
+  if(input.kind==='machine-receipt'&&input.project===doc.project&&input.base!==base()){
+    const old=doc.history.find(h=>h.rev===input.base);
+    const summary=old?Views.differences(DSM.diff(old.data,data())):hint('Исходная ревизия отсутствует в этом файле.');
+    modal('Расчёт устарел',hint('После выполнения блокнота изменилась модель. База '+esc(input.base)+' · текущая '+esc(base()))+summary,()=>{books.machine(input.root);navigate('notebook');},'Подготовить свежий блокнот');
+    return;
+  }
   const archive=input.kind==='archive';const next=Formats.preview(doc,input);
   const changes=DSM.diff(data(),next);
   const title=archive?'Открыть проект с историей':'Проверить изменения';
@@ -421,6 +431,7 @@ $('save').onclick=()=>exportAs('json');
 document.addEventListener('click',async e=>{const t=e.target.closest('[data-action]');if(!t)return;const action=t.dataset.action,id=t.dataset.id;
   try{
     if(action==='replayEvidence'){books.replay(id);navigate('notebook');return;}
+    if(action.startsWith('machine')){await machine.handle(action.slice(7),id,t);return;}
     if(action.startsWith('fleet')){await fleet.handle(action.slice(5),id,t);return;}
     if(action==='openSizing'){sizing.select(id);navigate('sizing');return;}
     if(action.startsWith('sizing')){await sizing.handle(action.slice(6),id);return;}
@@ -538,7 +549,7 @@ async function start(){
   if(location.protocol==='http:'&&location.hostname==='127.0.0.1'&&location.pathname==='/'){
     try{const r=await fetch('/api/head',{cache:'no-store'});if(r.ok){const h=await r.json();if(h.rev!==base()||h.project&&h.project!==doc.project){const update=await fetch('/api/project',{cache:'no-store'});doc=DSM.document(await update.json());}server=true;}}catch{}}
   if(!server){try{const active=localStorage.getItem(entryKey);if(active?.startsWith('mazzy.dsm.1/'))cacheKey=active;const c=localStorage.getItem(cacheKey);if(c){const saved=DSM.document(JSON.parse(c));if(active||saved.project===embedded.project&&saved.history.some(h=>h.rev===DSM.head(embedded).rev))doc=saved;}}catch{cacheOK=false;}}
-  resetView();if(!readLocation()){if(data().nodes.some(n=>Fleet.role(n)==='stock'))tab='fleet';else if(tab==='matrix'&&(!data().nodes.length||data().nodes.some(n=>n.kind==='requirement')))tab='journey';render();}if(server)setInterval(sync,1800);
+  resetView();if(!readLocation()){if(Machine.products(data()).length)tab='machine';else if(data().nodes.some(n=>Fleet.role(n)==='stock'))tab='fleet';else if(tab==='matrix'&&(!data().nodes.length||data().nodes.some(n=>n.kind==='requirement')))tab='journey';render();}if(server)setInterval(sync,1800);
   window.addEventListener('hashchange',readLocation);
   window.addEventListener('storage',e=>{if(!server&&e.key===cacheKey&&e.newValue){if($('dialog').open||!cacheOK){toast('Есть новая версия в другой вкладке. Сохраните свою копию в JSON.');return;}try{const incoming=DSM.document(JSON.parse(e.newValue));const switched=incoming.project!==doc.project;doc=incoming;if(switched||!nodeBy(focus))resetView(switched);render();toast('Получена версия из другой вкладки');}catch{}}});
 }

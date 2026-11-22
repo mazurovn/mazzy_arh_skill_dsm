@@ -3,7 +3,7 @@ const Notebook=((M,A,F,Files,Profiles)=>{
   const md=(id,source)=>({id,cell_type:'markdown',metadata:{},source});
   const pre='null = None\ntrue = True\nfalse = False\nmodel = ';
   function write(doc,profile='full',installation,context){
-    if(profile!=='full'&&profile!=='installation'&&profile!=='fleet'&&!Object.hasOwn(Profiles,profile))throw Error('Неизвестный профиль блокнота');
+    if(profile!=='full'&&profile!=='machine'&&profile!=='installation'&&profile!=='fleet'&&!Object.hasOwn(Profiles,profile))throw Error('Неизвестный профиль блокнота');
     const h=M.head(doc),meta=F.meta(doc);
     const initial=profile==='full'?Object.fromEntries(['flow','risk'].map(l=>[l,A.calculate(h.data,l)])):{};
     const cells=[
@@ -30,7 +30,10 @@ const Notebook=((M,A,F,Files,Profiles)=>{
       code('release','rows=[]\nfor r in model["nodes"]:\n    if r["kind"] != "release": continue\n    assigned = [n for n in model["nodes"] if n.get("release")==r["id"]]\n    members={n["id"] for n in assigned}\n    known=sum(n["effort"] for n in assigned if n.get("effort") is not None)\n    unknown=sum(n.get("effort") is None for n in assigned)\n    outside=sum(e["layer"]=="flow" and e["from"] in members and e["to"] not in members for e in model["edges"])\n    rows.append([r["id"],len(assigned),known,unknown,r.get("capacity"),outside])\ntable(["Релиз","Работы","Оценено","Без оценки","Ёмкость","Внешние вызовы"],rows)'),
       md('handoff','## Возврат в редактор\nСохраните блокнот и выберите его в разделе «Обмен». Просмотрите разницу и сохраните новую версию. Если после экспорта агент уже изменил проект, откройте актуальный JSON и перенесите нужные изменения через патч.')
     ];
-    if(profile==='fleet'){
+    if(profile==='machine'){
+      const lab=typeof MachineBook!=='undefined'?MachineBook:require('./machine-notebook.js');
+      cells.splice(2,cells.length-2,...lab.cells(doc,installation,code,md,context));meta.profile=profile;
+    }else if(profile==='fleet'){
       const lab=typeof FleetNotebook!=='undefined'?FleetNotebook:require('./fleet-notebook.js');
       cells.splice(2,cells.length-2,...lab.cells(doc,installation,code,md,context));meta.profile=profile;
     }else if(profile==='installation'){
@@ -41,7 +44,7 @@ const Notebook=((M,A,F,Files,Profiles)=>{
       cells.splice(2,cells.length-3,md('report-title','## '+spec.name+'\n'+spec.caption),code('report',spec.python));
       meta.profile=profile;
     }
-    if(profile!=='installation'&&profile!=='fleet')cells.push(md('result-help','## Передать результат вычислений в DSM\nВыполните эту ячейку после своих изменений model и сохраните блокнот. В редакторе выберите «Проверить результат Python».'),
+    if(profile!=='machine'&&profile!=='installation'&&profile!=='fleet')cells.push(md('result-help','## Передать результат вычислений в DSM\nВыполните эту ячейку после своих изменений model и сохраните блокнот. В редакторе выберите «Проверить результат Python».'),
       code('result',"from IPython.display import display\n"+'display({"application/vnd.mazzy.dsm+json": {"project": '+JSON.stringify(doc.project)+', "base": '+JSON.stringify(h.rev)+', "data": model}, "text/plain": "Модель подготовлена для DSM"}, raw=True)',['dsm-result']));
     return {nbformat:4,nbformat_minor:5,metadata:{kernelspec:{display_name:'Python 3',language:'python',name:'python3'},language_info:{name:'python'},dsm:meta},cells};
   }
@@ -57,6 +60,12 @@ const Notebook=((M,A,F,Files,Profiles)=>{
   function result(book){
     Files.validate(book);
     const cells=book.cells.filter(c=>c.cell_type==='code'&&c.metadata.tags?.includes('dsm-result'));
+    if(book.metadata?.dsm?.profile==='machine'){
+      const payloads=cells.flatMap(c=>c.outputs.map(o=>o.data?.['application/vnd.mazzy.machine+json']).filter(Boolean));
+      const v=payloads[0],meta=book.metadata.dsm;
+      if(cells.length!==1||payloads.length!==1||v.base!==meta.base||v.project!==meta.project)throw Error('Выполните расчёт изделия и сохраните блокнот с текущей базой');
+      return {...v,kind:'machine-receipt'};
+    }
     if(book.metadata?.dsm?.profile==='fleet'){
       const outputs=cells.flatMap(c=>c.outputs.map(o=>o.data?.['application/vnd.mazzy.fleet+json']).filter(Boolean));
       if(cells.length!==1||outputs.length!==1)throw Error('Выполните расчёт парка и сохраните блокнот');
